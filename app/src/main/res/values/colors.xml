@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Behind every screen's artwork. The app is dark end to end, so the default
+      light window background only ever showed as a white flash between screens
+      or through a fading transition.
+    -->
+    <color name="window_background">#FF0B120E</color>
+</resources>

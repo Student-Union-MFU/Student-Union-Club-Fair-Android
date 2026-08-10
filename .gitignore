@@ -1,0 +1,31 @@
+# Gradle / Android build output
+.gradle/
+build/
+/app/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+.kotlin/
+
+# Machine-specific SDK location — every checkout writes its own.
+local.properties
+
+# Signing material. Never commit a keystore or its passwords; see
+# `app/build.gradle.kts` for how the release config reads them.
+keystore.properties
+*.jks
+*.keystore
+
+# Build artefacts
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# IDE
+*.iml
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

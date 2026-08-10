@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SU Club Fair</string>
+
+    <string name="welcome_title">Club Fair</string>
+    <string name="welcome_subtitle">Clubs, booths\n&amp; a weekend\nto explore</string>
+    <string name="welcome_drag_hint">Get Started</string>
+
+    <string name="login_title">Log in</string>
+    <string name="login_subtitle">Sign in to continue to Club Fair.</string>
+    <string name="login_no_account">Don\'t have an account? Sign up</string>
+    <string name="login_cta">Login</string>
+    <string name="login_or">or</string>
+    <string name="login_google">Continue with Google</string>
+
+    <string name="register_title">Create an Account</string>
+    <string name="register_subtitle">Sign up to explore clubs and collect your booth stamps</string>
+    <string name="register_google_subtitle">Sign up with your Google account. We\'ll ask for your school details next.</string>
+    <string name="register_first_hint">First name</string>
+    <string name="register_surname_hint">Surname</string>
+    <string name="register_confirm_hint">Confirm</string>
+    <string name="register_school_hint">School</string>
+    <string name="register_major_hint">Major</string>
+    <string name="register_cta">Create Account</string>
+    <string name="register_have_account">Already have an account? Log in</string>
+    <string name="register_legal">By tapping Create Account, you agree to our Terms of Service and acknowledge our Privacy Policy</string>
+    <string name="register_legal_terms">Terms of Service</string>
+    <string name="register_legal_privacy">Privacy Policy</string>
+
+    <string name="onboarding_headline">Visit all 27 booths, scan each QR code, and win prizes!</string>
+    <string name="onboarding_cta">Continue</string>
+
+    <string name="home_headline">Find your club this weekend</string>
+    <string name="home_checkpoints">Checkpoints</string>
+    <!-- %1$d visited, %2$d total -->
+    <string name="home_checkpoints_count">%1$d</string>
+    <plurals name="home_checkpoints_total">
+        <item quantity="one">/ %1$d booth</item>
+        <item quantity="other">/ %1$d booths</item>
+    </plurals>
+    <string name="home_checkpoints_percent">%1$d %% complete</string>
+    <string name="home_clubs">Clubs</string>
+    <string name="home_prizes">Prizes</string>
+
+    <!--
+      One line, with the name emphasised inside it. The placeholder can be
+      moved anywhere in a translation — HomeScreen splits on it rather than
+      assuming the name comes last.
+    -->
+    <string name="home_greeting">Welcome back, %1$s</string>
+    <string name="home_profile">Open profile</string>
+    <string name="home_announcements">Announcements</string>
+
+    <string name="home_stat_rank">Rank</string>
+    <string name="home_stat_prizes">Prizes</string>
+    <string name="home_stat_left">Ends in</string>
+    <string name="home_stat_left_value">4h</string>
+
+
+    <string name="nav_home">Home</string>
+    <string name="nav_booths">Booths</string>
+    <string name="nav_profile">Profile</string>
+    <string name="nav_events">Events</string>
+
+    <!-- Events: the Student Union's announcements channel. -->
+    <string name="events_channel">Announcement</string>
+    <string name="events_channel_topic">Announcements from Student Union</string>
+    <string name="events_add_reaction">+</string>
+    <string name="events_composer_hint">Message #announcements</string>
+    <string name="events_send">Send announcement</string>
+    <string name="events_just_now">Just now</string>
+    <string name="nav_scan">Scan a booth</string>
+
+    <string name="scan_title">Scan a booth</string>
+    <string name="scan_hint">Point the camera at the QR code on the booth sign</string>
+    <string name="scan_permission_title">Camera access needed</string>
+    <string name="scan_permission_body">Scanning a booth QR code needs the camera. Nothing is recorded or uploaded — the code is read on your phone.</string>
+    <string name="scan_permission_cta">Allow camera</string>
+    <string name="scan_permission_settings">Open settings</string>
+    <string name="scan_unavailable_title">No camera available</string>
+    <string name="scan_unavailable_body">This device has no camera the app can use. Show your pass at the booth instead.</string>
+    <string name="scan_result_booth">Booth %1$02d</string>
+    <string name="scan_result_unknown">Not a booth code</string>
+    <string name="scan_again">Scan another</string>
+    <string name="scan_close">Close</string>
+
+    <string name="profile_pass_row">My pass</string>
+    <string name="profile_pass_row_hint">Show your QR at a booth</string>
+
+    <string name="booths_title">Booths</string>
+    <string name="booths_back">Back to areas</string>
+    <string name="booths_hub_label">CHECKED IN</string>
+    <plurals name="booths_progress">
+        <item quantity="one">%1$d of %2$d scanned</item>
+        <item quantity="other">%1$d of %2$d scanned</item>
+    </plurals>
+    <string name="booths_filter_all">All</string>
+    <string name="booths_filter_scanned">Scanned</string>
+    <string name="booths_filter_remaining">Remaining</string>
+    <!-- %1$d scanned in this zone, %2$d in it -->
+    <string name="booths_zone_progress">%1$d/%2$d</string>
+    <string name="booths_number">%1$02d</string>
+    <string name="booths_number_long">Booth %1$02d</string>
+    <plurals name="booths_members">
+        <item quantity="one">%1$d member</item>
+        <item quantity="other">%1$d members</item>
+    </plurals>
+    <string name="booths_scanned_desc">Scanned</string>
+    <string name="booths_empty">Nothing here yet</string>
+    <string name="booth_status_scanned">Scanned</string>
+    <string name="booth_status_unscanned">Not scanned yet</string>
+    <string name="booth_status_unscanned_hint">Scan the QR at this booth</string>
+
+    <string name="profile_title">Profile</string>
+    <string name="profile_pass_active">Pass active</string>
+    <string name="profile_stat_booths">Booths</string>
+    <string name="profile_back">Back</string>
+    <string name="profile_email">Email</string>
+    <string name="profile_phone">Phone</string>
+    <string name="profile_school">School</string>
+    <string name="profile_major">Major</string>
+    <string name="profile_sign_out">Sign out</string>
+
+    <string name="qr_title">Club Fair 2026</string>
+    <string name="qr_subtitle">Student pass</string>
+    <string name="qr_hint">Show this at any booth to get your checkpoint</string>
+    <string name="qr_admit">Admit one</string>
+    <string name="qr_event_dates">26–27 Jul</string>
+
+    <string name="auth_phone_hint">683XXXXXXX</string>
+    <string name="auth_password_hint">Password</string>
+
+    <string name="logo_mfu">Mae Fah Luang University</string>
+    <string name="logo_su">Student Union</string>
+</resources>

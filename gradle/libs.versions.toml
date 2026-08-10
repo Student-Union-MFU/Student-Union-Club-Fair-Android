@@ -1,0 +1,55 @@
+[versions]
+agp = "9.2.1"
+kotlin = "2.4.10"
+coreKtx = "1.19.0"
+lifecycleRuntimeKtx = "2.11.0"
+activityCompose = "1.13.0"
+composeBom = "2026.06.01"
+junit = "4.13.2"
+junitExt = "1.3.0"
+espressoCore = "3.7.0"
+backdrop = "2.0.0"
+zxing = "3.5.4"
+camerax = "1.5.0"
+sceneview = "4.26.0"
+
+[libraries]
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
+androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
+androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
+androidx-animation = { group = "androidx.compose.animation", name = "animation" }
+androidx-ui = { group = "androidx.compose.ui", name = "ui" }
+androidx-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
+androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
+androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
+androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
+androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
+androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
+# Liquid glass — real refraction through the pane, not just a blur. Kyant0's
+# AndroidLiquidGlass. minSdk 21: the blur needs API 31 and the refraction API 33,
+# and the library no-ops each below those rather than crashing, so the bar
+# degrades to a plain translucent pill on older phones.
+backdrop = { group = "io.github.kyant0", name = "backdrop", version.ref = "backdrop" }
+# QR encode *and* decode: the pass renders its own module grid so it can be
+# styled, and the scanner runs the same library over camera frames.
+zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
+# Camera for the scanner. camera-view carries PreviewView, which handles the
+# surface, rotation and scale work that a raw SurfaceView would leave to us.
+androidx-camera-core = { group = "androidx.camera", name = "camera-core", version.ref = "camerax" }
+androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
+androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
+androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
+# Filament, wrapped for Compose. Carried for exactly one screen: the animal
+# model that appears when a booth on a zone map is opened. minSdk 24, same as
+# this app, so it costs no floor — but it does bring Filament's native
+# renderer, which is the bulk of the APK growth.
+sceneview = { group = "io.github.sceneview", name = "sceneview", version.ref = "sceneview" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitExt" }
+androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
