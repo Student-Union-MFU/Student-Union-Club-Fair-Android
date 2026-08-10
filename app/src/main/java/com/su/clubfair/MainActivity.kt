@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
@@ -29,14 +30,16 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.su.clubfair.ui.AppShell
 import com.su.clubfair.ui.FairViewModel
 import com.su.clubfair.ui.SessionState
+import com.su.clubfair.data.net.GoogleSignIn
 import com.su.clubfair.ui.auth.AuthViewModel
 import com.su.clubfair.ui.auth.LoginScreen
-import com.su.clubfair.ui.auth.RegisterGoogleScreen
 import com.su.clubfair.ui.auth.RegisterScreen
 import com.su.clubfair.ui.onboarding.OnboardingScreen
 import com.su.clubfair.ui.scene.MeshBackground
 import com.su.clubfair.ui.theme.SUClubFairTheme
 import com.su.clubfair.ui.welcome.WelcomeScreen
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 /**
  * The screens reachable before sign-in.
@@ -46,11 +49,16 @@ import com.su.clubfair.ui.welcome.WelcomeScreen
  * sequence. Onboarding and Home have left this list: both are now decided by
  * whether a session exists rather than by where the student last tapped, which
  * is what makes a login survive closing the app.
+ *
+ * `RegisterGoogle` has left it too. That screen existed to put Google first and
+ * then ask for what Google could not supply — but the button is not wired to a
+ * client id yet, so it was a step that did nothing before a form that asks for
+ * everything anyway. Sign-up goes straight to the form; the screen file stays for
+ * when there is a client id to put behind it.
  */
 private enum class AuthStep {
     Welcome,
     Login,
-    RegisterGoogle,
     Register,
 }
 
@@ -135,7 +143,10 @@ private fun SignedOutFlow() {
     val auth: AuthViewModel = viewModel(factory = AuthViewModel.Factory)
     val loginForm by auth.login.collectAsStateWithLifecycle()
     val registerForm by auth.register.collectAsStateWithLifecycle()
-    val hasAccount by auth.hasAccount.collectAsStateWithLifecycle()
+
+    // Credential Manager shows UI, so it needs the Activity rather than the
+    // application context.
+    val activity = LocalActivity.current
 
     var step by rememberSaveable { mutableStateOf(AuthStep.Welcome) }
 
@@ -143,8 +154,7 @@ private fun SignedOutFlow() {
     // that is not in this flow any more.
     BackHandler(enabled = step != AuthStep.Welcome) {
         step = when (step) {
-            AuthStep.Register -> AuthStep.RegisterGoogle
-            AuthStep.RegisterGoogle -> AuthStep.Login
+            AuthStep.Register -> AuthStep.Login
             else -> AuthStep.Welcome
         }
     }
@@ -183,31 +193,48 @@ private fun SignedOutFlow() {
                 state = loginForm,
                 onPhoneChange = auth::onLoginPhone,
                 onPasswordChange = auth::onLoginPassword,
-                // No navigation on success: writing the session makes
-                // `SessionState` change, and the gate above swaps the whole
-                // tree. A screen that navigated itself as well would be a
-                // second source of truth for the same fact.
-                onSubmit = { auth.submitLogin(onSuccess = {}) },
-                onSignUp = { step = AuthStep.RegisterGoogle },
-                // Lands where the password form lands. There is no Google flow
-                // behind it yet — no Credential Manager call, no ID token,
-                // nothing to verify it against — so it goes to the form that
-                // collects the same facts by asking.
-                onGoogleLogin = { step = AuthStep.RegisterGoogle },
-            )
-
-            AuthStep.RegisterGoogle -> RegisterGoogleScreen(
-                onGoogleContinue = { step = AuthStep.Register },
-                onLogin = { step = AuthStep.Login },
+                // No navigation on success: a successful sign-in writes the
+                // session, `SessionState` changes, and the gate above swaps the
+                // whole tree. A screen that navigated itself as well would be a
+                // second source of truth for one fact.
+                onSubmit = auth::submitLogin,
+                onSignUp = { step = AuthStep.Register },
+                onGoogleLogin = { requestGoogleSignIn(activity, auth) },
+                googleAvailable = auth.googleAvailable,
             )
 
             AuthStep.Register -> RegisterScreen(
                 state = registerForm,
                 onChange = auth::onRegisterField,
-                onCreateAccount = { auth.submitRegister(onSuccess = {}) },
+                onCreateAccount = auth::submitRegister,
                 onLogin = { step = AuthStep.Login },
-                replacesExistingAccount = hasAccount,
             )
+        }
+    }
+}
+
+/**
+ * Opens the Google credential sheet and hands the ID token to the ViewModel.
+ *
+ * Unreachable today — the button that calls it is disabled until a Web OAuth
+ * client id is built in — but wired rather than stubbed, so turning Google on is a
+ * `-PgoogleWebClientId=…` away and not a code change.
+ *
+ * The app never inspects the token. su-server verifies the signature, the
+ * audience, `email_verified` and the MFU domain; a client-side check would prove
+ * nothing, since a client can be modified.
+ */
+private fun requestGoogleSignIn(activity: android.app.Activity?, auth: AuthViewModel) {
+    val host = activity ?: return
+    // The ViewModel's own scope, so a rotation mid-sheet does not orphan the call.
+    CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+        when (val result = GoogleSignIn.requestIdToken(host)) {
+            is GoogleSignIn.Result.Token -> auth.submitGoogle(result.idToken)
+            // Dismissing the sheet is not a failure. Say nothing.
+            GoogleSignIn.Result.Cancelled -> Unit
+            GoogleSignIn.Result.NoAccount -> auth.onGoogleFailed(null)
+            GoogleSignIn.Result.NotConfigured -> auth.onGoogleFailed(null)
+            is GoogleSignIn.Result.Failed -> auth.onGoogleFailed(null)
         }
     }
 }

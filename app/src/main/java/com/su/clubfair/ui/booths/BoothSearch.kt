@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.sp
 import com.su.clubfair.R
 import com.su.clubfair.ui.components.glassSurface
 import com.su.clubfair.ui.model.Booth
+import com.su.clubfair.ui.model.accent
 import com.su.clubfair.ui.model.previewRoster
 import com.su.clubfair.ui.scene.MeshBackground
 import com.su.clubfair.ui.theme.AlanSans
@@ -136,11 +137,16 @@ internal fun List<Booth>.matching(query: String): List<Booth> {
     if (terms.isEmpty()) return emptyList()
 
     return filter { booth ->
-        val haystack = "${booth.name} ${booth.about}".lowercase()
+        // Thai name, English name, booth code and blurb. A student may know the
+        // club by either language, or only by the code on the sign they are
+        // standing next to.
+        val haystack = listOfNotNull(booth.name, booth.nameEn, booth.code, booth.about)
+            .joinToString(" ")
+            .lowercase()
         terms.all { it in haystack }
     }.sortedWith(
         // Rank, then booth order, so the list is stable as a query is typed.
-        compareBy({ booth -> -booth.rankFor(terms) }, Booth::number),
+        compareBy({ booth -> -booth.rankFor(terms) }, Booth::id),
     )
 }
 
@@ -149,11 +155,12 @@ internal fun List<Booth>.matching(query: String): List<Booth> {
  * beats one hidden mid-word, and either beats a match only in the blurb.
  */
 private fun Booth.rankFor(terms: List<String>): Int {
-    val nameWords = name.lowercase().split(' ', '&').filter(String::isNotEmpty)
+    val nameWords = "$name ${nameEn.orEmpty()}".lowercase()
+        .split(' ', '&').filter(String::isNotEmpty)
     return terms.sumOf { term ->
         when {
             nameWords.any { it.startsWith(term) } -> 3
-            term in name.lowercase() -> 2
+            term in "$name ${nameEn.orEmpty()}".lowercase() -> 2
             else -> 1
         }
     }
@@ -280,7 +287,7 @@ private fun Results(
             contentPadding = PaddingValues(bottom = Dimens.NavBarClearance),
             verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm),
         ) {
-            items(results, key = { it.number }) { booth ->
+            items(results, key = { it.id }) { booth ->
                 ResultRow(booth = booth, onClick = { onSelectBooth(booth) })
             }
         }
@@ -314,15 +321,10 @@ private fun ResultRow(
             modifier = Modifier
                 .size(40.dp)
                 .clip(RoundedCornerShape(Dimens.RadiusSm))
-                .background(booth.zone.accent.copy(alpha = 0.18f)),
+                .background(booth.accent.copy(alpha = 0.18f)),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(
-                painter = painterResource(booth.icon),
-                contentDescription = null,
-                tint = booth.zone.accent,
-                modifier = Modifier.size(20.dp),
-            )
+            BoothIcon(booth = booth, size = 20.dp)
         }
         Spacer(Modifier.size(Dimens.Space))
         Column(Modifier.weight(1f)) {
@@ -334,10 +336,9 @@ private fun ResultRow(
                 color = Color.White,
             )
             Text(
-                text = stringResource(
-                    R.string.booths_number_long,
-                    booth.number,
-                ) + "  ·  " + booth.zone.title,
+                // The code is what is on the sign, which is the answer to
+                // "where is it" that a club name cannot give.
+                text = booth.displayCode,
                 fontFamily = AlanSans,
                 fontWeight = FontWeight.Normal,
                 fontSize = 12.sp,
@@ -348,7 +349,7 @@ private fun ResultRow(
             Icon(
                 painter = painterResource(R.drawable.ic_check),
                 contentDescription = stringResource(R.string.booths_scanned_desc),
-                tint = booth.zone.accent,
+                tint = booth.accent,
                 modifier = Modifier.size(18.dp),
             )
         }
@@ -407,8 +408,8 @@ private fun BoothSearchPreview() {
         Box {
             MeshBackground()
             BoothSearch(
-                query = "art",
-                booths = previewRoster(19),
+                query = "ชมรม",
+                booths = previewRoster(7),
                 onQueryChange = {},
                 onSelectBooth = {},
                 onClose = {},
@@ -425,7 +426,7 @@ private fun BoothSearchEmptyPreview() {
             MeshBackground()
             BoothSearch(
                 query = "quidditch",
-                booths = previewRoster(19),
+                booths = previewRoster(7),
                 onQueryChange = {},
                 onSelectBooth = {},
                 onClose = {},

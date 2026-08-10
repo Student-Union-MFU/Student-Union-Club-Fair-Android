@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.su.clubfair.R
 import com.su.clubfair.ui.model.Booth
+import com.su.clubfair.ui.model.accent
 import com.su.clubfair.ui.theme.AlanSans
 import com.su.clubfair.ui.theme.Dimens
 import com.su.clubfair.ui.theme.Ink
@@ -72,7 +73,7 @@ fun BoothSheet(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val accent = booth.zone.accent
+    val accent = booth.accent
 
     Box(
         modifier = Modifier
@@ -117,12 +118,7 @@ fun BoothSheet(
                         .background(accent.copy(alpha = 0.18f)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(
-                        painter = painterResource(booth.icon),
-                        contentDescription = null,
-                        tint = accent,
-                        modifier = Modifier.size(24.dp),
-                    )
+                    BoothIcon(booth = booth, size = 24.dp)
                 }
 
                 Spacer(Modifier.width(Dimens.Space))
@@ -135,17 +131,13 @@ fun BoothSheet(
                         lineHeight = 24.sp,
                         color = Color.White,
                     )
-                    // Booth number and size on one line: the number is what is
-                    // printed on the stall you are looking for, and the count
-                    // is the only other fact worth a glance. Neither earns a
-                    // row of its own.
+                    // The code printed on the stall, then the English name where
+                    // there is one. A member count used to share this line and was
+                    // invented per club — the Student Union has never supplied any,
+                    // so it is gone rather than guessed.
                     Text(
-                        text = stringResource(R.string.booths_number_long, booth.number) +
-                            "  ·  " + pluralStringResource(
-                                R.plurals.booths_members,
-                                booth.members,
-                                booth.members,
-                            ),
+                        text = listOfNotNull(booth.displayCode, booth.nameEn)
+                            .joinToString("  ·  "),
                         fontFamily = AlanSans,
                         fontWeight = FontWeight.Medium,
                         fontSize = 12.sp,
@@ -159,7 +151,7 @@ fun BoothSheet(
 
             Spacer(Modifier.height(Dimens.Space))
             Text(
-                text = booth.about,
+                text = booth.about.orEmpty(),
                 fontFamily = AlanSans,
                 fontWeight = FontWeight.Normal,
                 fontSize = 14.sp,

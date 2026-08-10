@@ -1,5 +1,6 @@
 package com.su.clubfair.ui.auth
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -64,7 +65,6 @@ fun RegisterScreen(
     onChange: (RegisterForm.() -> RegisterForm) -> Unit = {},
     onCreateAccount: () -> Unit = {},
     onLogin: () -> Unit = {},
-    replacesExistingAccount: Boolean = false,
 ) {
     AuthBackground(modifier = modifier) {
         Column(
@@ -92,19 +92,13 @@ fun RegisterScreen(
                 color = Color.White,
             )
 
-            // Said before the form rather than in the confirmation after it: by
-            // the time someone has filled in seven fields, "this wipes the other
-            // account" is news arriving far too late to act on.
-            if (replacesExistingAccount) {
-                Spacer(Modifier.height(Dimens.Space))
-                Text(
-                    text = stringResource(R.string.register_replaces_account),
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Normal,
-                    fontSize = 12.sp,
-                    lineHeight = 1.4.em,
-                    color = Ink.Muted,
-                )
+            // The answer to the last submit, above the fields so it is readable
+            // while the field it refers to is being corrected.
+            AnimatedVisibility(visible = state.formError != null) {
+                Column {
+                    Spacer(Modifier.height(Dimens.Space))
+                    state.formError?.let { AuthFormError(error = it) }
+                }
             }
 
             Spacer(Modifier.height(24.dp))
@@ -140,19 +134,35 @@ fun RegisterScreen(
                 )
             }
 
+            // The email, not the student id. The local part of an MFU address *is*
+            // the student id, so su-server derives it — asking for both would be
+            // two fields for one number and two chances for them to disagree.
             Spacer(Modifier.height(Dimens.Space))
             AuthTextField(
-                value = state.studentId,
-                onValueChange = { value -> onChange { copy(studentId = value) } },
-                placeholder = stringResource(R.string.register_student_id_hint),
+                value = state.email,
+                onValueChange = { value -> onChange { copy(email = value) } },
+                placeholder = stringResource(R.string.register_email_hint),
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Number,
+                    keyboardType = KeyboardType.Email,
                     imeAction = ImeAction.Next,
                 ),
-                error = state.studentIdError,
+                error = state.emailError,
                 showError = state.showErrors,
             )
+            // Shown as soon as the address parses, so the id the server is about to
+            // store is never a surprise on the profile screen afterwards.
+            state.derivedStudentId?.let { id ->
+                Spacer(Modifier.height(Dimens.SpaceXs))
+                Text(
+                    text = stringResource(R.string.register_derived_id, id),
+                    modifier = Modifier.padding(start = Dimens.CardPadding),
+                    fontFamily = AlanSans,
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 12.sp,
+                    color = Ink.Muted,
+                )
+            }
 
             Spacer(Modifier.height(Dimens.Space))
             AuthTextField(
@@ -286,7 +296,7 @@ private fun RegisterScreenErrorPreview() {
         RegisterScreen(
             state = RegisterForm(
                 firstName = "Yion",
-                studentId = "683",
+                email = "yion@gmail.com",
                 password = "short",
                 showErrors = true,
             ),

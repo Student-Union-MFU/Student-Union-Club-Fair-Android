@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
@@ -28,6 +29,7 @@ import com.su.clubfair.R
 import com.su.clubfair.ui.components.PillButton
 import com.su.clubfair.ui.theme.AlanSans
 import com.su.clubfair.ui.theme.Dimens
+import com.su.clubfair.ui.theme.Ink
 import com.su.clubfair.ui.theme.SUClubFairTheme
 
 /**
@@ -51,6 +53,15 @@ fun LoginScreen(
     onSubmit: () -> Unit = {},
     onSignUp: () -> Unit = {},
     onGoogleLogin: () -> Unit = {},
+    /**
+     * Whether Google sign-in can do anything.
+     *
+     * False until a Web OAuth client id is built in. The button is shown but
+     * disabled, with a line under it saying so, rather than hidden: a control that
+     * vanishes leaves a student wondering whether they used the wrong app, while
+     * one visibly not ready points them at the password field.
+     */
+    googleAvailable: Boolean = false,
 ) {
     AuthBackground(modifier = modifier) {
         Column(
@@ -153,7 +164,21 @@ fun LoginScreen(
             GoogleButton(
                 text = stringResource(R.string.login_google),
                 onClick = onGoogleLogin,
+                enabled = googleAvailable && !state.submitting,
             )
+            if (!googleAvailable) {
+                Spacer(Modifier.height(Dimens.SpaceXs))
+                Text(
+                    text = stringResource(R.string.auth_google_unavailable),
+                    modifier = Modifier.fillMaxWidth(),
+                    fontFamily = AlanSans,
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 11.sp,
+                    lineHeight = 1.4.em,
+                    color = Ink.Muted,
+                    textAlign = TextAlign.Center,
+                )
+            }
             Spacer(Modifier.height(8.dp))
         }
     }
@@ -176,7 +201,7 @@ private fun LoginScreenErrorPreview() {
                 phone = "0683",
                 password = "",
                 showErrors = true,
-                formError = FormError.WrongPassword,
+                formError = FormError.Rejected("เบอร์โทรหรือรหัสผ่านไม่ถูกต้อง"),
             ),
         )
     }

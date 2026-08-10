@@ -4,9 +4,10 @@ import com.su.clubfair.data.EmailAddress
 import com.su.clubfair.data.PasswordPolicy
 import com.su.clubfair.data.PasswordProblem
 import com.su.clubfair.data.PhoneNumber
-import com.su.clubfair.data.StudentId
+import com.su.clubfair.data.MfuEmail
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -87,25 +88,42 @@ class PasswordPolicyTest {
     }
 }
 
-class StudentIdTest {
+/**
+ * The MFU address, and the student id inside it.
+ *
+ * Replaces `StudentIdTest`. Sign-up no longer asks for the id — su-server derives
+ * it from the email local part — so what matters on the client is recognising an
+ * MFU address and showing the student the id it implies before they submit.
+ */
+class MfuEmailTest {
 
     @Test
-    fun `accepts ten digits`() {
-        assertTrue(StudentId.isValid("6831503029"))
+    fun `recognises an MFU address`() {
+        assertTrue(MfuEmail.isMfuAddress("6831503029@lamduan.mfu.ac.th"))
+        assertTrue(MfuEmail.isMfuAddress("  6831503029@LAMDUAN.MFU.AC.TH  "))
     }
 
     @Test
-    fun `accepts a spaced id and stores it packed`() {
-        assertTrue(StudentId.isValid("683 150 3029"))
-        assertEquals("6831503029", StudentId.normalise("683 150 3029"))
+    fun `rejects anything outside the domain`() {
+        assertFalse(MfuEmail.isMfuAddress("yion@gmail.com"))
+        assertFalse(MfuEmail.isMfuAddress("yion@mfu.ac.th"))
+        assertFalse(MfuEmail.isMfuAddress("6831503029"))
+        assertFalse(MfuEmail.isMfuAddress(""))
     }
 
     @Test
-    fun `rejects anything that is not ten digits`() {
-        assertFalse(StudentId.isValid("683150302"))
-        assertFalse(StudentId.isValid("68315030299"))
-        assertFalse(StudentId.isValid(""))
-        assertFalse(StudentId.isValid("abcdefghij"))
+    fun `derives the id the server will store`() {
+        assertEquals("6831503029", MfuEmail.studentIdFrom("6831503029@lamduan.mfu.ac.th"))
+        assertEquals("6831503029", MfuEmail.studentIdFrom("6831503029@LAMDUAN.MFU.AC.TH"))
+    }
+
+    @Test
+    fun `derives nothing from an address it does not own`() {
+        // The UI shows this line only when it is non-null, so a wrong id can never
+        // be displayed as the one about to be stored.
+        assertNull(MfuEmail.studentIdFrom("yion@gmail.com"))
+        assertNull(MfuEmail.studentIdFrom("@lamduan.mfu.ac.th"))
+        assertNull(MfuEmail.studentIdFrom(""))
     }
 }
 

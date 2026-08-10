@@ -1,229 +1,480 @@
 package com.su.clubfair.data
 
+import com.su.clubfair.data.net.AnnouncementDto
+import com.su.clubfair.data.net.ApiResult
+import com.su.clubfair.data.net.BoothDto
+import com.su.clubfair.data.net.CheckInRequest
+import com.su.clubfair.data.net.ClubFairApi
+import com.su.clubfair.data.net.ProgressDto
+import com.su.clubfair.data.net.RegisterRequest
+import com.su.clubfair.data.net.UpdateProfileRequest
+import com.su.clubfair.data.net.ZoneDto
+import com.su.clubfair.data.net.valueOrNull
 import com.su.clubfair.ui.model.Announcement
 import com.su.clubfair.ui.model.Booth
-import com.su.clubfair.ui.model.BoothCount
+import com.su.clubfair.ui.model.FairProgress
+import com.su.clubfair.ui.model.PrizeTier
 import com.su.clubfair.ui.model.Reaction
-import com.su.clubfair.ui.model.SeedAnnouncements
 import com.su.clubfair.ui.model.Student
-import com.su.clubfair.ui.model.boothRoster
+import com.su.clubfair.ui.model.Zone
+import com.su.clubfair.ui.model.boothFrom
+import com.su.clubfair.ui.model.toCachedUser
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.json.Json
+import java.time.Instant
+import java.util.UUID
 
-/** What came back from a sign-in or sign-up attempt. */
-sealed interface AuthResult {
-    data object Success : AuthResult
-
-    /** No account has been registered on this device. */
-    data object NoAccount : AuthResult
-
-    /** There is an account, but for a different phone number. */
-    data object UnknownPhone : AuthResult
-
-    data object WrongPassword : AuthResult
+/**
+ * Whether anyone is signed in.
+ *
+ * No `Restoring` case here on purpose. "The token has not been read off disk yet"
+ * is not a fact about the session, it is the absence of one — the flow simply has
+ * not emitted. `FairViewModel` represents it as the initial value of its own
+ * `StateFlow`, which is where it belongs and where it cannot be mistaken for a
+ * state the repository might return.
+ */
+sealed interface SessionStatus {
+    data object SignedOut : SessionStatus
+    data class SignedIn(val student: Student) : SessionStatus
 }
 
-/** What a scanned payload turned out to be. */
+/** What a sign-in attempt came back with. */
+sealed interface AuthOutcome {
+    data object Success : AuthOutcome
+
+    /** The server said no, with its own message — already in the reader's language. */
+    data class Rejected(val message: String?) : AuthOutcome
+
+    /** Never reached the server. Signing in is the one thing that cannot be queued. */
+    data object Offline : AuthOutcome
+}
+
+/** What happened to a scan. */
 sealed interface ScanOutcome {
-    data class Recorded(val booth: Booth) : ScanOutcome
+    data class Recorded(val booth: Booth?) : ScanOutcome
+    data class AlreadyScanned(val booth: Booth?) : ScanOutcome
 
-    /** A real booth, already ticked. Worth saying out loud rather than no-oping. */
-    data class AlreadyScanned(val booth: Booth) : ScanOutcome
+    /** Not a fair code, or one that did not verify. Carries the server's message. */
+    data class Rejected(val message: String?) : ScanOutcome
 
-    data class NotABoothCode(val payload: String) : ScanOutcome
+    /** Expired — the student did nothing wrong and re-scanning fixes it. */
+    data class Expired(val message: String?) : ScanOutcome
+
+    /**
+     * Held on the device because there was no signal. Not a failure: it is
+     * recorded locally and will go up on the next successful call.
+     */
+    data object Queued : ScanOutcome
 }
 
 /**
  * The one thing the UI reads the fair through.
  *
- * Everything above this line is Compose; everything below is storage. That
- * boundary is the point of the class — screens used to reach straight into
- * `PlaceholderStudent` and `boothRoster(19)`, which is why nothing in the app
- * could change and nothing could be tested.
+ * Server-first, cache-backed. Every collection is a [StateFlow] seeded from
+ * DataStore and replaced by a successful fetch, which is what lets a student in a
+ * concrete hall with no signal still see the fair. Three rules hold throughout:
  *
- * ## Where the server goes
- *
- * Three things here are answered locally that a server will answer instead, and
- * each is marked at its own definition rather than only here:
- *
- *  - [signIn] checks the password against material on this device. A phone
- *    cannot authenticate anyone; see [PasswordHasher].
- *  - [recordScan] writes a checkpoint the student's own device asserts. A phone
- *    cannot certify that anyone stood in front of a booth; see [BoothCode].
- *  - [announcements] is a fixed seed list. There is no channel to read.
- *
- * [unsyncedScans] is the seam for the first of those to become real: it is every
- * scan this device holds, oldest first, which is exactly the backlog to POST
- * once there is somewhere to POST it.
- *
- * [clock] is injected so tests can hold time still.
+ *  1. **A read never fails visibly.** If the network is down the cached value
+ *     stays on screen. There is nothing useful to say about a stale booth list.
+ *  2. **A write is queued, never lost.** A scan taken offline goes into
+ *     `pendingScans` and is retried; its `client_id` makes the retry idempotent,
+ *     so a resend cannot double-count.
+ *  3. **Sign-in is the exception to both.** It cannot be answered from a cache
+ *     and it cannot be queued, so [AuthOutcome.Offline] is a real state the UI
+ *     has to show.
  */
 class FairRepository(
     private val store: ClubFairStore,
+    private val api: ClubFairApi,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
+    private val json = Json { ignoreUnknownKeys = true }
 
-    /** The signed-in student with their live counters, or null when signed out. */
-    val student: Flow<Student?> =
-        combine(store.session, store.scans) { account, scans ->
-            account?.let {
-                Student(
-                    firstName = it.firstName,
-                    surname = it.surname,
-                    email = it.email,
-                    studentId = it.studentId,
-                    phone = it.phone,
-                    school = it.school,
-                    major = it.major,
-                    visited = scans.size,
-                    total = BoothCount,
-                    // Not derivable on a phone — see Student.rank.
-                    rank = null,
-                    isAdmin = it.isAdmin,
-                )
+    private val _booths = MutableStateFlow<List<Booth>>(emptyList())
+    private val _zones = MutableStateFlow<List<Zone>>(emptyList())
+    private val _progress = MutableStateFlow(FairProgress())
+    private val _announcements = MutableStateFlow<List<Announcement>>(emptyList())
+
+    /** True while a refresh is in flight, for a pull-to-refresh indicator. */
+    private val _refreshing = MutableStateFlow(false)
+
+    /**
+     * Set when the last refresh could not reach the server.
+     *
+     * A banner, not an error screen: the cached data is still on display, so this
+     * says "what you are looking at may be out of date" rather than "something
+     * broke".
+     */
+    private val _offline = MutableStateFlow(false)
+
+    val booths: StateFlow<List<Booth>> = _booths.asStateFlow()
+    val zones: StateFlow<List<Zone>> = _zones.asStateFlow()
+    val progress: StateFlow<FairProgress> = _progress.asStateFlow()
+    val announcements: StateFlow<List<Announcement>> = _announcements.asStateFlow()
+    val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()
+    val offline: StateFlow<Boolean> = _offline.asStateFlow()
+
+    val hapticsEnabled: Flow<Boolean> = store.hapticsEnabled
+    val onboardingSeen: Flow<Boolean> = store.onboardingSeen
+    val pendingScanCount: Flow<Int> = store.pendingScans.map { it.size }
+
+    /**
+     * Whether anyone is signed in.
+     *
+     * Both halves are needed: a token with no cached profile cannot render the
+     * shell, and a profile with no token cannot make a request. Either missing is
+     * signed out.
+     */
+    val session: Flow<SessionStatus> =
+        combine(store.authToken, store.cachedUser) { token, cached ->
+            when {
+                token.isNullOrBlank() -> SessionStatus.SignedOut
+                cached == null -> SessionStatus.SignedOut
+                else -> SessionStatus.SignedIn(Student.from(cached))
             }
         }
 
-    /** Whether an account exists at all, which decides Welcome's call to action. */
-    val hasAccount: Flow<Boolean> = store.account.map { it != null }
+    // ---- Startup ---------------------------------------------------------
 
-    /** The full roster, ticked against what this device has scanned. */
-    val booths: Flow<List<Booth>> = store.scans.map { scans ->
-        boothRoster(scans.mapTo(mutableSetOf()) { it.booth })
+    /**
+     * Loads whatever the last session cached, before any network call.
+     *
+     * Called once at process start so the first frame after launch has content.
+     * Silent on failure by design: a cache that will not decode is a cache that
+     * gets replaced by the refresh a moment later.
+     */
+    suspend fun primeFromCache() {
+        store.cachedZones.first()?.let { raw ->
+            decode<List<ZoneDto>>(raw)?.let { dtos -> _zones.value = dtos.map(Zone::from) }
+        }
+        val visited = store.cachedProgress.first()
+            ?.let { decode<ProgressDto>(it) }
+            ?.also { _progress.value = it.toModel() }
+            ?.visitedBoothIds?.toSet()
+            ?: emptySet()
+
+        store.cachedBooths.first()?.let { raw ->
+            decode<List<BoothDto>>(raw)?.let { dtos ->
+                _booths.value = dtos.map { boothFrom(it, scanned = it.id in visited) }
+            }
+        }
+        store.cachedAnnouncements.first()?.let { raw ->
+            decode<List<AnnouncementDto>>(raw)?.let { dtos ->
+                _announcements.value = dtos.map { it.toModel() }
+            }
+        }
+    }
+
+    private inline fun <reified T> decode(raw: String): T? =
+        runCatching { json.decodeFromString<T>(raw) }.getOrNull()
+
+    // ---- Refresh ---------------------------------------------------------
+
+    private val refreshLock = Mutex()
+
+    /**
+     * Pulls everything the signed-in shell shows.
+     *
+     * Serialised behind a mutex: the shell refreshes on launch, on resume and on a
+     * pull, and three overlapping refreshes would race to write the same flows —
+     * with the slowest response winning regardless of which was newest.
+     *
+     * The queue is drained first. A scan taken offline should be counted before
+     * progress is read, or the student watches their own scan appear one refresh
+     * late.
+     */
+    suspend fun refresh() {
+        if (refreshLock.isLocked) return
+        refreshLock.withLock {
+            _refreshing.value = true
+            try {
+                flushPendingScans()
+
+                var reachedServer = false
+
+                api.booths().also { result ->
+                    result.valueOrNull()?.let { dtos ->
+                        reachedServer = true
+                        store.cacheBooths(json.encodeToString(dtos))
+                        val visited = _progress.value.visitedBoothIds
+                        _booths.value = dtos.map { boothFrom(it, scanned = it.id in visited) }
+                    }
+                }
+
+                api.zones().valueOrNull()?.let { dtos ->
+                    reachedServer = true
+                    store.cacheZones(json.encodeToString(dtos))
+                    _zones.value = dtos.map(Zone::from)
+                }
+
+                api.progress().valueOrNull()?.let { dto ->
+                    reachedServer = true
+                    store.cacheProgress(json.encodeToString(dto))
+                    applyProgress(dto)
+                }
+
+                api.announcements().valueOrNull()?.let { dtos ->
+                    reachedServer = true
+                    store.cacheAnnouncements(json.encodeToString(dtos))
+                    _announcements.value = dtos.map { it.toModel() }
+                }
+
+                _offline.value = !reachedServer
+            } finally {
+                _refreshing.value = false
+            }
+        }
+    }
+
+    /** Progress and the booth ticks are two views of one fact; they move together. */
+    private fun applyProgress(dto: ProgressDto) {
+        _progress.value = dto.toModel()
+        val visited = dto.visitedBoothIds.toSet()
+        _booths.value = _booths.value.map { it.copy(scanned = it.id in visited) }
+    }
+
+    // ---- Auth ------------------------------------------------------------
+
+    suspend fun signInWithGoogle(idToken: String): AuthOutcome =
+        completeSignIn(api.signInWithGoogle(idToken))
+
+    suspend fun signInWithPassword(phone: String, password: String): AuthOutcome =
+        completeSignIn(api.signInWithPassword(phone, password))
+
+    suspend fun register(
+        firstName: String,
+        surname: String,
+        email: String,
+        phone: String,
+        school: String?,
+        major: String?,
+        password: String,
+    ): AuthOutcome = completeSignIn(
+        api.register(
+            RegisterRequest(
+                firstName = firstName,
+                surname = surname,
+                email = email,
+                phone = phone,
+                // Deliberately not sent. The server derives it from the MFU email
+                // local part, which is the same number and cannot be mistyped.
+                studentId = null,
+                school = school,
+                major = major,
+                password = password,
+            ),
+        ),
+    )
+
+    private suspend fun completeSignIn(
+        result: ApiResult<com.su.clubfair.data.net.SessionDto>,
+    ): AuthOutcome = when (result) {
+        is ApiResult.Success -> {
+            val student = Student.from(result.value.user)
+            store.saveSession(result.value.token, student.toCachedUser(result.value.user.role))
+            // Straight into a refresh, so the shell opens on real data rather than
+            // on a frame of empty state followed by a jump.
+            refresh()
+            AuthOutcome.Success
+        }
+
+        is ApiResult.Offline -> AuthOutcome.Offline
+        is ApiResult.Failure -> AuthOutcome.Rejected(result.message)
     }
 
     /**
-     * The channel, with the student's own reactions merged back in.
+     * Ends the session locally.
      *
-     * The seed's counts stand for everyone else; the stored set decides which
-     * chips are lit and bumps those counts by one, so a reaction a student left
-     * yesterday is still theirs when they come back.
+     * There is no server call: the token is stateless and expires on its own, so
+     * "sign out" means forgetting it. A revocation endpoint would be worth having
+     * if a token were ever long-lived enough for it to matter.
      */
-    val announcements: Flow<List<Announcement>> = store.reactions.map { mine ->
-        SeedAnnouncements.map { post -> post.withMine(mine) }
+    suspend fun signOut() {
+        store.clearSession()
+        _progress.value = FairProgress()
+        _announcements.value = emptyList()
+        _booths.value = _booths.value.map { it.copy(scanned = false) }
+    }
+
+    suspend fun updateProfile(phone: String?, school: String?, major: String?): Boolean {
+        val result = api.updateProfile(UpdateProfileRequest(phone, school, major))
+        val user = result.valueOrNull() ?: return false
+        store.saveCachedUser(Student.from(user).toCachedUser(user.role))
+        return true
+    }
+
+    // ---- Scanning --------------------------------------------------------
+
+    /**
+     * Sends a scanned code, or queues it.
+     *
+     * The payload goes up verbatim. The client does not parse it, does not know
+     * which booth it names, and cannot: the code is an HMAC only the server can
+     * check. That is the point — it is why a student can no longer type a booth
+     * number in by hand.
+     */
+    suspend fun recordScan(payload: String): ScanOutcome {
+        val clientId = UUID.randomUUID().toString()
+        val deviceTime = Instant.ofEpochMilli(clock()).toString()
+        val request = CheckInRequest(payload, clientId, deviceTime)
+
+        return when (val result = api.recordCheckIn(request)) {
+            is ApiResult.Success -> {
+                val boothId = result.value.checkIn?.boothId
+                // Re-read rather than adjusting the local count: the server is the
+                // authority on how many booths this student has, and guessing would
+                // let the two drift on any outcome the client mispredicted.
+                api.progress().valueOrNull()?.let { applyProgress(it) }
+
+                val booth = boothId?.let { id -> _booths.value.firstOrNull { it.id == id } }
+                when (result.value.outcome) {
+                    "recorded" -> ScanOutcome.Recorded(booth)
+                    // A replay of the app's own queued scan is a success the
+                    // student has already been told about; treat it as the stamp
+                    // it is rather than as an error.
+                    "duplicate_request" -> ScanOutcome.Recorded(booth)
+                    else -> ScanOutcome.AlreadyScanned(booth)
+                }
+            }
+
+            is ApiResult.Offline -> {
+                store.enqueueScan(PendingScan(payload, clientId, deviceTime))
+                ScanOutcome.Queued
+            }
+
+            is ApiResult.Failure -> when (result.status) {
+                // The window passed. Its own outcome: re-scanning fixes it, and
+                // telling the student the code was "invalid" would send them
+                // looking for a different booth.
+                409 -> ScanOutcome.Expired(result.message)
+                else -> ScanOutcome.Rejected(result.message)
+            }
+        }
     }
 
     /**
-     * Scans this device is holding that no server has acknowledged.
+     * Sends whatever is waiting, oldest first.
      *
-     * Today that is all of them, because there is no server. It is exposed
-     * anyway, and Settings shows the count, because the alternative is a student
-     * assuming their afternoon is safely recorded somewhere when it is on one
-     * phone that could go in a fountain.
+     * A rejection dequeues as firmly as a success. A queued code whose window has
+     * passed will never be accepted, so keeping it would retry forever on every
+     * refresh — the honest outcome is that the scan is lost and the student must
+     * re-scan, which is the cost of rotating codes stated in the server's own
+     * comments.
      */
-    val unsyncedScans: Flow<List<ScanRecord>> = store.scans
+    private suspend fun flushPendingScans() {
+        val queued = store.pendingScans.first()
+        for (scan in queued) {
+            when (api.recordCheckIn(CheckInRequest(scan.payload, scan.clientId, scan.deviceTime))) {
+                is ApiResult.Success -> store.dequeueScan(scan.clientId)
+                is ApiResult.Failure -> store.dequeueScan(scan.clientId)
+                // Still no network. Stop: the rest will fail the same way, and
+                // hammering a dead connection costs battery for nothing.
+                is ApiResult.Offline -> return
+            }
+        }
+    }
 
-    val hapticsEnabled: Flow<Boolean> = store.hapticsEnabled
+    // ---- Channel ---------------------------------------------------------
 
-    val onboardingSeen: Flow<Boolean> = store.onboardingSeen
+    /**
+     * Toggles a reaction, updating the screen before the server answers.
+     *
+     * Optimistic because a chip that waits for a round trip feels broken, and the
+     * write is trivially reversible. The server's answer wins: on failure the flip
+     * is undone, so a rejected tap does not leave a chip lit.
+     */
+    suspend fun toggleReaction(postId: Long, emoji: String) {
+        val before = _announcements.value
+        _announcements.value = before.map { post ->
+            if (post.id == postId) post.toggling(emoji) else post
+        }
+
+        val result = api.toggleReaction(postId, emoji)
+        if (result.valueOrNull() == null) {
+            _announcements.value = before
+            return
+        }
+        // Re-read the channel so the counts are everyone's, not this device's
+        // guess at everyone's.
+        api.announcements().valueOrNull()?.let { dtos ->
+            store.cacheAnnouncements(json.encodeToString(dtos))
+            _announcements.value = dtos.map { it.toModel() }
+        }
+    }
+
+    // ---- Preferences -----------------------------------------------------
+
+    suspend fun setHapticsEnabled(enabled: Boolean) = store.setHapticsEnabled(enabled)
 
     suspend fun markOnboardingSeen() = store.setOnboardingSeen()
 
-    // ---- Auth -------------------------------------------------------------
-
-    /**
-     * Signs in against the account registered on this device.
-     *
-     * See the class note: this proves the phone was told the right password, not
-     * that the person holding it is who they say they are.
-     */
-    suspend fun signIn(phone: String, password: String): AuthResult {
-        val account = store.account.first() ?: return AuthResult.NoAccount
-        if (!PhoneNumber.matches(account.phone, phone)) return AuthResult.UnknownPhone
-        val ok = PasswordHasher.verify(password, account.passwordSalt, account.passwordHash)
-        if (!ok) return AuthResult.WrongPassword
-        store.setSignedIn(true)
-        return AuthResult.Success
+    /** Settings' "erase everything on this phone". */
+    suspend fun eraseDevice() {
+        store.clearAll()
+        _progress.value = FairProgress()
+        _announcements.value = emptyList()
+        _booths.value = emptyList()
+        _zones.value = emptyList()
     }
-
-    /** Registers the account this device holds, replacing any previous one. */
-    suspend fun signUp(
-        firstName: String,
-        surname: String,
-        studentId: String,
-        phone: String,
-        email: String,
-        school: String,
-        major: String,
-        password: String,
-    ): AuthResult {
-        val salt = PasswordHasher.newSalt()
-        store.saveAccount(
-            StoredAccount(
-                studentId = studentId.trim(),
-                firstName = firstName.trim(),
-                surname = surname.trim(),
-                email = email.trim(),
-                phone = PhoneNumber.normalise(phone),
-                school = school.trim(),
-                major = major.trim(),
-                isAdmin = false,
-                passwordSalt = salt,
-                passwordHash = PasswordHasher.hash(password, salt),
-            ),
-        )
-        return AuthResult.Success
-    }
-
-    /** Ends the session. The account and its scans stay, so signing back in works. */
-    suspend fun signOut() = store.setSignedIn(false)
-
-    /** Settings' "erase everything on this device" — account, scans and all. */
-    suspend fun eraseDevice() = store.clearAll()
-
-    // ---- Scanning ---------------------------------------------------------
-
-    /**
-     * Reads [payload] and records it if it names a booth.
-     *
-     * Returns what happened rather than a boolean, because the three outcomes
-     * need three different things said to someone standing at a booth holding a
-     * phone up: it worked, you already did this one, or that is not a fair code.
-     */
-    suspend fun recordScan(payload: String): ScanOutcome {
-        val number = BoothCode.parse(payload, BoothCount)
-            ?: return ScanOutcome.NotABoothCode(payload)
-
-        val added = store.recordScan(number, clock())
-        // Read the roster back rather than rebuilding it, so the returned booth
-        // carries the tick that was just written.
-        val booth = booths.first().first { it.number == number }
-        return if (added) ScanOutcome.Recorded(booth) else ScanOutcome.AlreadyScanned(booth)
-    }
-
-    // ---- Channel ----------------------------------------------------------
-
-    suspend fun toggleReaction(postId: Int, emoji: String) =
-        store.toggleReaction(reactionKey(postId, emoji))
-
-    suspend fun setHapticsEnabled(enabled: Boolean) = store.setHapticsEnabled(enabled)
 }
 
-/**
- * Lights this post's chips from [mine] and adds the student to those counts.
- *
- * An emoji the student picked that nobody else has used yet has no chip in the
- * seed, so it is appended at count 1 — the same shape [ScanOutcome] has, where
- * the stored fact wins over the placeholder.
- */
-private fun Announcement.withMine(mine: Set<String>): Announcement {
-    val chosen = mine.mapNotNullTo(mutableSetOf()) { key ->
-        key.substringBefore(':').toIntOrNull()?.takeIf { it == id }?.let { key.substringAfter(':') }
-    }
-    if (chosen.isEmpty()) return this
+// ---- Mapping -------------------------------------------------------------
 
-    val existing = reactions.map { reaction ->
-        if (reaction.emoji in chosen) {
-            reaction.copy(count = reaction.count + 1, mine = true)
-        } else {
-            reaction
+private fun ProgressDto.toModel() = FairProgress(
+    visited = visited,
+    total = total,
+    visitedBoothIds = visitedBoothIds.toSet(),
+    rank = rank,
+    prizes = prizes.map {
+        PrizeTier(
+            id = it.id,
+            threshold = it.threshold,
+            name = it.name,
+            description = it.description,
+            reached = it.reached,
+            claimed = it.claimed,
+        )
+    },
+)
+
+private fun AnnouncementDto.toModel() = Announcement(
+    id = id,
+    author = author,
+    postedAtMillis = runCatching { Instant.parse(postedAt).toEpochMilli() }
+        // An unparseable timestamp shows as "just now" rather than 1970, which
+        // would read as a corrupted post rather than a formatting slip.
+        .getOrDefault(System.currentTimeMillis()),
+    body = body,
+    reactions = reactions.map { Reaction(it.emoji, it.count, it.mine) },
+)
+
+/**
+ * The local half of an optimistic reaction tap.
+ *
+ * Only has to be right for the instant before the server answers — the real
+ * counts arrive immediately after — but it has to be right in the same direction,
+ * or the chip flickers the wrong way first.
+ */
+private fun Announcement.toggling(emoji: String): Announcement {
+    val existing = reactions.firstOrNull { it.emoji == emoji }
+    val updated = when {
+        existing == null -> reactions + Reaction(emoji, count = 1, mine = true)
+        // Last one out removes the chip rather than leaving a dead 0.
+        existing.mine && existing.count == 1 -> reactions - existing
+        existing.mine -> reactions.map {
+            if (it.emoji == emoji) it.copy(count = it.count - 1, mine = false) else it
+        }
+        else -> reactions.map {
+            if (it.emoji == emoji) it.copy(count = it.count + 1, mine = true) else it
         }
     }
-    val fresh = chosen
-        .filterNot { emoji -> reactions.any { it.emoji == emoji } }
-        .map { Reaction(it, count = 1, mine = true) }
-
-    return copy(reactions = existing + fresh)
+    return copy(reactions = updated)
 }

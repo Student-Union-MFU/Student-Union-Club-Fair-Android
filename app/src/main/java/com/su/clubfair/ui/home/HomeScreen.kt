@@ -54,6 +54,8 @@ import com.su.clubfair.ui.components.StatPane
 import com.su.clubfair.ui.components.glassSurface
 import com.su.clubfair.data.FairSchedule
 import com.su.clubfair.data.FairStatus
+import com.su.clubfair.ui.model.FairProgress
+import com.su.clubfair.ui.model.PreviewProgress
 import com.su.clubfair.ui.model.PreviewStudent
 import com.su.clubfair.ui.model.Student
 import com.su.clubfair.ui.theme.AlanSans
@@ -65,8 +67,19 @@ import kotlinx.coroutines.delay
 
 private val CardRadius = Dimens.RadiusLg
 
-/** Booths per row in the checkpoint grid; 27 booths lands on exactly three rows. */
-private const val GridColumns = 9
+/**
+ * Booths per row in the checkpoint grid.
+ *
+ * Seven, not nine. The fair has **28** booths — the real roster from club.pdf —
+ * and 28 divides by seven into exactly four rows. Nine was chosen when the roster
+ * was an invented 27, which it fitted in three; against 28 it leaves a row of one,
+ * and a grid with a single orphan cell reads as a rendering fault rather than as a
+ * count.
+ *
+ * The cell size follows from this: seven columns makes each cell slightly wider,
+ * which suits a four-row block better than nine narrow ones over three.
+ */
+private const val GridColumns = 7
 
 
 
@@ -75,14 +88,15 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
     student: Student = PreviewStudent,
     /**
-     * Which booth *numbers* have been collected — not how many.
+     * How far round the fair, from `GET /clubfair/progress`.
      *
-     * The grid used to fill its first `visited` cells from the count alone, so
-     * scanning booth 7 lit cell 1. That was invisible while the count was a
-     * hardcoded 19 and every cell was a fiction; the moment scanning became real
-     * it was a card showing the wrong booths.
+     * Separate from [student] because it changes on every scan while the identity
+     * does not — folding them together meant each scan produced a "new student"
+     * and rebuilt the whole shell.
      */
-    scannedBooths: Set<Int> = (1..student.visited).toSet(),
+    progress: FairProgress = PreviewProgress,
+    /** The last refresh could not reach the server; what is shown may be stale. */
+    offline: Boolean = false,
     onOpenClubs: () -> Unit = {},
     onOpenPrizes: () -> Unit = {},
     onOpenProfile: () -> Unit = {},
@@ -129,26 +143,33 @@ fun HomeScreen(
                 color = Ink.Muted,
             )
 
+            // Said once, at the top, and only when it is true. A stale-data notice
+            // repeated per card would be four times the noise for one fact.
+            if (offline) {
+                Spacer(Modifier.height(Dimens.Space))
+                OfflineNotice()
+            }
+
             Spacer(Modifier.height(Dimens.SpaceLg))
-            CheckpointsCard(
-                visited = student.visited,
-                total = student.total,
-                scannedBooths = scannedBooths,
-            )
+            CheckpointsCard(progress = progress)
 
             Spacer(Modifier.height(Dimens.Space))
             val countdown = fairCountdown()
             StatPane(
                 entries = listOf(
                     StatEntry(
-                        // An em dash where a number can't be known. Printing a
-                        // hardcoded `#42` next to two figures that are real made
-                        // all three unreadable — see Student.rank.
-                        value = student.rank?.let { "#$it" }
+                        // Real now: the server ranks students by check-in count.
+                        // Still an em dash for a student who has scanned nothing —
+                        // they are not in the running, and inventing a position
+                        // would be the old `#42` all over again.
+                        value = progress.rank?.let { "#$it" }
                             ?: stringResource(R.string.home_stat_unknown),
                         label = stringResource(R.string.home_stat_rank),
                     ),
-                    StatEntry("${student.prizes}", stringResource(R.string.home_stat_prizes)),
+                    StatEntry(
+                        "${progress.prizesEarned}",
+                        stringResource(R.string.home_stat_prizes),
+                    ),
                     StatEntry(countdown.value, countdown.label),
                 ),
             )
@@ -241,6 +262,40 @@ private fun greetingWith(name: String): AnnotatedString {
  */
 private const val NamePlaceholder = "\u0000"
 
+/**
+ * "You may be looking at old numbers."
+ *
+ * A line, not an error card. The cached data is still on screen and still mostly
+ * right, so this qualifies it rather than replacing it — an error screen here
+ * would hide a booth count that is very probably correct.
+ */
+@Composable
+private fun OfflineNotice(modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(Dimens.RadiusMd))
+            .background(Color.White.copy(alpha = 0.08f))
+            .padding(horizontal = Dimens.Space, vertical = Dimens.SpaceSm),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_alert_circle),
+            contentDescription = null,
+            tint = Ink.Muted,
+            modifier = Modifier.size(14.dp),
+        )
+        Spacer(Modifier.size(Dimens.SpaceSm))
+        Text(
+            text = stringResource(R.string.home_offline),
+            fontFamily = AlanSans,
+            fontWeight = FontWeight.Normal,
+            fontSize = 12.sp,
+            color = Ink.Muted,
+        )
+    }
+}
+
 /** The third stat tile: a value and the word above it. */
 private data class Countdown(val value: String, val label: String)
 
@@ -319,12 +374,12 @@ private fun HomeHeader(name: String, modifier: Modifier = Modifier) {
 
 @Composable
 private fun CheckpointsCard(
-    visited: Int,
-    total: Int,
-    scannedBooths: Set<Int>,
+    progress: FairProgress,
     modifier: Modifier = Modifier,
 ) {
-    val fraction = if (total > 0) visited.toFloat() / total else 0f
+    val visited = progress.visited
+    val total = progress.total
+    val fraction = progress.progress
 
     Column(
         modifier = modifier
@@ -377,7 +432,11 @@ private fun CheckpointsCard(
         )
 
         Spacer(Modifier.height(Dimens.Space))
-        CheckpointGrid(visited = visited, total = total, scannedBooths = scannedBooths)
+        CheckpointGrid(
+            visited = visited,
+            total = total,
+            scannedBooths = progress.visitedBoothIds,
+        )
     }
 }
 
@@ -413,8 +472,8 @@ private fun CheckpointGrid(
                     val index = row * GridColumns + column
                     if (index < total) {
                         CheckpointCell(
-                            // Booths are numbered from 1; the grid is indexed
-                            // from 0.
+                            // Cell n is booth id n. Ids run from 1 and the grid is
+                            // indexed from 0.
                             scanned = (index + 1) in scannedBooths,
                             modifier = Modifier.weight(1f),
                         )

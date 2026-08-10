@@ -89,6 +89,25 @@ object ZoneAccent {
 
     /** Shallow-water cyan, not navy: it has to hold white text on a dark ground. */
     val DeepOcean = Color(0xFF4CC1E6)
+
+    /**
+     * The zone letter to its colour, since zones come from the server now.
+     *
+     * A/B/C are the letters on the signage. The floor plan's own decoration
+     * guidance is green/brown/cream for the rainforest, orange/brown/yellow for
+     * the savannah and blue/indigo for the deep ocean, which is what these three
+     * are a reading of.
+     *
+     * A zone the app has no colour for falls back to the house accent rather than
+     * to a random hue: a fourth zone should look like part of this app on the day
+     * it appears in the database, not like a different one.
+     */
+    fun forCode(code: String): Color = when (code.uppercase()) {
+        "A" -> Rainforest
+        "B" -> Savannah
+        "C" -> DeepOcean
+        else -> Palette.Accent
+    }
 }
 
 /**

@@ -13,6 +13,11 @@ zxing = "3.5.4"
 camerax = "1.5.0"
 datastore = "1.2.1"
 coroutines = "1.10.2"
+okhttp = "5.4.0"
+serialization = "1.11.0"
+credentials = "1.6.0"
+googleid = "1.2.0"
+desugar = "2.1.5"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -51,6 +56,27 @@ androidx-camera-view = { group = "androidx.camera", name = "camera-view", versio
 # schema would be ceremony around five keys.
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 
+# HTTP. OkHttp and kotlinx.serialization directly, without Retrofit: the API is
+# a dozen endpoints, and su-server answers failures as `{"error": "<Thai>"}` with
+# a meaningful status. Surfacing those messages through Retrofit needs a custom
+# converter and error-body parsing anyway, so the abstraction would earn nothing
+# and hide where the mapping happens. See `ClubFairApi`.
+okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
+okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
+
+# Google sign-in. Credential Manager is the current API — the old
+# GoogleSignInClient is deprecated — and `googleid` carries the Google ID option
+# it needs to request an ID token for su-server to verify.
+androidx-credentials = { group = "androidx.credentials", name = "credentials", version.ref = "credentials" }
+androidx-credentials-play-services = { group = "androidx.credentials", name = "credentials-play-services-auth", version.ref = "credentials" }
+googleid = { group = "com.google.android.libraries.identity.googleid", name = "googleid", version.ref = "googleid" }
+
+# java.time on API 24. The app's floor is 24 and java.time arrived in 26, so
+# without this `Instant.parse` on a server timestamp crashes on Android 7 — which
+# lint caught rather than a user. See coreLibraryDesugaring in the app build file.
+desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugar" }
+
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitExt" }
@@ -60,3 +86,4 @@ androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-co
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

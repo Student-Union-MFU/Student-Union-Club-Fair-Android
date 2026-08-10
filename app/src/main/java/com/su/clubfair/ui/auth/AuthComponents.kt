@@ -158,7 +158,8 @@ private val FieldTextStyle = TextStyle(
 fun fieldErrorText(error: FieldError): String = when (error) {
     FieldError.Required -> stringResource(R.string.auth_error_required)
     FieldError.BadPhone -> stringResource(R.string.auth_error_phone)
-    FieldError.BadStudentId -> stringResource(R.string.auth_error_student_id)
+    FieldError.BadEmail -> stringResource(R.string.auth_error_email)
+    FieldError.NotMfuEmail -> stringResource(R.string.auth_error_email_mfu)
     FieldError.PasswordTooShort ->
         stringResource(R.string.auth_error_password_short, PasswordPolicy.MinLength)
 
@@ -297,10 +298,12 @@ private fun PasswordToggle(
  */
 @Composable
 fun AuthFormError(error: FormError, modifier: Modifier = Modifier) {
+    // su-server's own message wins when it sent one: only the server knows whether
+    // it was the number, the password or a flagged account, and it phrases that in
+    // the reader's language already. The resource is the fallback.
     val message = when (error) {
-        FormError.NoAccount -> stringResource(R.string.login_error_no_account)
-        FormError.UnknownPhone -> stringResource(R.string.login_error_unknown_phone)
-        FormError.WrongPassword -> stringResource(R.string.login_error_wrong_password)
+        is FormError.Rejected -> error.message ?: stringResource(R.string.login_error_generic)
+        FormError.Offline -> stringResource(R.string.auth_error_offline)
     }
 
     Row(
@@ -375,6 +378,7 @@ fun GoogleButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     Row(
         modifier = modifier
@@ -383,7 +387,7 @@ fun GoogleButton(
             // Clip before the ripple goes on, or it spreads square out of a pill.
             .clip(CircleShape)
             .glassSurface(shape = CircleShape)
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = Dimens.CardPadding),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
@@ -391,6 +395,10 @@ fun GoogleButton(
         Image(
             painter = painterResource(R.drawable.ic_google),
             contentDescription = null,
+            // Google's mark stays full colour and unmodified when the button is
+            // live — that is the part of their guidelines that matters — and only
+            // fades with the rest of the control when it is not.
+            alpha = if (enabled) 1f else 0.4f,
             modifier = Modifier.size(20.dp),
         )
         Spacer(Modifier.width(Dimens.Space))
@@ -399,7 +407,7 @@ fun GoogleButton(
             fontFamily = AlanSans,
             fontWeight = FontWeight.Medium,
             fontSize = 15.sp,
-            color = Color.White,
+            color = if (enabled) Color.White else Ink.Faint,
         )
     }
 }

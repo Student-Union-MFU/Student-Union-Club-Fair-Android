@@ -50,6 +50,8 @@ import com.su.clubfair.ui.components.SheetHeader
 import com.su.clubfair.ui.components.StatEntry
 import com.su.clubfair.ui.components.StatPane
 import com.su.clubfair.ui.components.glassSurface
+import com.su.clubfair.ui.model.FairProgress
+import com.su.clubfair.ui.model.PreviewProgress
 import com.su.clubfair.ui.model.PreviewStudent
 import com.su.clubfair.ui.model.Student
 import com.su.clubfair.ui.theme.AlanSans
@@ -76,6 +78,7 @@ private val CardRadius = Dimens.RadiusLg
 fun ProfileScreen(
     modifier: Modifier = Modifier,
     student: Student = PreviewStudent,
+    progress: FairProgress = PreviewProgress,
     onBack: () -> Unit = {},
     onOpenPass: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
@@ -116,19 +119,19 @@ fun ProfileScreen(
             StatPane(
                 entries = listOf(
                     StatEntry(
-                        value = "${student.visited}/${student.total}",
+                        value = "${progress.visited}/${progress.total}",
                         label = stringResource(R.string.profile_stat_booths),
                     ),
                     StatEntry(
-                        // An em dash, not `#null` and not a made-up figure. See
-                        // Student.rank: nothing on a phone can compute a standing
-                        // against every other student.
-                        value = student.rank?.let { "#$it" }
+                        // The server ranks by check-in count. An em dash for a
+                        // student who has scanned nothing: they are not in the
+                        // running, and a made-up position is what `#42` was.
+                        value = progress.rank?.let { "#$it" }
                             ?: stringResource(R.string.home_stat_unknown),
                         label = stringResource(R.string.home_stat_rank),
                     ),
                     StatEntry(
-                        value = "${student.prizes}",
+                        value = "${progress.prizesEarned}",
                         label = stringResource(R.string.home_stat_prizes),
                     ),
                 ),
@@ -214,7 +217,7 @@ private fun IdentityCard(student: Student, modifier: Modifier = Modifier) {
             )
             Spacer(Modifier.height(2.dp))
             Text(
-                text = student.studentId,
+                text = student.studentId ?: student.email,
                 fontFamily = AlanSans,
                 fontWeight = FontWeight.Normal,
                 fontSize = 13.sp,
@@ -270,12 +273,24 @@ private fun DetailsCard(student: Student, modifier: Modifier = Modifier) {
             Triple(
                 R.drawable.ic_badge,
                 stringResource(R.string.profile_student_id),
-                student.studentId,
+                student.studentId.orEmpty(),
             ),
             Triple(R.drawable.ic_mail, stringResource(R.string.profile_email), student.email),
-            Triple(R.drawable.ic_phone, stringResource(R.string.profile_phone), student.phone),
-            Triple(R.drawable.ic_school, stringResource(R.string.profile_school), student.school),
-            Triple(R.drawable.ic_major, stringResource(R.string.profile_major), student.major),
+            Triple(
+                R.drawable.ic_phone,
+                stringResource(R.string.profile_phone),
+                student.phone.orEmpty(),
+            ),
+            Triple(
+                R.drawable.ic_school,
+                stringResource(R.string.profile_school),
+                student.school.orEmpty(),
+            ),
+            Triple(
+                R.drawable.ic_major,
+                stringResource(R.string.profile_major),
+                student.major.orEmpty(),
+            ),
         )
         rows.forEachIndexed { index, (icon, label, value) ->
             DetailRow(

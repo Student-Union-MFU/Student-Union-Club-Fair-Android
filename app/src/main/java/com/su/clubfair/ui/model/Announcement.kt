@@ -1,7 +1,5 @@
 package com.su.clubfair.ui.model
 
-import com.su.clubfair.data.FairSchedule
-
 /**
  * One emoji bucket under a post.
  *
@@ -23,10 +21,14 @@ data class Reaction(
  * cannot be re-rendered in Thai, it cannot be re-rendered in a 24-hour locale,
  * and "Today" was a lie the moment the app was left open past midnight. The
  * channel formats it at draw time against the current clock — see
- * `EventsScreen`'s `rememberRelativeTime`.
+ * `EventsScreen`'s `rememberRelativeTime`. su-server sends RFC 3339 for the same
+ * reason; `events.date`/`events.time` over there are VARCHAR and cannot be.
+ *
+ * The counts on each [Reaction] are everyone's, resolved by the server; `mine` is
+ * resolved per caller from the requesting token.
  */
 data class Announcement(
-    val id: Int,
+    val id: Long,
     val author: String,
     val postedAtMillis: Long,
     val body: String,
@@ -43,58 +45,35 @@ data class Announcement(
  */
 val ReactionPalette = listOf("👍", "❤️", "😂", "🎉", "👀")
 
-private const val Hour = 60L * 60L * 1000L
-
-/**
- * Stand-in feed until there is somewhere to post from.
- *
- * Timed relative to [FairSchedule] rather than to fixed dates, so moving the
- * fair to its real weekend carries the demo posts along with it instead of
- * leaving four announcements stranded in a July that has been and gone.
- *
- * The counts are invented. The *student's own* reactions are not — those are
- * read back out of `ClubFairStore` and merged over this list, which is why
- * `mine` is false on every seed here.
- */
-val SeedAnnouncements = listOf(
+/** Four posts for `@Preview`, since the channel now comes from the server. */
+val PreviewAnnouncements = listOf(
     Announcement(
         id = 1,
         author = "Student Union",
-        postedAtMillis = FairSchedule.startMillis - 15 * Hour,
-        body = "Club Fair opens tomorrow at 09:00 on the C1 lawn. Bring your pass — " +
-            "the QR is on your profile and every booth scans it.",
-        reactions = listOf(
-            Reaction("🎉", 42),
-            Reaction("👍", 17),
-        ),
+        postedAtMillis = System.currentTimeMillis() - 15 * 60 * 60 * 1000L,
+        body = "เปิดงาน Club Fair พรุ่งนี้ 09:00 ที่ลานเฉลิมพระเกียรติ " +
+            "พก QR ในโปรไฟล์มาด้วย ทุกบูธสแกนได้เลย",
+        reactions = listOf(Reaction("🎉", 42), Reaction("👍", 17)),
     ),
     Announcement(
         id = 2,
         author = "Student Union",
-        postedAtMillis = FairSchedule.startMillis + 12 * Hour / 60,
-        body = "We're open. All 27 booths are live. Zone maps are on the boards by " +
-            "the entrance if you'd rather wander than plan.",
-        reactions = listOf(
-            Reaction("👍", 63),
-            Reaction("❤️", 21),
-        ),
+        postedAtMillis = System.currentTimeMillis() - 3 * 60 * 60 * 1000L,
+        body = "เปิดแล้ว! ครบทั้ง 28 บูธ 3 โซน — ป่าดิบชื้น ทุ่งหญ้าสะวันนา และมหาสมุทรลึก",
+        reactions = listOf(Reaction("👍", 63, mine = true), Reaction("❤️", 21)),
     ),
     Announcement(
         id = 3,
         author = "Student Union",
-        postedAtMillis = FairSchedule.startMillis + 3 * Hour,
-        body = "Muay Thai club is running a demo at the main stage in 15 minutes.",
+        postedAtMillis = System.currentTimeMillis() - 40 * 60 * 1000L,
+        body = "ชมรมมวยไทยโชว์สาธิตที่เวทีกลางอีก 15 นาที",
         reactions = listOf(Reaction("👀", 9)),
     ),
     Announcement(
         id = 4,
         author = "Student Union",
-        postedAtMillis = FairSchedule.startMillis + 6 * Hour,
-        body = "Reminder: 20 stamps gets you into the prize draw, and the draw " +
-            "closes at 17:00 sharp tomorrow. No late entries, sorry.",
-        reactions = listOf(
-            Reaction("👍", 28),
-            Reaction("😂", 4),
-        ),
+        postedAtMillis = System.currentTimeMillis() - 5 * 60 * 1000L,
+        body = "ย้ำอีกครั้ง: เก็บครบ 20 แสตมป์ลุ้นรับรางวัล ปิดรับ 17:00 ตรง",
+        reactions = listOf(Reaction("👍", 28), Reaction("😂", 4)),
     ),
 )

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug builds only — this file lives in src/debug and is not part of a release
+  APK, so the release build keeps Android's default: HTTPS everywhere.
+
+  `make dev` serves su-server over plain HTTP on the developer's machine, which
+  the emulator reaches at 10.0.2.2. Cleartext is permitted to exactly those hosts
+  rather than globally, so a debug build still refuses to talk plain HTTP to
+  anywhere on the internet.
+
+  A physical phone on the same network needs its own entry, or the laptop's
+  address added here alongside -PclubfairApiBase.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- The emulator's alias for the host machine. -->
+        <domain includeSubdomains="false">10.0.2.2</domain>
+        <domain includeSubdomains="false">localhost</domain>
+        <!-- Private ranges, for a real phone pointed at a laptop on the LAN.
+             Android matches domains, not CIDR, so these are the common gateway
+             addresses; add the exact address if it differs. -->
+        <domain includeSubdomains="true">192.168.1.1</domain>
+        <domain includeSubdomains="true">192.168.0.1</domain>
+    </domain-config>
+</network-security-config>

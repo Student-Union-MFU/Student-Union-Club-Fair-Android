@@ -138,15 +138,19 @@ fun AppShell(
                 when (target) {
                     0 -> HomeScreen(
                         student = student,
-                        scannedBooths = state.scannedBooths,
+                        progress = state.progress,
+                        offline = state.offline,
                         onOpenClubs = { tab = 1 },
                         onOpenProfile = { profileOpen = true },
                     )
 
-                    1 -> BoothsScreen(booths = state.booths)
+                    1 -> BoothsScreen(
+                        booths = state.booths,
+                        zones = state.zones,
+                    )
 
                     2 -> EventsScreen(
-                        isAdmin = student.isAdmin,
+                        isStaff = student.isStaff,
                         announcements = state.announcements,
                         onReact = fair::toggleReaction,
                     )
@@ -186,6 +190,7 @@ fun AppShell(
         Sheet(visible = profileOpen) {
             ProfileScreen(
                 student = student,
+                progress = state.progress,
                 onBack = { profileOpen = false },
                 onOpenPass = { passOpen = true },
                 onOpenSettings = { settingsOpen = true },
@@ -199,7 +204,8 @@ fun AppShell(
         Sheet(visible = settingsOpen) {
             SettingsScreen(
                 hapticsEnabled = state.hapticsEnabled,
-                storedScans = state.unsyncedScans,
+                pendingScans = state.pendingScans,
+                offline = state.offline,
                 onHapticsChange = fair::setHapticsEnabled,
                 onEraseDevice = fair::eraseDevice,
                 onBack = { settingsOpen = false },

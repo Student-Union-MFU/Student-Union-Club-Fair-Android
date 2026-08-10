@@ -75,17 +75,25 @@ object PasswordPolicy {
 }
 
 /**
- * Mae Fah Luang student IDs: ten digits.
+ * Mae Fah Luang addresses, and the student id inside one.
  *
- * Checked because this is what the pass QR encodes and what a booth reads off
- * it — a mistyped id produces a pass that scans as somebody else, or as nobody.
+ * `6831503029@lamduan.mfu.ac.th` — the local part *is* the student id. That is
+ * why sign-up asks for the email and not for both: two fields for one number is
+ * two chances for them to disagree, and su-server derives the id the same way, so
+ * the app showing it is a courtesy rather than an input.
  */
-object StudentId {
-    private val Form = Regex("""^\d{10}$""")
+object MfuEmail {
+    const val Domain = "lamduan.mfu.ac.th"
 
-    fun normalise(raw: String): String = raw.filter(Char::isDigit)
+    fun isMfuAddress(raw: String): Boolean =
+        raw.trim().lowercase().endsWith("@$Domain")
 
-    fun isValid(raw: String): Boolean = Form.matches(normalise(raw))
+    /** The id the server will store, or null if this is not an MFU address. */
+    fun studentIdFrom(raw: String): String? {
+        val trimmed = raw.trim().lowercase()
+        if (!isMfuAddress(trimmed)) return null
+        return trimmed.substringBefore('@').takeIf { it.isNotEmpty() }
+    }
 }
 
 object EmailAddress {

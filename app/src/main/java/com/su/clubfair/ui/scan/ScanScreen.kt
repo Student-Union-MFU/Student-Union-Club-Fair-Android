@@ -185,7 +185,6 @@ fun ScanScreen(
 
     var torchOn by remember { mutableStateOf(false) }
     var hasTorch by remember { mutableStateOf(false) }
-    var manualOpen by rememberSaveable { mutableStateOf(false) }
 
     // Bumping this rebuilds the analyzer, which is how a one-shot scanner is
     // pointed at the next booth.
@@ -210,9 +209,6 @@ fun ScanScreen(
         }
     }
 
-    // A result on screen means the camera has done its job; close the keypad so
-    // the answer is not behind it.
-    LaunchedEffect(outcome) { if (outcome != null) manualOpen = false }
 
     // What the header pane refracts: the feed, the scrim and the frame, and
     // nothing above them. A pane sampling a layer it is drawn inside samples
@@ -317,11 +313,6 @@ fun ScanScreen(
             Spacer(Modifier.weight(1f))
 
             when {
-                manualOpen -> ManualEntry(
-                    onSubmit = onScanned,
-                    onCancel = { manualOpen = false },
-                )
-
                 outcome != null -> ResultCard(
                     outcome = outcome,
                     onAgain = {
@@ -333,8 +324,6 @@ fun ScanScreen(
                 !hasCamera -> Explainer(
                     title = stringResource(R.string.scan_unavailable_title),
                     body = stringResource(R.string.scan_unavailable_body),
-                    cta = stringResource(R.string.scan_manual_cta),
-                    onCta = { manualOpen = true },
                 )
 
                 !granted -> Explainer(
@@ -342,49 +331,16 @@ fun ScanScreen(
                     body = stringResource(R.string.scan_permission_denied_body),
                     cta = stringResource(R.string.scan_permission_cta),
                     onCta = { permissionLauncher.launch(Manifest.permission.CAMERA) },
-                    secondaryCta = stringResource(R.string.scan_manual_cta),
-                    onSecondaryCta = { manualOpen = true },
                 )
 
-                // Camera is up and nothing has been read yet. The way out for a
-                // code that will not scan — glare, damage, a sign that has gone
-                // — lives here rather than only in the failure states, because
-                // "the camera works but this code will not read" is the most
-                // common of the four and the only one with no error to land on.
-                else -> ManualEntryPrompt(onClick = { manualOpen = true })
+                // Camera up, nothing read yet. Nothing to show: the reticle and the
+                // header already say what to do, and a third instruction on the
+                // same screen is noise.
+                else -> Unit
             }
 
             Spacer(Modifier.height(Dimens.NavBarClearance))
         }
-    }
-}
-
-/** The quiet way through to [ManualEntry] while the camera is running. */
-@Composable
-private fun ManualEntryPrompt(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Row(
-        modifier = modifier
-            .heightIn(min = 48.dp)
-            .clip(RoundedCornerShape(Dimens.RadiusPill))
-            .background(Color.White.copy(alpha = 0.10f))
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = Dimens.CardPadding),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            painter = painterResource(R.drawable.ic_hash),
-            contentDescription = null,
-            tint = Ink.Muted,
-            modifier = Modifier.size(16.dp),
-        )
-        Spacer(Modifier.width(Dimens.SpaceSm))
-        Text(
-            text = stringResource(R.string.scan_manual_cta),
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Medium,
-            fontSize = 13.sp,
-            color = Ink.Label,
-        )
     }
 }
 
@@ -685,18 +641,33 @@ private fun ResultCard(
         val booth = when (outcome) {
             is ScanOutcome.Recorded -> outcome.booth
             is ScanOutcome.AlreadyScanned -> outcome.booth
-            is ScanOutcome.NotABoothCode -> null
+            else -> null
         }
-        val tint = if (outcome is ScanOutcome.NotABoothCode) Palette.Alert else accent
+        val problem = outcome is ScanOutcome.Rejected || outcome is ScanOutcome.Expired
+        val tint = if (problem) Palette.Alert else accent
 
         val eyebrow = when (outcome) {
             is ScanOutcome.Recorded -> stringResource(R.string.scan_result_recorded)
             is ScanOutcome.AlreadyScanned -> stringResource(R.string.scan_result_already)
-            is ScanOutcome.NotABoothCode -> stringResource(R.string.scan_result_unknown)
+            // Queued is a success the student should know the shape of: the stamp
+            // is theirs, it just has not reached the server yet.
+            ScanOutcome.Queued -> stringResource(R.string.scan_result_queued)
+            is ScanOutcome.Expired -> stringResource(R.string.scan_result_expired)
+            is ScanOutcome.Rejected -> stringResource(R.string.scan_result_unknown)
         }
-        val headline = booth?.name ?: stringResource(R.string.scan_result_unknown_body)
+        val headline = booth?.let { it.nameEn ?: it.name }
+            ?: when (outcome) {
+                ScanOutcome.Queued -> stringResource(R.string.scan_result_queued_title)
+                is ScanOutcome.Expired -> stringResource(R.string.scan_result_expired_title)
+                else -> stringResource(R.string.scan_result_unknown_body)
+            }
         val body = when (outcome) {
             is ScanOutcome.AlreadyScanned -> stringResource(R.string.scan_result_already_body)
+            ScanOutcome.Queued -> stringResource(R.string.scan_result_queued_body)
+            // The server's own message where it sent one — it knows whether the
+            // code was expired or simply not ours.
+            is ScanOutcome.Expired -> outcome.message
+            is ScanOutcome.Rejected -> outcome.message
             else -> null
         }
 
@@ -734,9 +705,7 @@ private fun ResultCard(
 
                 Column(Modifier.weight(1f)) {
                     Text(
-                        text = booth?.let {
-                            "$eyebrow · " + stringResource(R.string.scan_result_booth, it.number)
-                        } ?: eyebrow,
+                        text = booth?.let { "$eyebrow · ${it.displayCode}" } ?: eyebrow,
                         fontFamily = AlanSans,
                         fontWeight = FontWeight.Medium,
                         fontSize = 11.sp,

@@ -11,75 +11,77 @@ import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import java.io.IOException
 
 /**
- * Everything this app keeps on the device, behind one DataStore.
+ * Everything the app keeps on the device, behind one DataStore.
  *
- * Before this, the app kept nothing: the signed-in student, the booths they had
- * scanned and the reactions they had left all lived in `remember` and died with
- * the process. A student who closed the app half-way round the fair came back to
- * an empty card and a login screen.
+ * Its job changed when su-server arrived, and the change is worth stating because
+ * the file looks similar and means something different. It used to be the **source
+ * of truth**: the account, a PBKDF2 password hash, and the scans that existed
+ * nowhere else. It is now three narrower things:
  *
- * DataStore rather than SharedPreferences because every read here is a [Flow]
- * the UI collects — the checkpoint grid on Home and the tick on a booth tile are
- * two views of the same set and have to move together. It is also the one
- * storage API on Android whose writes are transactional; `SharedPreferences`
- * `apply()` is fire-and-forget and drops the last write if the process dies,
- * which for a scan a student just took at a booth is the write you can least
- * afford to lose.
+ *  1. **The session token.** What proves who the student is on every request.
+ *  2. **An offline cache.** The booths, the last known progress and the channel,
+ *     so a phone with no signal in a concrete hall shows the fair rather than a
+ *     spinner. Always stale, never authoritative.
+ *  3. **An outbound queue.** Scans taken while offline, waiting to be sent.
  *
- * ## The account / session split
+ * The password hashing is gone. Verifying a password against material on the
+ * device only ever proved the phone had been told the right answer; the server
+ * does it properly now, and keeping the old code would have invited someone to
+ * use it.
  *
- * This device holds **one account**. [account] is the registered student and
- * their password material, and it outlives sign-out so they can sign back in.
- * [session] is whether that account is currently signed in. Registering a
- * different student replaces the account and takes the previous one's scans with
- * it — see [saveAccount] — because there is no server to keep two students'
- * progress apart on one phone.
- *
- * None of this is a substitute for a server. A reinstall loses everything, and
- * nothing here stops a determined device owner editing their own progress.
+ * ⚠ Nothing here is a security boundary. The token is what an attacker with the
+ * file would want, and DataStore does not encrypt it — see [authToken].
  */
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
     name = "clubfair",
 )
 
 /**
- * The registered student on this device.
+ * One scan waiting to be sent.
  *
- * [passwordSalt] and [passwordHash] are PBKDF2 material, never the password —
- * see [PasswordHasher].
+ * The whole payload is kept, not the booth number: the server parses the QR and
+ * verifies its HMAC, so the client has nothing to gain by interpreting it and
+ * would only be able to get it wrong. [clientId] is minted when the code is
+ * scanned and never changes, which is what makes a resend idempotent.
  */
-data class StoredAccount(
-    val studentId: String,
+@Serializable
+data class PendingScan(
+    val payload: String,
+    val clientId: String,
+    val deviceTime: String,
+)
+
+/** The signed-in student, cached so Profile renders offline. */
+@Serializable
+data class CachedUser(
+    val id: Int,
+    val role: String,
     val firstName: String,
     val surname: String,
     val email: String,
-    val phone: String,
-    val school: String,
-    val major: String,
-    val isAdmin: Boolean,
-    val passwordSalt: String,
-    val passwordHash: String,
-)
-
-/**
- * One booth, scanned at a moment.
- *
- * The timestamp is not decoration. It is what makes this a queue as well as a
- * record: when there is a server, everything it has not acknowledged is the
- * backlog to send, in the order the student actually walked the floor.
- */
-data class ScanRecord(
-    val booth: Int,
-    val atMillis: Long,
+    val phone: String? = null,
+    val studentId: String? = null,
+    val school: String? = null,
+    val major: String? = null,
+    val avatarUrl: String? = null,
+    val hasPassword: Boolean = false,
 )
 
 class ClubFairStore(context: Context) {
 
     private val store = context.applicationContext.dataStore
+
+    private val json = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = true
+    }
 
     /**
      * A read that survives a corrupt or unreadable file.
@@ -87,128 +89,127 @@ class ClubFairStore(context: Context) {
      * DataStore throws [IOException] into the flow rather than returning a
      * default, and an uncaught one there takes down every collector — which in
      * this app means the whole signed-in shell. Empty preferences is the right
-     * answer to "the file will not load": the student is signed out and starts
-     * again, which is recoverable, rather than the app crashing on launch
-     * forever.
+     * answer to "the file will not load": the student signs in again, which is
+     * recoverable, rather than the app crashing on launch forever.
      */
     private val preferences: Flow<Preferences> = store.data.catch { cause ->
         if (cause is IOException) emit(emptyPreferences()) else throw cause
     }
 
-    // ---- Account and session ---------------------------------------------
-
-    val account: Flow<StoredAccount?> = preferences.map { it.toAccount() }
-
-    /** The account, but only while it is signed in. */
-    val session: Flow<StoredAccount?> = preferences.map { prefs ->
-        prefs.toAccount()?.takeIf { prefs[Keys.SignedIn] == true }
-    }
-
-    private fun Preferences.toAccount(): StoredAccount? {
-        // The id is the key the rest of the record hangs off; without it there is
-        // no account, whatever else happens to be in the file.
-        val id = this[Keys.StudentId] ?: return null
-        return StoredAccount(
-            studentId = id,
-            firstName = this[Keys.FirstName].orEmpty(),
-            surname = this[Keys.Surname].orEmpty(),
-            email = this[Keys.Email].orEmpty(),
-            phone = this[Keys.Phone].orEmpty(),
-            school = this[Keys.School].orEmpty(),
-            major = this[Keys.Major].orEmpty(),
-            isAdmin = this[Keys.IsAdmin] == true,
-            passwordSalt = this[Keys.PasswordSalt].orEmpty(),
-            passwordHash = this[Keys.PasswordHash].orEmpty(),
-        )
-    }
+    // ---- Session ----------------------------------------------------------
 
     /**
-     * Registers [account] and signs it in.
+     * The bearer token, or null when signed out.
      *
-     * Clears the scans and reactions on the way through, because this is the
-     * only path by which the phone changes hands to a different student.
-     * Inheriting the last person's 19 checkpoints would be both wrong and, with
-     * a prize draw at the end, worth cheating for.
+     * ⚠ Stored in plain DataStore, which is app-private but not encrypted: root,
+     * a device backup or an unlocked debug build can read it. It is excluded from
+     * cloud backup (see `data_extraction_rules.xml`) and expires in 30 days, which
+     * bounds the damage without pretending it is protected. `EncryptedSharedPrefs`
+     * is deprecated and its replacement is not settled; the honest position is
+     * that a student's booth count is not worth a keystore-backed cipher, and this
+     * comment is here so nobody later assumes it is protected.
      */
-    suspend fun saveAccount(account: StoredAccount) {
-        store.edit { prefs ->
-            prefs.remove(Keys.Scans)
-            prefs.remove(Keys.Reactions)
-            prefs[Keys.StudentId] = account.studentId
-            prefs[Keys.FirstName] = account.firstName
-            prefs[Keys.Surname] = account.surname
-            prefs[Keys.Email] = account.email
-            prefs[Keys.Phone] = account.phone
-            prefs[Keys.School] = account.school
-            prefs[Keys.Major] = account.major
-            prefs[Keys.IsAdmin] = account.isAdmin
-            prefs[Keys.PasswordSalt] = account.passwordSalt
-            prefs[Keys.PasswordHash] = account.passwordHash
-            prefs[Keys.SignedIn] = true
+    val authToken: Flow<String?> = preferences.map { it[Keys.AuthToken] }
+
+    /** Read once, for an outbound request. */
+    suspend fun currentToken(): String? = preferences.first()[Keys.AuthToken]
+
+    val cachedUser: Flow<CachedUser?> = preferences.map { prefs ->
+        prefs[Keys.CachedUser]?.let { raw ->
+            runCatching { json.decodeFromString<CachedUser>(raw) }.getOrNull()
         }
     }
 
-    suspend fun setSignedIn(signedIn: Boolean) {
-        store.edit { it[Keys.SignedIn] = signedIn }
-    }
-
-    /** Wipes the account, its progress and its preferences. Used by Settings. */
-    suspend fun clearAll() {
-        store.edit { it.clear() }
-    }
-
-    // ---- Scans ------------------------------------------------------------
-
-    val scans: Flow<List<ScanRecord>> = preferences.map { prefs ->
-        prefs[Keys.Scans].orEmpty()
-            .mapNotNull(::decodeScan)
-            .sortedBy { it.atMillis }
-    }
-
-    /**
-     * Records a scan, and reports whether it was new.
-     *
-     * `false` means this booth was already scanned. The caller wants that
-     * distinction: walking back past a booth you have done should say so, not
-     * silently re-tick a box and look like nothing happened.
-     *
-     * Read-modify-write inside a single [DataStore.edit], which DataStore runs
-     * under its own lock — two scans landing together cannot lose one another.
-     */
-    suspend fun recordScan(booth: Int, atMillis: Long): Boolean {
-        var added = false
+    /** Stores the token and the profile it belongs to, together. */
+    suspend fun saveSession(token: String, user: CachedUser) {
         store.edit { prefs ->
-            val existing = prefs[Keys.Scans].orEmpty()
-            val already = existing.any { decodeScan(it)?.booth == booth }
-            if (!already) {
-                prefs[Keys.Scans] = existing + encodeScan(ScanRecord(booth, atMillis))
-                added = true
-            }
+            prefs[Keys.AuthToken] = token
+            prefs[Keys.CachedUser] = json.encodeToString(user)
         }
-        return added
     }
 
-    // ---- Reactions --------------------------------------------------------
+    suspend fun saveCachedUser(user: CachedUser) {
+        store.edit { it[Keys.CachedUser] = json.encodeToString(user) }
+    }
 
     /**
-     * Which announcements the student has reacted to, and with what.
+     * Sign-out: drop the token, the profile and every cached read.
      *
-     * Only *their own* reactions. The counts belong to everyone and will come
-     * from the server; what has to survive a restart locally is the one bit the
-     * student can see about themselves — whether their chip is lit.
+     * The whole lot rather than the token alone. This is a shared-phone situation
+     * as often as not — a student hands it to a friend at a booth — and leaving
+     * one student's progress on screen for the next person is worse than making a
+     * re-login re-fetch it. The queue goes too: a pending scan belongs to the
+     * account that took it, and sending it under the next student's token would
+     * credit the wrong person.
      */
-    val reactions: Flow<Set<String>> = preferences.map { it[Keys.Reactions].orEmpty() }
-
-    suspend fun toggleReaction(key: String) {
+    suspend fun clearSession() {
         store.edit { prefs ->
-            val current = prefs[Keys.Reactions].orEmpty()
-            prefs[Keys.Reactions] = if (key in current) current - key else current + key
+            prefs.remove(Keys.AuthToken)
+            prefs.remove(Keys.CachedUser)
+            prefs.remove(Keys.CachedProgress)
+            prefs.remove(Keys.CachedAnnouncements)
+            prefs.remove(Keys.PendingScans)
+            // Booths and zones survive: they are the same public list for
+            // everyone, so re-downloading them on the next sign-in is pure waste.
+        }
+    }
+
+    // ---- Offline cache ---------------------------------------------------
+
+    /**
+     * The last successful read of each collection, verbatim.
+     *
+     * Stored as the server's own JSON rather than as parsed rows. A cache that
+     * re-encodes into a second shape is a second thing to keep in step with the
+     * API, and the only consumer decodes it with the same DTOs the network path
+     * uses — so the string is the honest representation.
+     */
+    val cachedBooths: Flow<String?> = preferences.map { it[Keys.CachedBooths] }
+    val cachedZones: Flow<String?> = preferences.map { it[Keys.CachedZones] }
+    val cachedProgress: Flow<String?> = preferences.map { it[Keys.CachedProgress] }
+    val cachedAnnouncements: Flow<String?> = preferences.map { it[Keys.CachedAnnouncements] }
+
+    suspend fun cacheBooths(raw: String) = store.edit { it[Keys.CachedBooths] = raw }
+    suspend fun cacheZones(raw: String) = store.edit { it[Keys.CachedZones] = raw }
+    suspend fun cacheProgress(raw: String) = store.edit { it[Keys.CachedProgress] = raw }
+    suspend fun cacheAnnouncements(raw: String) =
+        store.edit { it[Keys.CachedAnnouncements] = raw }
+
+    // ---- Outbound queue --------------------------------------------------
+
+    val pendingScans: Flow<List<PendingScan>> = preferences.map { prefs ->
+        prefs[Keys.PendingScans].orEmpty().mapNotNull { raw ->
+            runCatching { json.decodeFromString<PendingScan>(raw) }.getOrNull()
+        }
+    }
+
+    /**
+     * Queues a scan the server has not accepted yet.
+     *
+     * A set keyed on the encoded value, so queueing the same scan twice — a tap
+     * that fired two requests, a retry after a crash — cannot enqueue it twice.
+     * The server would have deduplicated it anyway on `client_id`; this saves the
+     * round trip.
+     */
+    suspend fun enqueueScan(scan: PendingScan) {
+        store.edit { prefs ->
+            prefs[Keys.PendingScans] = prefs[Keys.PendingScans].orEmpty() + json.encodeToString(scan)
+        }
+    }
+
+    /** Drops one scan once the server has accounted for it. */
+    suspend fun dequeueScan(clientId: String) {
+        store.edit { prefs ->
+            prefs[Keys.PendingScans] = prefs[Keys.PendingScans].orEmpty().filterNot { raw ->
+                runCatching { json.decodeFromString<PendingScan>(raw).clientId == clientId }
+                    .getOrDefault(false)
+            }.toSet()
         }
     }
 
     // ---- Preferences ------------------------------------------------------
 
-    /** Defaults on: the tick at a booth is the app's only non-visual feedback. */
+    /** Defaults on: the buzz at a booth is the app's only non-visual feedback. */
     val hapticsEnabled: Flow<Boolean> = preferences.map { it[Keys.Haptics] != false }
 
     suspend fun setHapticsEnabled(enabled: Boolean) {
@@ -218,10 +219,8 @@ class ClubFairStore(context: Context) {
     /**
      * Whether the "how the fair works" card has been shown.
      *
-     * Stored rather than sequenced into the sign-up flow, because it is a
-     * property of the person and not of the login: a student who signs out and
-     * back in during the fair does not need telling twice, and one who reinstalls
-     * does.
+     * Survives sign-out on purpose: a student who signs out and back in during the
+     * fair does not need telling twice, and one who reinstalls does.
      */
     val onboardingSeen: Flow<Boolean> = preferences.map { it[Keys.OnboardingSeen] == true }
 
@@ -229,42 +228,20 @@ class ClubFairStore(context: Context) {
         store.edit { it[Keys.OnboardingSeen] = true }
     }
 
+    /** Settings' "erase everything on this phone". */
+    suspend fun clearAll() {
+        store.edit { it.clear() }
+    }
+
     private object Keys {
-        val SignedIn = booleanPreferencesKey("signed_in")
-        val StudentId = stringPreferencesKey("student_id")
-        val FirstName = stringPreferencesKey("first_name")
-        val Surname = stringPreferencesKey("surname")
-        val Email = stringPreferencesKey("email")
-        val Phone = stringPreferencesKey("phone")
-        val School = stringPreferencesKey("school")
-        val Major = stringPreferencesKey("major")
-        val IsAdmin = booleanPreferencesKey("is_admin")
-        val PasswordSalt = stringPreferencesKey("password_salt")
-        val PasswordHash = stringPreferencesKey("password_hash")
-        val Scans = stringSetPreferencesKey("scans")
-        val Reactions = stringSetPreferencesKey("reactions")
+        val AuthToken = stringPreferencesKey("auth_token")
+        val CachedUser = stringPreferencesKey("cached_user")
+        val CachedBooths = stringPreferencesKey("cached_booths")
+        val CachedZones = stringPreferencesKey("cached_zones")
+        val CachedProgress = stringPreferencesKey("cached_progress")
+        val CachedAnnouncements = stringPreferencesKey("cached_announcements")
+        val PendingScans = stringSetPreferencesKey("pending_scans")
         val Haptics = booleanPreferencesKey("haptics")
         val OnboardingSeen = booleanPreferencesKey("onboarding_seen")
     }
 }
-
-/**
- * `"<booth>@<millis>"`.
- *
- * A string set rather than two parallel keys, because a set is the one
- * Preferences type with no ordering to keep in sync and no chance of the two
- * halves of a record drifting apart. [decodeScan] is total — a malformed entry
- * is dropped rather than thrown, so one bad row cannot make the card unreadable.
- */
-internal fun encodeScan(record: ScanRecord): String = "${record.booth}@${record.atMillis}"
-
-internal fun decodeScan(raw: String): ScanRecord? {
-    val at = raw.indexOf('@')
-    if (at <= 0) return null
-    val booth = raw.substring(0, at).toIntOrNull() ?: return null
-    val millis = raw.substring(at + 1).toLongOrNull() ?: return null
-    return ScanRecord(booth, millis)
-}
-
-/** `"<postId>:<emoji>"` — the key a student's own reaction is stored under. */
-internal fun reactionKey(postId: Int, emoji: String): String = "$postId:$emoji"

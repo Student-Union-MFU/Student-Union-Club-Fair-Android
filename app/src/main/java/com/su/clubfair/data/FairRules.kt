@@ -3,33 +3,17 @@ package com.su.clubfair.data
 import java.util.Calendar
 import java.util.TimeZone
 
-/**
- * The rules of the fair that a phone can settle on its own.
+/*
+ * What is left here after su-server arrived.
  *
- * The distinction this file draws is the one that matters everywhere else in the
- * app: how many prizes a student has earned is a function of how many booths
- * they have scanned, so a phone can answer it; where they *rank* against every
- * other student is not, so a phone cannot, and the UI has to say so rather than
- * print a number that came from nowhere. Home used to show `#42`.
+ * The prize thresholds used to live in this file as `PrizeMilestones = [10, 20,
+ * 27]`. They are `clubfair_prize_tier` rows now, so the Student Union can move one
+ * mid-fair without a Play Store release, and `rank` — which no phone can compute —
+ * comes from the server as well.
+ *
+ * The schedule stays local because nothing serves it: `events.date`/`events.time`
+ * are VARCHAR(50) over there and are the SU-wide listing, not this fair's window.
  */
-object FairRules {
-
-    /**
-     * Scan counts that earn a prize tier.
-     *
-     * 20 is the one a student is actually chasing — it is the prize-draw
-     * threshold the announcements channel quotes. 10 is a halfway marker so the
-     * count means something before then, and 27 is the clean sweep.
-     */
-    val PrizeMilestones = listOf(10, 20, 27)
-
-    /** How many tiers [visited] booths has earned. */
-    fun prizesFor(visited: Int): Int = PrizeMilestones.count { visited >= it }
-
-    /** The next tier to aim at, or null once they are all earned. */
-    fun nextMilestone(visited: Int): Int? = PrizeMilestones.firstOrNull { visited < it }
-}
-
 /**
  * When the fair runs.
  *

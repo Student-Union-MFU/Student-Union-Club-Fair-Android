@@ -67,7 +67,9 @@ private val CardRadius = Dimens.RadiusLg
 fun SettingsScreen(
     modifier: Modifier = Modifier,
     hapticsEnabled: Boolean = true,
-    storedScans: Int = 0,
+    /** Scans taken offline that the server has not accepted yet. */
+    pendingScans: Int = 0,
+    offline: Boolean = false,
     onHapticsChange: (Boolean) -> Unit = {},
     onEraseDevice: () -> Unit = {},
     onBack: () -> Unit = {},
@@ -127,15 +129,24 @@ fun SettingsScreen(
                 )
                 Spacer(Modifier.height(Dimens.SpaceXs))
                 Text(
-                    text = pluralStringResource(
-                        R.plurals.settings_stored_scans,
-                        storedScans,
-                        storedScans,
-                    ),
+                    text = if (pendingScans > 0) {
+                        pluralStringResource(
+                            R.plurals.settings_pending_scans,
+                            pendingScans,
+                            pendingScans,
+                        )
+                    } else {
+                        stringResource(
+                            if (offline) R.string.settings_synced_offline
+                            else R.string.settings_synced,
+                        )
+                    },
                     fontFamily = AlanSans,
                     fontWeight = FontWeight.Medium,
                     fontSize = 13.sp,
-                    color = Palette.Accent,
+                    // Amber while something is still waiting to go up, accent once
+                    // everything has: the colour is the answer to "am I safe?".
+                    color = if (pendingScans > 0) Palette.Alert else Palette.Accent,
                 )
                 Spacer(Modifier.height(Dimens.SpaceXs))
                 Text(
@@ -274,7 +285,7 @@ private fun SettingsPreview() {
     SUClubFairTheme {
         androidx.compose.foundation.layout.Box {
             MeshBackground()
-            SettingsScreen(storedScans = 19)
+            SettingsScreen(pendingScans = 2)
         }
     }
 }

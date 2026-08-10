@@ -164,7 +164,7 @@ private fun Ticket(student: Student, modifier: Modifier = Modifier) {
                 .padding(Dimens.Space),
         ) {
             StyledQr(
-                content = student.studentId,
+                content = student.studentId.orEmpty(),
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -186,21 +186,21 @@ private fun Ticket(student: Student, modifier: Modifier = Modifier) {
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = student.studentId,
+                    text = student.studentId.orEmpty(),
                     fontFamily = AlanSans,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
                     color = Color.White,
                 )
                 Text(
-                    text = student.major,
+                    text = student.major.orEmpty(),
                     fontFamily = AlanSans,
                     fontWeight = FontWeight.Normal,
                     fontSize = 11.sp,
                     color = Ink.Muted,
                 )
                 Text(
-                    text = student.school,
+                    text = student.school.orEmpty(),
                     fontFamily = AlanSans,
                     fontWeight = FontWeight.Normal,
                     fontSize = 11.sp,

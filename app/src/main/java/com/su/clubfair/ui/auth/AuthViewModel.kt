@@ -6,18 +6,18 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.su.clubfair.ClubFairApplication
-import com.su.clubfair.data.AuthResult
+import com.su.clubfair.data.AuthOutcome
+import com.su.clubfair.data.EmailAddress
 import com.su.clubfair.data.FairRepository
+import com.su.clubfair.data.MfuEmail
 import com.su.clubfair.data.PasswordPolicy
 import com.su.clubfair.data.PasswordProblem
 import com.su.clubfair.data.PersonName
 import com.su.clubfair.data.PhoneNumber
-import com.su.clubfair.data.StudentId
+import com.su.clubfair.data.net.GoogleSignIn
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -26,33 +26,47 @@ import kotlinx.coroutines.launch
  *
  * An enum rather than a ready-made string: the ViewModel has no `Context` and
  * should not be formatting user-facing copy, and a Thai translation of "at least
- * 8 characters" is not the ViewModel's business. `AuthComponents` maps these to
- * string resources at draw time.
+ * 8 characters" is not its business. `AuthComponents` maps these to string
+ * resources at draw time.
+ *
+ * These checks are the client's copy of rules su-server enforces again. That is
+ * deliberate duplication — the client's job is to save a round trip and put the
+ * error next to the field, the server's is to be the boundary — and the two are
+ * kept in step by both being stated in one place each: here, and
+ * `clubfair_auth_service.go`.
  */
 enum class FieldError {
     Required,
     BadPhone,
-    BadStudentId,
+    BadEmail,
+    NotMfuEmail,
     PasswordTooShort,
     PasswordNeedsLetter,
     PasswordNeedsDigit,
 }
 
-/** Why the form as a whole was rejected, after a submit. */
-enum class FormError {
-    NoAccount,
-    UnknownPhone,
-    WrongPassword,
+/**
+ * Why a submit failed.
+ *
+ * [Rejected] carries su-server's own message, which is already Thai and written
+ * for a student — better than anything the app could substitute, since only the
+ * server knows whether it was the number, the password or a flagged account.
+ * [Offline] is separate because it is the one failure the student can act on by
+ * moving, and because sign-in is the single thing this app cannot queue.
+ */
+sealed interface FormError {
+    data class Rejected(val message: String?) : FormError
+    data object Offline : FormError
 }
 
 data class LoginForm(
     val phone: String = "",
     val password: String = "",
     /**
-     * Errors are held per field but only *shown* once a field has been left or
-     * the form submitted — see [showErrors]. Validating as someone types tells
-     * them their password is too short when they have entered one character of
-     * it, which is true, useless, and reads as the form shouting.
+     * Errors are held per field but only *shown* once a field has been left or the
+     * form submitted. Validating as someone types tells them their password is too
+     * short when they have entered one character of it — true, useless, and it
+     * reads as the form shouting.
      */
     val showErrors: Boolean = false,
     val formError: FormError? = null,
@@ -69,23 +83,35 @@ data class LoginForm(
     val isValid: Boolean = phoneError == null && passwordError == null
 }
 
+/**
+ * Sign-up.
+ *
+ * The student id field is gone. su-server derives it from the MFU email's local
+ * part — `6831503029@lamduan.mfu.ac.th` — so asking for it separately invited a
+ * mismatch between two things that are the same number. The email is asked for
+ * instead, which is one field rather than two and cannot disagree with itself.
+ */
 data class RegisterForm(
     val firstName: String = "",
     val surname: String = "",
-    val studentId: String = "",
+    val email: String = "",
     val phone: String = "",
     val school: String = "",
     val major: String = "",
     val password: String = "",
     val showErrors: Boolean = false,
+    val formError: FormError? = null,
     val submitting: Boolean = false,
 ) {
     val firstNameError = FieldError.Required.takeUnless { PersonName.isValid(firstName) }
     val surnameError = FieldError.Required.takeUnless { PersonName.isValid(surname) }
 
-    val studentIdError: FieldError? = when {
-        studentId.isBlank() -> FieldError.Required
-        !StudentId.isValid(studentId) -> FieldError.BadStudentId
+    val emailError: FieldError? = when {
+        email.isBlank() -> FieldError.Required
+        !EmailAddress.isValid(email) -> FieldError.BadEmail
+        // Checked here as well as on the server so the student is told before
+        // filling in six more fields, not after submitting them.
+        !MfuEmail.isMfuAddress(email) -> FieldError.NotMfuEmail
         else -> null
     }
 
@@ -102,12 +128,16 @@ data class RegisterForm(
         PasswordProblem.Ok -> null
         PasswordProblem.TooShort ->
             if (password.isEmpty()) FieldError.Required else FieldError.PasswordTooShort
+
         PasswordProblem.NeedsLetter -> FieldError.PasswordNeedsLetter
         PasswordProblem.NeedsDigit -> FieldError.PasswordNeedsDigit
     }
 
+    /** The student id the server will derive, shown so it is not a surprise. */
+    val derivedStudentId: String? = MfuEmail.studentIdFrom(email)
+
     val isValid: Boolean = listOf(
-        firstNameError, surnameError, studentIdError,
+        firstNameError, surnameError, emailError,
         phoneError, schoolError, majorError, passwordError,
     ).all { it == null }
 }
@@ -116,18 +146,24 @@ data class RegisterForm(
  * The signed-out half of the app: two forms and what happens when they are sent.
  *
  * Separate from `FairViewModel` because it has a different lifetime and a
- * different job — this one is finished the moment a session exists, and holding
- * a half-typed password alongside the fair's booth list would keep it in memory
- * for the rest of the session.
+ * different job — this one is finished the moment a session exists, and holding a
+ * half-typed password alongside the fair's booth list would keep it in memory for
+ * the rest of the session.
+ *
+ * Neither form navigates on success. Writing the session changes
+ * `SessionStatus`, and the gate in `MainActivity` swaps the whole tree; a screen
+ * that also navigated itself would be a second source of truth for one fact.
  */
 class AuthViewModel(private val repository: FairRepository) : ViewModel() {
 
-    /** Whether signing up would replace an account already on this phone. */
-    val hasAccount: StateFlow<Boolean> = repository.hasAccount.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = false,
-    )
+    /**
+     * Whether the Google button can do anything.
+     *
+     * False until a Web OAuth client id is built into the app. Surfaced so the UI
+     * can disable the button rather than open a credential sheet that cannot
+     * succeed — a control that fails silently is worse than one visibly not ready.
+     */
+    val googleAvailable: Boolean = GoogleSignIn.isConfigured
 
     private val _login = MutableStateFlow(LoginForm())
     val login: StateFlow<LoginForm> = _login.asStateFlow()
@@ -141,15 +177,10 @@ class AuthViewModel(private val repository: FairRepository) : ViewModel() {
     fun onLoginPassword(value: String) =
         _login.update { it.copy(password = value, formError = null) }
 
-    /**
-     * Attempts sign-in; [onSuccess] runs only if it worked.
-     *
-     * A callback rather than an event the screen observes, because there is
-     * exactly one consumer and the alternative — a nullable `navigateTo` field
-     * on the state that the screen must remember to clear — is the shape that
-     * produces double navigation on a rotation.
-     */
-    fun submitLogin(onSuccess: () -> Unit) {
+    fun onRegisterField(update: RegisterForm.() -> RegisterForm) =
+        _register.update { it.update().copy(formError = null) }
+
+    fun submitLogin() {
         val form = _login.value
         if (!form.isValid) {
             _login.update { it.copy(showErrors = true) }
@@ -159,35 +190,26 @@ class AuthViewModel(private val repository: FairRepository) : ViewModel() {
 
         _login.update { it.copy(submitting = true, formError = null) }
         viewModelScope.launch {
-            when (repository.signIn(form.phone, form.password)) {
-                AuthResult.Success -> {
-                    _login.value = LoginForm()
-                    onSuccess()
+            when (val outcome = repository.signInWithPassword(form.phone, form.password)) {
+                AuthOutcome.Success -> _login.value = LoginForm()
+
+                AuthOutcome.Offline ->
+                    _login.update { it.copy(submitting = false, formError = FormError.Offline) }
+
+                is AuthOutcome.Rejected -> _login.update {
+                    // Clear the password rather than leave a wrong one in the box
+                    // for the student to hunt through and edit.
+                    it.copy(
+                        submitting = false,
+                        password = "",
+                        formError = FormError.Rejected(outcome.message),
+                    )
                 }
-
-                AuthResult.NoAccount ->
-                    _login.update { it.copy(submitting = false, formError = FormError.NoAccount) }
-
-                AuthResult.UnknownPhone ->
-                    _login.update { it.copy(submitting = false, formError = FormError.UnknownPhone) }
-
-                AuthResult.WrongPassword ->
-                    _login.update {
-                        // Clear the password rather than leave a wrong one in the
-                        // box for the student to hunt through and edit.
-                        it.copy(
-                            submitting = false,
-                            password = "",
-                            formError = FormError.WrongPassword,
-                        )
-                    }
             }
         }
     }
 
-    fun onRegisterField(update: RegisterForm.() -> RegisterForm) = _register.update(update)
-
-    fun submitRegister(onSuccess: () -> Unit) {
+    fun submitRegister() {
         val form = _register.value
         if (!form.isValid) {
             _register.update { it.copy(showErrors = true) }
@@ -195,23 +217,58 @@ class AuthViewModel(private val repository: FairRepository) : ViewModel() {
         }
         if (form.submitting) return
 
-        _register.update { it.copy(submitting = true) }
+        _register.update { it.copy(submitting = true, formError = null) }
         viewModelScope.launch {
-            repository.signUp(
-                firstName = form.firstName,
-                surname = form.surname,
-                studentId = StudentId.normalise(form.studentId),
+            val outcome = repository.register(
+                firstName = form.firstName.trim(),
+                surname = form.surname.trim(),
+                email = form.email.trim(),
                 phone = form.phone,
-                // Supplied by the Google step once that is real; the profile
-                // shows it as not set until then.
-                email = "",
-                school = form.school,
-                major = form.major,
+                school = form.school.trim().ifBlank { null },
+                major = form.major.trim().ifBlank { null },
                 password = form.password,
             )
-            _register.value = RegisterForm()
-            onSuccess()
+            when (outcome) {
+                AuthOutcome.Success -> _register.value = RegisterForm()
+
+                AuthOutcome.Offline ->
+                    _register.update { it.copy(submitting = false, formError = FormError.Offline) }
+
+                is AuthOutcome.Rejected -> _register.update {
+                    it.copy(submitting = false, formError = FormError.Rejected(outcome.message))
+                }
+            }
         }
+    }
+
+    /**
+     * Signs in with Google, once there is a client id to do it with.
+     *
+     * [idToken] comes from `GoogleSignIn.requestIdToken`, which needs an Activity
+     * context — so the screen fetches it and hands the raw token here. The app
+     * never inspects it: su-server verifies the signature, the audience,
+     * `email_verified` and the MFU domain, and a client-side check would prove
+     * nothing anyway.
+     */
+    fun submitGoogle(idToken: String) {
+        _login.update { it.copy(submitting = true, formError = null) }
+        viewModelScope.launch {
+            when (val outcome = repository.signInWithGoogle(idToken)) {
+                AuthOutcome.Success -> _login.value = LoginForm()
+
+                AuthOutcome.Offline ->
+                    _login.update { it.copy(submitting = false, formError = FormError.Offline) }
+
+                is AuthOutcome.Rejected -> _login.update {
+                    it.copy(submitting = false, formError = FormError.Rejected(outcome.message))
+                }
+            }
+        }
+    }
+
+    /** Reports a credential-sheet problem on the form, without a server round trip. */
+    fun onGoogleFailed(message: String?) {
+        _login.update { it.copy(submitting = false, formError = FormError.Rejected(message)) }
     }
 
     companion object {

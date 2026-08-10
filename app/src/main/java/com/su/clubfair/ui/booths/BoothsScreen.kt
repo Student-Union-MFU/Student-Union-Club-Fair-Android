@@ -53,6 +53,7 @@ import com.su.clubfair.ui.components.GlassIconButton
 import com.su.clubfair.ui.components.ProgressTrack
 import com.su.clubfair.ui.components.glassSurface
 import com.su.clubfair.ui.model.Booth
+import com.su.clubfair.ui.model.PreviewZones
 import com.su.clubfair.ui.model.Zone
 import com.su.clubfair.ui.model.previewRoster
 import com.su.clubfair.ui.scene.MeshBackground
@@ -90,14 +91,23 @@ private val EnterEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 @Composable
 fun BoothsScreen(
     modifier: Modifier = Modifier,
-    booths: List<Booth> = previewRoster(19),
+    booths: List<Booth> = previewRoster(7),
+    /**
+     * The areas, from the server, in signage order.
+     *
+     * Passed in rather than derived from the booths: the zone carries its Thai and
+     * English names and its running order, none of which a booth knows. An empty
+     * list is the state before the first fetch, and the picker shows nothing rather
+     * than inventing three headings.
+     */
+    zones: List<Zone> = PreviewZones,
 ) {
-    val byZone = remember(booths) { booths.groupBy { it.zone } }
+    val byZone = remember(booths) { booths.groupBy { it.zoneCode } }
     val visited = remember(booths) { booths.count { it.scanned } }
 
     // Saved, so a trip to another tab and back returns you to the map you were
     // reading rather than to the top of the list.
-    var openZone by rememberSaveable { mutableStateOf<Zone?>(null) }
+    var openZone by rememberSaveable { mutableStateOf<String?>(null) }
     var selected by remember { mutableStateOf<Booth?>(null) }
     var query by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -109,6 +119,11 @@ fun BoothsScreen(
     BackHandler(enabled = selected == null && query == null && openZone != null) {
         openZone = null
     }
+
+    // The zone the student has opened, resolved from its code. Held as a code in
+    // `rememberSaveable` rather than as a Zone: the object comes from the server
+    // and a Bundle cannot carry it, while a one-letter code survives anything.
+    val currentZone = remember(openZone, zones) { zones.firstOrNull { it.code == openZone } }
 
     Box(modifier = modifier.fillMaxSize()) {
         // The insets go on the content, not on this box. The dimming scrim
@@ -135,7 +150,7 @@ fun BoothsScreen(
             )
         } else {
             AnimatedContent(
-                targetState = openZone,
+                targetState = currentZone,
                 transitionSpec = {
                     val entering = targetState != null
                     val zoomIn = if (entering) 0.88f else 1.10f
@@ -150,16 +165,17 @@ fun BoothsScreen(
             ) { zone ->
                 if (zone == null) {
                     ZonePicker(
+                        zones = zones,
                         byZone = byZone,
                         visited = visited,
                         total = booths.size,
-                        onOpenZone = { openZone = it },
+                        onOpenZone = { openZone = it.code },
                         onOpenSearch = { query = "" },
                     )
                 } else {
                     ZoneBoothWall(
                         zone = zone,
-                        booths = byZone[zone].orEmpty(),
+                        booths = byZone[zone.code].orEmpty(),
                         selected = selected,
                         onSelectBooth = { selected = it },
                         onBack = { openZone = null },
@@ -207,7 +223,8 @@ fun BoothsScreen(
  */
 @Composable
 private fun ZonePicker(
-    byZone: Map<Zone, List<Booth>>,
+    zones: List<Zone>,
+    byZone: Map<String?, List<Booth>>,
     visited: Int,
     total: Int,
     onOpenZone: (Zone) -> Unit,
@@ -256,15 +273,14 @@ private fun ZonePicker(
         }
 
         Spacer(Modifier.height(Dimens.SpaceLg))
-        Zone.entries.forEachIndexed { index, zone ->
-            val booths = byZone[zone].orEmpty()
+        zones.forEachIndexed { index, zone ->
             ZoneCard(
                 zone = zone,
-                booths = booths,
+                booths = byZone[zone.code].orEmpty(),
                 onClick = { onOpenZone(zone) },
                 modifier = Modifier.weight(1f),
             )
-            if (index != Zone.entries.lastIndex) Spacer(Modifier.height(Dimens.Space))
+            if (index != zones.lastIndex) Spacer(Modifier.height(Dimens.Space))
         }
 
         // Clearance so the last card stops above the floating nav bar rather
@@ -343,7 +359,9 @@ private fun ZoneCard(
                     color = Color.White,
                 )
                 Text(
-                    text = "${zone.code}  ·  ${zone.subtitle}",
+                    // The area's own English name where there is one, and the
+                    // Thai title is already the headline above.
+                    text = listOfNotNull(zone.titleEn, zone.subtitle).joinToString("  ·  "),
                     fontFamily = AlanSans,
                     fontWeight = FontWeight.Normal,
                     fontSize = 12.sp,
@@ -365,9 +383,12 @@ private fun ZoneCard(
         Spacer(Modifier.height(Dimens.SpaceLg))
         Spacer(Modifier.weight(1f))
         Row(horizontalArrangement = Arrangement.spacedBy(Dimens.Space)) {
-            booths.take(ZonePreviewIcons).forEach { booth ->
+            // Only booths that have a glyph. Six of the 28 have none, and a zone
+            // card sampling those would show its own booth codes back at itself
+            // where a picture belongs.
+            booths.filter { it.icon != null }.take(ZonePreviewIcons).forEach { booth ->
                 Icon(
-                    painter = painterResource(booth.icon),
+                    painter = painterResource(booth.icon!!),
                     contentDescription = null,
                     tint = Ink.Faint,
                     modifier = Modifier.size(22.dp),

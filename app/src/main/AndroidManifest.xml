@@ -1,9 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Everything the app shows now comes from su-server. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Read, never changed: the offline queue needs to know whether a send is
+         worth attempting, and a failed request is a slow way to find out. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <!-- The Scan tab reads booth QR codes. Requested at runtime, and the whole
-         tab degrades to an explainer if it's refused, so the camera is declared
-         not-required: a device without one can still use the rest of the app. -->
+         tab degrades to an explainer if it's refused.
+         Still declared not-required: the rest of the app — the club directory,
+         the pass, the announcements — works without a camera. Only collecting a
+         stamp needs one, and since booth codes rotate there is no longer a typed
+         fallback for that. -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature
         android:name="android.hardware.camera.any"

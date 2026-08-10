@@ -76,17 +76,22 @@ class AuthScreenTest {
     }
 
     @Test
-    fun loginScreen_showsWrongPasswordBanner() {
+    fun loginScreen_showsTheServersOwnRejectionMessage() {
         composeTestRule.setContent {
             LoginScreen(
                 state = LoginForm(
                     phone = "0683150329",
-                    formError = FormError.WrongPassword,
+                    formError = FormError.Rejected("เบอร์โทรหรือรหัสผ่านไม่ถูกต้อง"),
                 ),
             )
         }
 
-        composeTestRule.onNodeWithText("Wrong password. Try again.").assertIsDisplayed()
+        // The server's message, not a resource: only su-server knows whether it
+        // was the number, the password or a flagged account, and it phrases that
+        // in the reader's language already.
+        composeTestRule
+            .onNodeWithText("เบอร์โทรหรือรหัสผ่านไม่ถูกต้อง")
+            .assertIsDisplayed()
     }
 
     @Test
@@ -107,7 +112,7 @@ class AuthScreenTest {
         listOf(
             "First name",
             "Surname",
-            "Student ID",
+            "MFU email",
             "Phone number",
             "School",
             "Major",
@@ -117,24 +122,48 @@ class AuthScreenTest {
     }
 
     @Test
-    fun registerScreen_rejectsAShortStudentId() {
+    fun registerScreen_requiresAnMfuEmail() {
+        // The student id is no longer typed — su-server derives it from this
+        // address — so the address is what the form has to police.
         composeTestRule.setContent {
-            RegisterScreen(state = RegisterForm(studentId = "683", showErrors = true))
+            RegisterScreen(state = RegisterForm(email = "yion@gmail.com", showErrors = true))
         }
 
-        composeTestRule.onNodeWithText("A student ID is 10 digits").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Use your @lamduan.mfu.ac.th address").assertIsDisplayed()
     }
 
     @Test
-    fun registerScreen_warnsWhenItWouldReplaceAnAccount() {
+    fun registerScreen_showsTheStudentIdItWillDerive() {
         composeTestRule.setContent {
-            RegisterScreen(state = RegisterForm(), replacesExistingAccount = true)
+            RegisterScreen(state = RegisterForm(email = "6831503029@lamduan.mfu.ac.th"))
+        }
+
+        composeTestRule.onNodeWithText("Student ID 6831503029").assertIsDisplayed()
+    }
+
+    @Test
+    fun loginScreen_saysWhenGoogleIsNotSetUp() {
+        // The button stays visible but disabled until a Web OAuth client id is
+        // built in; a control that vanishes reads as the wrong app.
+        composeTestRule.setContent {
+            LoginScreen(state = LoginForm(), googleAvailable = false)
         }
 
         composeTestRule
             .onNodeWithText(
-                "Signing up replaces the account already on this phone, and its booth progress.",
+                "Google sign-in isn't set up yet — use your phone number and password.",
             )
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun loginScreen_showsAnOfflineFailureDifferentlyFromARejection() {
+        composeTestRule.setContent {
+            LoginScreen(state = LoginForm(formError = FormError.Offline))
+        }
+
+        composeTestRule
+            .onNodeWithText("Can't reach the server. Check your connection and try again.")
             .assertIsDisplayed()
     }
 }

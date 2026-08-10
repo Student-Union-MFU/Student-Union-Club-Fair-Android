@@ -672,56 +672,45 @@ private fun BoothTile(
 
         // On every tile without exception. It is the line that says why to walk
         // over, and a booth card without one is a card that can't be used.
-        Spacer(Modifier.height(Dimens.SpaceXs))
-        Text(
-            text = booth.about,
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Normal,
-            fontSize = 12.sp,
-            lineHeight = 16.sp,
-            color = Color.White.copy(alpha = InkBlurb),
-            maxLines = BlurbLines,
-            overflow = TextOverflow.Ellipsis,
-        )
-
-        if (size != TileSize.Standard) {
-            Spacer(Modifier.height(Dimens.SpaceSm))
-            // The facts, under the sentence. Drawn in the area's colour rather
-            // than in white and set a size smaller, so they read as tags on the
-            // card rather than as more of the blurb — the eye can skip the whole
-            // block or read it, which is the point of putting it last.
-            //
-            // `members`, `meets` and `venue` have been on the model since the
-            // roster was written and none of them has ever been rendered. They
-            // earn it here: on a wall of booths to choose between, how many
-            // people already joined and whether the club meets on a day you are
-            // free are both reasons to walk one way rather than another.
+        // When there is one. `about` is null on all 28 booths until the Student
+        // Union writes the copy, and an empty line under every name reads as a
+        // card that failed to load — so the tile omits it rather than reserving
+        // space for nothing.
+        booth.about?.let { blurb ->
+            Spacer(Modifier.height(Dimens.SpaceXs))
             Text(
-                text = pluralStringResource(
-                    R.plurals.booths_members,
-                    booth.members,
-                    booth.members,
-                ),
+                text = blurb,
                 fontFamily = AlanSans,
-                fontWeight = FontWeight.Medium,
-                fontSize = 11.sp,
-                color = cardInk(accent).copy(alpha = InkGlyph),
-                maxLines = 1,
+                fontWeight = FontWeight.Normal,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+                color = Color.White.copy(alpha = InkBlurb),
+                maxLines = BlurbLines,
+                overflow = TextOverflow.Ellipsis,
             )
         }
 
-        if (size == TileSize.Feature) {
-            Spacer(Modifier.height(Dimens.SpaceXs))
-            Text(
-                text = "${booth.meets}  ·  ${booth.venue}",
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Normal,
-                fontSize = 11.sp,
-                lineHeight = 14.sp,
-                color = Color.White.copy(alpha = InkBlurb),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+        if (size != TileSize.Standard) {
+            Spacer(Modifier.height(Dimens.SpaceSm))
+            // The club's English name, where there is one.
+            //
+            // A member count and a "meets Wed 17:00 · Main Field" line used to sit
+            // here. Both are gone rather than ported: `members`, `meets` and
+            // `venue` were invented per club when the roster was written, and the
+            // Student Union has never supplied any of the three. There is nothing
+            // to render, and a fabricated figure on a card a student uses to choose
+            // where to walk is worse than a shorter card.
+            booth.nameEn?.let { english ->
+                Text(
+                    text = english,
+                    fontFamily = AlanSans,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 11.sp,
+                    color = cardInk(accent).copy(alpha = InkGlyph),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
@@ -744,11 +733,10 @@ private fun BoothGlyph(booth: Booth, accent: Color, modifier: Modifier = Modifie
             .background(cardInk(accent).copy(alpha = 0.14f)),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            painter = painterResource(booth.icon),
-            contentDescription = null,
+        BoothIcon(
+            booth = booth,
+            size = GlyphSize,
             tint = cardInk(accent).copy(alpha = InkGlyph),
-            modifier = Modifier.size(GlyphSize),
         )
     }
 }
@@ -797,7 +785,7 @@ private fun StatusBadge(booth: Booth, accent: Color, modifier: Modifier = Modifi
             )
         } else {
             Text(
-                text = stringResource(R.string.booths_number, booth.number),
+                text = booth.displayCode,
                 fontFamily = AlanSans,
                 fontWeight = FontWeight.Bold,
                 fontSize = 11.sp,
@@ -882,7 +870,8 @@ private fun ZoneMasthead(
                     color = Color.White,
                 )
                 Text(
-                    text = "${zone.code}  ·  ${zone.subtitle}",
+                    text = listOfNotNull(zone.titleEn, zone.subtitle)
+                        .joinToString("  ·  "),
                     fontFamily = AlanSans,
                     fontWeight = FontWeight.Normal,
                     fontSize = 12.sp,

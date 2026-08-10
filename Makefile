@@ -35,7 +35,7 @@ endif
 
 .PHONY: help run build install launch relaunch emulator stop-emulator \
         require-device logcat test connected-test lint release uninstall \
-        clean devices
+        clean devices reverse
 
 help: ## Show this help
 	@echo "SU Club Fair — make targets:"
@@ -51,8 +51,21 @@ run: emulator install launch ## Boot emulator, build, install and launch the app
 build: ## Build the debug APK
 	$(GRADLE) assembleDebug
 
-install: emulator ## Build and install the debug APK (boots the emulator if needed)
+install: emulator reverse ## Build and install the debug APK (boots the emulator if needed)
 	$(GRADLE) installDebug
+
+# The app talks to su-server over this tunnel.
+#
+# su-server publishes on 127.0.0.1:8080 on purpose, so the API is never on a
+# public interface — and the emulator's usual 10.0.2.2 host alias cannot reach a
+# loopback-only bind. `adb reverse` forwards the device's own localhost:8080 to
+# the host's, over adb, with no firewall or compose change.
+#
+# It is per-device and does not survive an emulator restart, so `install` depends
+# on it rather than leaving it as something to remember.
+reverse: require-device ## Tunnel the device's localhost:8080 to this machine
+	@$(ADB) reverse tcp:8080 tcp:8080 >/dev/null
+	@echo "==> localhost:8080 on the device now reaches this machine."
 
 launch: require-device ## Start the app's main activity
 	@$(ADB) shell am start -n $(APP_ID)/$(MAIN_ACTIVITY)

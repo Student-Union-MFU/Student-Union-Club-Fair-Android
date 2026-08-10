@@ -58,7 +58,7 @@ import com.su.clubfair.ui.components.glassSurface
 import com.su.clubfair.ui.model.Announcement
 import com.su.clubfair.ui.model.Reaction
 import com.su.clubfair.ui.model.ReactionPalette
-import com.su.clubfair.ui.model.SeedAnnouncements
+import com.su.clubfair.ui.model.PreviewAnnouncements
 import com.su.clubfair.ui.scene.MeshBackground
 import com.su.clubfair.ui.theme.AlanSans
 import com.su.clubfair.ui.theme.Dimens
@@ -85,9 +85,9 @@ import kotlinx.coroutines.delay
 @Composable
 fun EventsScreen(
     modifier: Modifier = Modifier,
-    isAdmin: Boolean = false,
-    announcements: List<Announcement> = SeedAnnouncements,
-    onReact: (postId: Int, emoji: String) -> Unit = { _, _ -> },
+    isStaff: Boolean = false,
+    announcements: List<Announcement> = PreviewAnnouncements,
+    onReact: (postId: Long, emoji: String) -> Unit = { _, _ -> },
 ) {
     // Anything the Student Union posts from the composer below. Local and
     // deliberately so: there is no channel to publish to, and the composer is
@@ -99,7 +99,7 @@ fun EventsScreen(
 
     // Which post has its picker open, by id. One at a time: two open pickers on
     // screen would both look like the one the next tap belongs to.
-    var pickerFor by rememberSaveable { mutableStateOf<Int?>(null) }
+    var pickerFor by rememberSaveable { mutableStateOf<Long?>(null) }
 
     // Land on the newest post, and follow the channel down as posts arrive — the
     // bottom is where a chat is read from.
@@ -135,7 +135,7 @@ fun EventsScreen(
                 top = Dimens.SpaceLg,
                 // A student has no composer under the list any more, so the last
                 // post has to clear the floating nav bar by itself.
-                bottom = if (isAdmin) Dimens.Space else Dimens.NavBarClearance,
+                bottom = if (isStaff) Dimens.Space else Dimens.NavBarClearance,
             ),
             verticalArrangement = Arrangement.spacedBy(Dimens.SpaceLg),
         ) {
@@ -160,7 +160,7 @@ fun EventsScreen(
         // channel says "React, don't reply" at the top and every post ends in a
         // reaction row, so a locked composer explaining the same rule a third
         // time was just a permanent grey bar across the bottom of the screen.
-        if (isAdmin) {
+        if (isStaff) {
             Box(
                 modifier = Modifier.padding(
                     start = Dimens.ScreenPadding,
@@ -171,7 +171,7 @@ fun EventsScreen(
                 Composer(
                     onSend = { body ->
                         posted += Announcement(
-                            id = (feed.maxOfOrNull { it.id } ?: 0) + 1,
+                            id = (feed.maxOfOrNull { it.id } ?: 0L) + 1L,
                             author = "Student Union",
                             postedAtMillis = System.currentTimeMillis(),
                             body = body,

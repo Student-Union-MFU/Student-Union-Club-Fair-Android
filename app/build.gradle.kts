@@ -4,6 +4,7 @@ plugins {
     // Kotlin support is built into AGP 9 — no separate kotlin-android plugin.
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 /**
@@ -36,6 +37,20 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
+        // The **web** OAuth client id, even on Android: it becomes the ID token's
+        // `aud`, which is what su-server compares against its own
+        // GOOGLE_CLIENT_ID. Supply it with
+        //   ./gradlew installDebug -PgoogleWebClientId=...apps.googleusercontent.com
+        // or in ~/.gradle/gradle.properties so it is never committed.
+        //
+        // Empty by default, and the app keeps the Google button disabled rather
+        // than opening a sheet that cannot succeed — see GoogleSignIn.isConfigured.
+        buildConfigField(
+            "String",
+            "GOOGLE_WEB_CLIENT_ID",
+            "\"${properties["googleWebClientId"] ?: ""}\"",
+        )
+
         // Only the languages actually translated. Without this the APK carries
         // every locale AppCompat and Material ship strings for, and the app's
         // own resources silently fall back to English for all of them.
@@ -60,8 +75,40 @@ android {
             // debug install never overwrites the one being demoed.
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+
+            // localhost, reached over an `adb reverse` tunnel — `make reverse`,
+            // which `make install` runs for you.
+            //
+            // Not 10.0.2.2, the emulator's usual alias for the host: su-server's
+            // compose file publishes on `127.0.0.1:8080` deliberately, so the API
+            // is never exposed on a public interface, and that alias does not
+            // reach a loopback-only bind. `adb reverse` tunnels the device's own
+            // localhost to the host over adb, which needs no firewall change and
+            // leaves that binding alone.
+            //
+            // A physical phone on the same network needs the laptop's LAN address
+            // instead, and su-server bound wider to accept it:
+            //   -PclubfairApiBase=http://192.168.1.x:8080
+            // Passed on the command line rather than edited here, so a personal
+            // address is never committed.
+            //
+            // Cleartext is permitted for this variant only; see
+            // src/debug/res/xml/network_security_config.xml.
+            buildConfigField(
+                "String",
+                "API_BASE_URL",
+                "\"${properties["clubfairApiBase"] ?: "http://localhost:8080"}\"",
+            )
         }
         release {
+            // No default. A release build pointed at someone's laptop would be
+            // worse than one that fails to configure, so this must be supplied:
+            //   ./gradlew assembleRelease -PclubfairApiBase=https://api.example.ac.th
+            buildConfigField(
+                "String",
+                "API_BASE_URL",
+                "\"${properties["clubfairApiBase"] ?: ""}\"",
+            )
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -78,6 +125,18 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
+
+        // java.time on API 24.
+        //
+        // su-server sends RFC 3339 timestamps and the app parses them with
+        // `Instant`, which arrived in API 26 — this app's floor is 24, so without
+        // desugaring that is a crash on Android 7 rather than a compile error.
+        // Lint found it; a user would have found it otherwise.
+        //
+        // The alternative was hand-rolling RFC 3339 with SimpleDateFormat, across
+        // fractional seconds and offsets. That is a bug farm for the sake of one
+        // dependency.
+        isCoreLibraryDesugaringEnabled = true
     }
 
     buildFeatures {
@@ -129,6 +188,16 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.datastore.preferences)
+
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
+
+    implementation(libs.okhttp)
+    implementation(libs.kotlinx.serialization.json)
+    debugImplementation(libs.okhttp.logging)
+
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services)
+    implementation(libs.googleid)
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
