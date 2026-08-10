@@ -138,6 +138,7 @@ fun AppShell(
                 when (target) {
                     0 -> HomeScreen(
                         student = student,
+                        scannedBooths = state.scannedBooths,
                         onOpenClubs = { tab = 1 },
                         onOpenProfile = { profileOpen = true },
                     )

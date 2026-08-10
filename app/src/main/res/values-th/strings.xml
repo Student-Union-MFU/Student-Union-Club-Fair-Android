@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Thai strings.
+
+  NEEDS A NATIVE REVIEW BEFORE RELEASE. This is a first pass written to get the
+  app's Thai locale wired end to end — every string is translated and the plurals
+  and format arguments are correct, but the register and tone have not been read
+  by a Thai speaker, and this app's audience reads Thai first.
+
+  Two conventions used throughout, worth keeping if the copy is rewritten:
+
+  - No spaces between words, spaces between clauses. Thai does not word-space,
+    and the English habit of doing so is the fastest way for a translation to
+    read as machine output.
+  - Thai has no grammatical plural, so every <plurals> here carries only an
+    "other" item. That is not laziness: supplying "one" would make the two forms
+    identical and imply a distinction the language does not draw.
+
+  `app_name` is deliberately absent, so the launcher label stays "SU Club Fair"
+  in both locales — it is the name of the event, not a description of it.
+-->
+<resources>
+
+    <string name="welcome_title">Club Fair</string>
+    <string name="welcome_subtitle">ชมรม บูธ\nและสุดสัปดาห์\nแห่งการค้นพบ</string>
+    <string name="welcome_drag_hint">เริ่มต้นใช้งาน</string>
+
+    <string name="login_title">เข้าสู่ระบบ</string>
+    <string name="login_subtitle">เข้าสู่ระบบเพื่อไปยัง Club Fair</string>
+    <string name="login_no_account">ยังไม่มีบัญชี? สมัครสมาชิก</string>
+    <string name="login_cta">เข้าสู่ระบบ</string>
+    <string name="login_working">กำลังเข้าสู่ระบบ…</string>
+    <string name="login_or">หรือ</string>
+    <string name="login_google">ดำเนินการต่อด้วย Google</string>
+
+    <string name="login_error_no_account">ยังไม่มีบัญชีในเครื่องนี้ กรุณาสมัครสมาชิกก่อน</string>
+    <string name="login_error_unknown_phone">เบอร์นี้ไม่ตรงกับบัญชีที่ลงทะเบียนไว้ในเครื่องนี้</string>
+    <string name="login_error_wrong_password">รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่</string>
+
+    <string name="register_title">สร้างบัญชี</string>
+    <string name="register_subtitle">สมัครสมาชิกเพื่อสำรวจชมรมและสะสมแสตมป์จากบูธ</string>
+    <string name="register_google_subtitle">สมัครด้วยบัญชี Google ของคุณ แล้วเราจะถามข้อมูลสำนักวิชาในขั้นตอนถัดไป</string>
+    <string name="register_first_hint">ชื่อ</string>
+    <string name="register_surname_hint">นามสกุล</string>
+    <string name="register_student_id_hint">รหัสนักศึกษา</string>
+    <string name="register_phone_hint">เบอร์โทรศัพท์</string>
+    <string name="register_confirm_hint">ยืนยันรหัสผ่าน</string>
+    <string name="register_school_hint">สำนักวิชา</string>
+    <string name="register_major_hint">สาขาวิชา</string>
+    <string name="register_cta">สร้างบัญชี</string>
+    <string name="register_working">กำลังสร้างบัญชี…</string>
+    <string name="register_have_account">มีบัญชีอยู่แล้ว? เข้าสู่ระบบ</string>
+    <string name="register_legal">การกดสร้างบัญชี ถือว่าคุณยอมรับเงื่อนไขการให้บริการ และรับทราบนโยบายความเป็นส่วนตัวของเรา</string>
+    <string name="register_legal_terms">เงื่อนไขการให้บริการ</string>
+    <string name="register_legal_privacy">นโยบายความเป็นส่วนตัว</string>
+    <string name="register_replaces_account">การสมัครใหม่จะแทนที่บัญชีเดิมในเครื่องนี้ รวมถึงความคืบหน้าการเก็บบูธทั้งหมด</string>
+
+    <string name="auth_error_required">จำเป็นต้องกรอก</string>
+    <string name="auth_error_phone">กรอกเบอร์มือถือไทย เช่น 0683150329</string>
+    <string name="auth_error_student_id">รหัสนักศึกษาต้องมี 10 หลัก</string>
+    <string name="auth_error_password_short">อย่างน้อย %1$d ตัวอักษร</string>
+    <string name="auth_error_password_letter">ต้องมีตัวอักษรอย่างน้อยหนึ่งตัว</string>
+    <string name="auth_error_password_digit">ต้องมีตัวเลขอย่างน้อยหนึ่งตัว</string>
+    <string name="auth_show_password">แสดงรหัสผ่าน</string>
+    <string name="auth_hide_password">ซ่อนรหัสผ่าน</string>
+
+    <string name="onboarding_headline">เยี่ยมชมครบทั้ง 27 บูธ สแกน QR ทุกบูธ แล้วลุ้นรับรางวัล!</string>
+    <string name="onboarding_cta">ถัดไป</string>
+
+    <string name="home_headline">ค้นหาชมรมของคุณในสุดสัปดาห์นี้</string>
+    <string name="home_checkpoints">จุดเช็คอิน</string>
+    <string name="home_checkpoints_count">%1$d</string>
+    <plurals name="home_checkpoints_total">
+        <item quantity="other">/ %1$d บูธ</item>
+    </plurals>
+    <string name="home_checkpoints_percent">เสร็จแล้ว %1$d %%</string>
+    <string name="home_checkpoints_desc">สแกนแล้ว %1$d จาก %2$d บูธ</string>
+    <string name="home_clubs">ชมรม</string>
+    <string name="home_prizes">รางวัล</string>
+
+    <string name="home_greeting">ยินดีต้อนรับกลับมา %1$s</string>
+    <string name="home_profile">เปิดโปรไฟล์</string>
+    <string name="home_announcements">ประกาศ</string>
+
+    <string name="home_stat_rank">อันดับ</string>
+    <string name="home_stat_prizes">รางวัล</string>
+    <string name="home_stat_unknown">—</string>
+    <string name="home_stat_left">เหลืออีก</string>
+    <string name="home_stat_starts">เริ่มในอีก</string>
+    <string name="home_stat_ended">งาน</string>
+    <string name="home_stat_ended_value">จบแล้ว</string>
+    <string name="home_countdown_days">%1$d วัน</string>
+    <string name="home_countdown_hours">%1$d ชม.</string>
+    <string name="home_countdown_minutes">%1$d น.</string>
+
+    <string name="nav_home">หน้าแรก</string>
+    <string name="nav_booths">บูธ</string>
+    <string name="nav_profile">โปรไฟล์</string>
+    <string name="nav_events">กิจกรรม</string>
+    <string name="nav_scan">สแกนบูธ</string>
+
+    <string name="events_channel">ประกาศ</string>
+    <string name="events_channel_topic">ประกาศจากองค์การนักศึกษา</string>
+    <string name="events_add_reaction">+</string>
+    <string name="events_add_reaction_desc">เพิ่มรีแอคชัน</string>
+    <string name="events_reaction_desc">%1$s, %2$d</string>
+    <string name="events_composer_hint">ส่งข้อความถึง #ประกาศ</string>
+    <string name="events_send">ส่งประกาศ</string>
+    <string name="events_just_now">เมื่อสักครู่</string>
+
+    <string name="scan_title">สแกนบูธ</string>
+    <string name="scan_hint">เล็งกล้องไปที่ QR code บนป้ายของบูธ</string>
+    <string name="scan_permission_title">ต้องการสิทธิ์เข้าถึงกล้อง</string>
+    <string name="scan_permission_cta">อนุญาตให้ใช้กล้อง</string>
+    <string name="scan_permission_settings">เปิดการตั้งค่า</string>
+    <string name="scan_permission_denied_body">คุณปฏิเสธการเข้าถึงกล้อง สามารถอนุญาตได้ในการตั้งค่า หรือพิมพ์หมายเลขบูธเองก็ได้</string>
+    <string name="scan_unavailable_title">ไม่พบกล้อง</string>
+    <string name="scan_unavailable_body">เครื่องนี้ไม่มีกล้องที่แอปใช้งานได้ พิมพ์หมายเลขบูธด้านล่าง หรือแสดงบัตรของคุณที่บูธแทน</string>
+    <string name="scan_result_booth">บูธ %1$02d</string>
+    <string name="scan_result_recorded">บันทึกจุดเช็คอินแล้ว</string>
+    <string name="scan_result_already">สแกนบูธนี้ไปแล้ว</string>
+    <string name="scan_result_already_body">คุณเก็บบูธนี้ไปก่อนหน้านี้แล้ว ไม่ต้องทำอะไรเพิ่ม</string>
+    <string name="scan_result_unknown">ไม่ใช่โค้ดของบูธ</string>
+    <string name="scan_result_unknown_body">QR code นี้ไม่ใช่ของงาน มองหาโค้ดบนป้ายของบูธโดยตรง</string>
+    <string name="scan_again">สแกนบูธถัดไป</string>
+    <string name="scan_close">ปิด</string>
+    <string name="scan_torch_on">เปิดไฟฉาย</string>
+    <string name="scan_torch_off">ปิดไฟฉาย</string>
+    <string name="scan_manual_cta">กรอกหมายเลขบูธ</string>
+    <string name="scan_manual_title">หมายเลขบูธ</string>
+    <string name="scan_manual_hint">1–%1$d</string>
+    <string name="scan_manual_submit">เก็บบูธ</string>
+    <string name="scan_manual_cancel">ยกเลิก</string>
+    <string name="scan_manual_invalid">กรอกหมายเลขบูธระหว่าง 1 ถึง %1$d</string>
+
+    <string name="profile_pass_row">บัตรของฉัน</string>
+    <string name="profile_pass_row_hint">แสดง QR ของคุณที่บูธ</string>
+
+    <string name="booths_title">บูธ</string>
+    <string name="booths_back">กลับไปหน้าโซน</string>
+    <string name="booths_hub_label">เช็คอินแล้ว</string>
+    <plurals name="booths_progress">
+        <item quantity="other">สแกนแล้ว %1$d จาก %2$d</item>
+    </plurals>
+    <string name="booths_filter_all">ทั้งหมด</string>
+    <string name="booths_filter_scanned">สแกนแล้ว</string>
+    <string name="booths_filter_remaining">ยังเหลือ</string>
+    <string name="booths_zone_progress">%1$d/%2$d</string>
+    <string name="booths_number">%1$02d</string>
+    <string name="booths_number_long">บูธ %1$02d</string>
+    <plurals name="booths_members">
+        <item quantity="other">สมาชิก %1$d คน</item>
+    </plurals>
+    <string name="booths_scanned_desc">สแกนแล้ว</string>
+    <string name="booths_empty">ยังไม่มีอะไรที่นี่</string>
+    <string name="booth_status_scanned">สแกนแล้ว</string>
+    <string name="booth_status_unscanned">ยังไม่ได้สแกน</string>
+    <string name="booth_status_unscanned_hint">สแกน QR ที่บูธนี้</string>
+
+    <string name="booths_search">ค้นหาชมรม</string>
+    <string name="booths_search_hint">ค้นหาชมรม</string>
+    <string name="booths_search_clear">ล้างคำค้นหา</string>
+    <string name="booths_search_close">ปิดการค้นหา</string>
+    <plurals name="booths_search_results">
+        <item quantity="other">%1$d ชมรม</item>
+    </plurals>
+    <string name="booths_search_empty_title">ไม่พบชมรมที่ตรงกับ “%1$s”</string>
+    <string name="booths_search_empty_body">ลองใช้คำที่สั้นลง หรือชื่อสิ่งที่ชมรมทำ เช่น “ฟุตบอล” “ศิลปะ” “โค้ด”</string>
+
+    <string name="profile_title">โปรไฟล์</string>
+    <string name="profile_pass_active">บัตรพร้อมใช้งาน</string>
+    <string name="profile_stat_booths">บูธ</string>
+    <string name="profile_back">ย้อนกลับ</string>
+    <string name="profile_email">อีเมล</string>
+    <string name="profile_phone">เบอร์โทรศัพท์</string>
+    <string name="profile_school">สำนักวิชา</string>
+    <string name="profile_major">สาขาวิชา</string>
+    <string name="profile_student_id">รหัสนักศึกษา</string>
+    <string name="profile_sign_out">ออกจากระบบ</string>
+    <string name="profile_unset">ยังไม่ได้ระบุ</string>
+    <string name="profile_settings">การตั้งค่า</string>
+    <string name="profile_settings_hint">การตอบสนอง ข้อมูล และเกี่ยวกับแอป</string>
+
+    <string name="settings_title">การตั้งค่า</string>
+    <string name="settings_feedback_section">การตอบสนอง</string>
+    <string name="settings_haptics">สั่นเมื่อสแกนสำเร็จ</string>
+    <string name="settings_haptics_hint">สั่นสั้น ๆ เมื่อเก็บบูธได้</string>
+    <string name="settings_data_section">ข้อมูลของคุณ</string>
+    <string name="settings_stored_title">จัดเก็บในเครื่องนี้</string>
+    <plurals name="settings_stored_scans">
+        <item quantity="other">%1$d การสแกน เก็บไว้ในเครื่องนี้เท่านั้น</item>
+    </plurals>
+    <string name="settings_stored_body">ตอนนี้ยังไม่มีเซิร์ฟเวอร์ จุดเช็คอินของคุณจึงอยู่ในเครื่องนี้ที่เดียว การถอนการติดตั้งแอปหรือล้างเครื่องจะทำให้ข้อมูลหายไป</string>
+    <string name="settings_erase">ลบข้อมูลทั้งหมดในเครื่องนี้</string>
+    <string name="settings_erase_hint">บัญชี จุดเช็คอิน และรีแอคชันของคุณ</string>
+    <string name="settings_erase_confirm_title">ลบข้อมูลทั้งหมด?</string>
+    <string name="settings_erase_confirm_body">การดำเนินการนี้จะลบบัญชีในเครื่องนี้พร้อมจุดเช็คอินทั้งหมดที่คุณเก็บไว้ และไม่สามารถย้อนกลับได้</string>
+    <string name="settings_erase_confirm_cta">ลบ</string>
+    <string name="settings_cancel">ยกเลิก</string>
+    <string name="settings_about_section">เกี่ยวกับ</string>
+    <string name="settings_version">เวอร์ชัน</string>
+    <string name="settings_terms">เงื่อนไขการให้บริการ</string>
+    <string name="settings_privacy">นโยบายความเป็นส่วนตัว</string>
+    <string name="settings_open_external">เปิดในเบราว์เซอร์</string>
+    <string name="settings_no_browser">ไม่มีแอปในเครื่องนี้ที่เปิดลิงก์เว็บได้</string>
+
+    <string name="qr_title">Club Fair 2026</string>
+    <string name="qr_subtitle">บัตรนักศึกษา</string>
+    <string name="qr_hint">แสดงบัตรนี้ที่บูธใดก็ได้เพื่อรับจุดเช็คอิน</string>
+    <string name="qr_admit">สำหรับหนึ่งท่าน</string>
+    <string name="qr_event_dates">26–27 ก.ค.</string>
+    <string name="qr_code_desc">QR code ของนักศึกษา %1$s</string>
+
+    <string name="auth_phone_hint">683XXXXXXX</string>
+    <string name="auth_password_hint">รหัสผ่าน</string>
+
+    <string name="logo_mfu">มหาวิทยาลัยแม่ฟ้าหลวง</string>
+    <string name="logo_su">องค์การนักศึกษา</string>
+</resources>

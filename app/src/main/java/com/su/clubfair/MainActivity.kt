@@ -94,27 +94,40 @@ private fun ClubFairApp() {
     val fair: FairViewModel = viewModel(factory = FairViewModel.Factory)
     val session by fair.session.collectAsStateWithLifecycle()
 
+    // The crossfade keys on the *phase*, not on the session value.
+    //
+    // Keying it on `session` directly looks equivalent and is not: `SignedIn`
+    // carries the student, so every scan produces a new instance, `Crossfade`
+    // reads that as a different screen, and the whole signed-in tree is torn
+    // down and rebuilt. In practice that meant collecting a booth threw you back
+    // to the Home tab, because `AppShell`'s `rememberSaveable` tab index was
+    // discarded along with it. Four values, and only a move between them is a
+    // change of screen.
+    val phase = when (val current = session) {
+        SessionState.Restoring -> AppPhase.Restoring
+        SessionState.SignedOut -> AppPhase.SignedOut
+        is SessionState.SignedIn ->
+            if (current.onboardingSeen) AppPhase.Shell else AppPhase.Onboarding
+    }
+
     Crossfade(
-        targetState = session,
+        targetState = phase,
         animationSpec = tween(TransitionMillis),
-        label = "session",
+        label = "phase",
     ) { current ->
         when (current) {
             // Deliberately bare. Anything more is a splash screen, and a splash
             // screen for a DataStore read is an animation in front of nothing.
-            SessionState.Restoring -> Box(Modifier.fillMaxSize()) { MeshBackground() }
-
-            SessionState.SignedOut -> SignedOutFlow()
-
-            is SessionState.SignedIn ->
-                if (current.onboardingSeen) {
-                    AppShell(onSignOut = fair::signOut)
-                } else {
-                    OnboardingScreen(onContinue = fair::markOnboardingSeen)
-                }
+            AppPhase.Restoring -> Box(Modifier.fillMaxSize()) { MeshBackground() }
+            AppPhase.SignedOut -> SignedOutFlow()
+            AppPhase.Onboarding -> OnboardingScreen(onContinue = fair::markOnboardingSeen)
+            AppPhase.Shell -> AppShell(onSignOut = fair::signOut)
         }
     }
 }
+
+/** What the app is showing at the top level — see [ClubFairApp]. */
+private enum class AppPhase { Restoring, SignedOut, Onboarding, Shell }
 
 /** Welcome, sign-in and sign-up, with the slide between them. */
 @Composable

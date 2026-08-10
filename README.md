@@ -7,7 +7,7 @@ Android app written in Kotlin with Jetpack Compose.
 | | |
 |---|---|
 | Gradle | 9.6.1 (via `./gradlew`) |
-| Android Gradle Plugin | 9.3.1 |
+| Android Gradle Plugin | 9.2.1 |
 | Kotlin | built into AGP 9 (Compose compiler plugin 2.4.10) |
 | Compose BOM | 2026.06.01 |
 | compileSdk / targetSdk | 37 |
@@ -20,27 +20,58 @@ Dependency versions live in [`gradle/libs.versions.toml`](gradle/libs.versions.t
 
 ```bash
 ./gradlew assembleDebug     # debug APK -> app/build/outputs/apk/debug/
-./gradlew assembleRelease   # minified release APK (unsigned)
+./gradlew assembleRelease   # minified release APK
 ./gradlew test              # JVM unit tests
 ./gradlew connectedAndroidTest   # instrumented tests (needs a device/emulator)
-./gradlew lintDebug         # Android lint
+./gradlew lintDebug         # Android lint — aborts on error
 ./gradlew installDebug      # build + install on a connected device
 ```
 
+`make` wraps the common loop — `make run` boots the emulator, installs and
+launches; `make help` lists the rest.
+
 The SDK location is read from `local.properties` (gitignored); set `ANDROID_HOME`
 instead if you prefer.
+
+### Variants and signing
+
+The debug build carries `applicationIdSuffix = ".debug"`, so it installs
+**alongside** a release build instead of replacing it — useful when one phone is
+being demoed from and another is being developed against. Its package is
+therefore `com.su.clubfair.debug`, which is what the `Makefile` targets.
+
+Release signing reads an untracked `keystore.properties` at the repo root:
+
+```properties
+storeFile=/path/to/clubfair.jks
+storePassword=…
+keyAlias=clubfair
+keyPassword=…
+```
+
+CI can supply the same four as `CLUBFAIR_STORE_FILE`, `CLUBFAIR_STORE_PASSWORD`,
+`CLUBFAIR_KEY_ALIAS` and `CLUBFAIR_KEY_PASSWORD`. With neither present
+`assembleRelease` still succeeds and produces an **unsigned** APK, so a checkout
+without the keystore is not a broken checkout. The keystore and
+`keystore.properties` are gitignored; keep them that way.
 
 ## Layout
 
 ```
 app/src/main/java/com/su/clubfair/
-    MainActivity.kt          # entry point, hosts HomeScreen
+    MainActivity.kt          # entry point and the signed-in / signed-out gate
+    ClubFairApplication.kt   # the object graph: one repository, process-wide
+    data/                    # storage, the repository, and the fair's own rules
+    ui/                      # AppShell + FairViewModel, then one package per screen
     ui/theme/                # the palette, Material scheme, typography, scale
     ui/scene/                # the generated backdrop — palette to pixels
-app/src/main/res/            # strings, themes, launcher icon
+app/src/main/res/            # strings (en + th), themes, launcher icon
 app/src/test/                # JVM unit tests
 app/src/androidTest/         # Compose UI / instrumented tests
 ```
+
+Compose reads the fair through `data/FairRepository`; nothing in `ui/` touches
+storage directly. See [Where the student data lives](#where-the-student-data-lives).
 
 ## Where to put assets
 
@@ -76,6 +107,20 @@ that couldn't be re-tinted from a palette. Hues in 215–315° are remapped into
 shading rather than smearing into a rainbow — leaving the lime accent alone.
 The script is in the commit that introduced it; re-run it against `art/` rather
 than editing the `.webp` if the palette moves again.
+
+**Nothing else from the earlier designs is still in `res/`.** These were all
+verified unreferenced by any Kotlin or XML source and deleted, ~2.3 MB in total:
+
+| Removed | Was |
+|---|---|
+| `bg_fairmap.png` (1.6 MB) | the fair-map backdrop |
+| `bg_ocean.jpg`, `bg_savannah.jpg`, `bg_rainforest.jpg` | the per-zone "ecosystem" backdrops the generated mesh replaced |
+| `assets/models/fox.glb`, `booth_stall.glb` | went with the SceneView renderer, along with its catalog entry |
+| root-level `ocean.jpg`, `savanna.jpg`, `tempbg.jpg` | byte-identical copies of the three above |
+
+`shrinkResources` would have stripped them from a release APK, but they still cost
+the repo, every clone and every debug install. `lintDebug` reports `UnusedResources`
+and now aborts on error, so the next batch shows up before it accumulates.
 
 **Filename rules for anything under `res/`:** lowercase letters, digits and
 underscores only — no spaces, dashes or capitals, and it can't start with a
@@ -225,9 +270,38 @@ near-white, on the reasoning that being the only *opaque* thing on a screen of
 frosted panes is what marks the primary action. That still holds, but with one
 accent instead of four there is now a colour to spend on it.
 
-The School / Major option lists in `RegisterScreen.kt` are placeholders — swap
-them for the real faculty data when it lands. Neither screen talks to a backend
-yet; `onLogin` / `onCreateAccount` are hoisted callbacks.
+Both forms are **driven by state, not by their own `remember`**. `LoginForm` and
+`RegisterForm` live in
+[`AuthViewModel`](app/src/main/java/com/su/clubfair/ui/auth/AuthViewModel.kt) and
+compute their own per-field errors, so nothing is lost to a rotation and the rules
+are unit-testable without a device. Both screens previously accepted anything at
+all — including empty fields — and `onLogin` discarded the credentials verbatim.
+
+Two details in the validation that are easy to get backwards:
+
+- **`error` is what a field thinks; `showErrors` is whether the form is ready to
+  say so.** Validating as someone types tells them their password is too short
+  when they have entered one character of it, which is true, useless, and reads as
+  the form shouting.
+- **A rejected field names the rule it broke** (`FieldError` → a string resource
+  in `AuthComponents.kt`, so the ViewModel never holds a `Context`). "Invalid"
+  makes someone guess which of three rules they missed. The message is attached
+  with `semantics { error(…) }` as well as drawn, so TalkBack announces the reason
+  on focus.
+
+`RegisterScreen` asks for what the app then actually renders: name (the greeting,
+the pass initials), **student id** (the pass QR encodes it), phone (the identifier
+sign-in matches against), school and major (the profile). It used to ask for a name
+and a password on the reasoning that the Google step establishes the rest — which
+it doesn't, since that button is a stub, so everything the app showed had to be
+invented and was.
+
+The School list in
+[`data/Campus.kt`](app/src/main/java/com/su/clubfair/data/Campus.kt) **needs
+checking against the registrar before release**: a student whose school is missing
+cannot finish signing up, which is the worst way for a stale list to fail. Major is
+deliberately a text field, not a list — programmes change every intake and a
+dropdown one year out of date forces a student to pick something they are not on.
 
 ### Onboarding screen
 
@@ -282,8 +356,39 @@ nothing ever decodes. Rotation is ignored on purpose — a QR carries its own
 orientation markers.
 
 ZXing was already a dependency for rendering the pass, so the scanner adds no
-second barcode library. Nothing is persisted; wiring a checkpoint to a scan needs
-a backend, like the rest of the placeholder data.
+second barcode library.
+
+A scan is **recorded** now rather than shown and discarded.
+[`ScanOutcome`](app/src/main/java/com/su/clubfair/data/FairRepository.kt) has
+three cases and the screen says which, because three different things need saying
+to someone standing at a booth holding a phone up: it worked, you already did this
+one, or that is not a fair code. Re-scanning a collected booth used to produce a
+card identical to a fresh checkpoint — telling a student they had gained something
+they had not.
+
+The tab is no longer a dead end when the camera is unavailable. Four things used
+to end here and all four now fall through to typing the number in
+([`ScanControls.kt`](app/src/main/java/com/su/clubfair/ui/scan/ScanControls.kt)):
+permission refused, no camera on the device, a code too damaged or glared to read,
+and a booth whose printed sign has gone missing by the afternoon. The third is the
+most common and the only one with no error state to land on, which is why the way
+in sits on the running camera screen too.
+
+A typed number is *exactly* as trustworthy as a scanned one, because `BoothCode`
+accepts a bare number and nothing on the device can certify that anyone stood
+anywhere. This adds no new hole — it makes the existing one visible, and both
+paths close together when a server signs the codes.
+
+There is a torch, drawn only when `cameraInfo.hasFlashUnit()` says there is one: a
+fair hall is lit for people, not cameras, and a booth's code is usually on a table
+under someone's shadow. Driving it lives in its own `LaunchedEffect` so toggling
+the light doesn't tear down and rebuild the whole camera session.
+
+A successful scan buzzes (Settings can turn that off). A booth read at arm's
+length is a phone nobody is looking at — held up at a sign while the student
+watches the sign — so the haptic is what says "done" without needing eyes on the
+display. It stays quiet for a code that simply wasn't ours; a buzz for every stray
+QR the camera swept past would make the phone feel broken.
 
 ### Student pass
 
@@ -449,11 +554,39 @@ Two things beyond tapping, both taken from Telegram:
 
 ### Booths
 
+> **Note** — the rest of this section describes the two-column grid with All /
+> Scanned / Remaining filters that this tab *used* to be, and is out of date.
+> `BoothsScreen` now shows **three area cards, then the wall of whichever one you
+> pick** (`ZoneBoothWall`), for the reasons in that file's own header: the filter
+> answered a question the number at the top of the page already answered and made
+> two thirds of the fair vanish to do it, and a grid of 27 identical squares is a
+> database listing. Everything below about zone accents, `LocalAccent` and the
+> booth panel still holds.
+
 [`ui/booths/BoothsScreen.kt`](app/src/main/java/com/su/clubfair/ui/booths/BoothsScreen.kt)
-lists all 27 clubs in a two-column grid, grouped into three zones, with All /
-Scanned / Remaining filters. Each card carries its own Lucide icon, the booth
-number (with a tick folded into it once scanned), the club name, a line on what
-it does, and the practical details — when it meets, where, and how many members.
+takes the ticked roster and groups it by zone. Each card carries its own Lucide
+icon, the booth number (with a tick folded into it once scanned), the club name
+and a line on what it does.
+
+#### Search
+
+[`ui/booths/BoothSearch.kt`](app/src/main/java/com/su/clubfair/ui/booths/BoothSearch.kt)
+is a layer over both the area picker and a zone's wall, reached from the magnifier
+beside the title.
+
+Browsing by area is right for a student wandering and useless for one who has been
+told "come find the Robotics Club" — the areas are habitats, so there is no way to
+reason from a club's name to which of the three it sits in. Results carry the zone
+for that reason: the answer to "where is Robotics" is a place on the floor.
+
+Matching is a plain substring over the name **and the blurb**, which is why "hack"
+finds the Coding Club. It stays a substring because that is forgiving in the
+direction that matters — half-way through typing "badmin" you should already see
+the club — and the cost is breadth: "art" also matches "St**art**up Club", because
+it genuinely is in there. So results are *ordered* rather than filtered harder, and
+a club with a word actually beginning with the term comes first. Losing a real hit
+is a worse failure than showing a loose one below it. Ties fall back to booth order
+so the list doesn't reshuffle as a query is typed.
 
 The page is **three sections, one per zone**. `ZoneHeader` makes what the area
 *is* the headline and its signage code the subtitle — a student is looking for
@@ -503,28 +636,123 @@ way as the rest (see [Home screen](#home-screen)).
 [`ui/profile/ProfileScreen.kt`](app/src/main/java/com/su/clubfair/ui/profile/ProfileScreen.kt)
 is the Profile tab: an identity card (initial avatar, name, student ID, a "pass
 active" chip), the same `StatPane` Home uses, the details captured at
-registration (phone, school, major), sign-out, and the MFU / SU marks
-from the welcome footer. Sign-out is a ghost surface rather than the accent
+registration, a way through to Settings, sign-out, and the MFU / SU marks from
+the welcome footer. Sign-out is a ghost surface rather than the accent
 `PillButton` — it's the one destructive action on the page and shouldn't outshout
 the content. Nothing is editable; there's no backend to write to.
 
+The details card shows what sign-up actually collected and says "Not set" for
+anything it didn't, rather than rendering a blank row that reads as a failure to
+load. Email is the one routinely unset: it comes from the Google step, which is
+still a stub.
+
+The two policy names in the footer are links now. They were styled text going
+nowhere, on a screen whose sign-up counterpart makes a student agree to both by
+tapping a button — see [`data/Links.kt`](app/src/main/java/com/su/clubfair/data/Links.kt)
+for the pages that **have to exist before release**. Google Play also requires a
+reachable privacy policy URL on the store listing, so this is a shipping blocker
+rather than a nicety.
+
+### Settings
+
+[`ui/settings/SettingsScreen.kt`](app/src/main/java/com/su/clubfair/ui/settings/SettingsScreen.kt)
+opens over Profile as a second sheet, so closing it returns to the page it was
+opened from without re-animating that page.
+
+Three groups: the one preference worth having (vibrate on a scan), an honest
+statement of where the student's checkpoints actually are, and the version number
+every bug report starts with. The storage card is not a footnote — progress is
+held on this phone and nowhere else, and saying so is what makes the current
+behaviour safe to rely on. "Erase everything" is the only destructive action in
+the app and the only thing behind a confirmation dialog, because there is nothing
+to undo *to*.
+
 ### Where the student data lives
 
-[`ui/model/Student.kt`](app/src/main/java/com/su/clubfair/ui/model/Student.kt)
-holds the signed-in student — the fields `RegisterScreen` collects (name, phone,
-school, major) plus what the fair tracks (booths visited, rank, prizes).
-`PlaceholderStudent` stands in until sign-in returns a real one.
+Four layers, and the boundary between the second and third is the one that
+matters: **nothing in `ui/` touches storage.**
+
+| | |
+|---|---|
+| [`data/ClubFairStore.kt`](app/src/main/java/com/su/clubfair/data/ClubFairStore.kt) | One DataStore. The account, the scans, the student's own reactions, their preferences. Every read is a `Flow`. |
+| [`data/FairRepository.kt`](app/src/main/java/com/su/clubfair/data/FairRepository.kt) | The single seam the UI reads the fair through, and where the server boundary is marked. |
+| [`ui/FairViewModel.kt`](app/src/main/java/com/su/clubfair/ui/FairViewModel.kt) | `SessionState` and `FairUiState`, held across configuration changes. |
+| `ui/**/…Screen.kt` | Stateless. Every screen takes its state and its callbacks, and keeps a `@Preview` default. |
+
+[`ui/model/Student.kt`](app/src/main/java/com/su/clubfair/ui/model/Student.kt) is
+the signed-in student. `visited` counts what this device has actually scanned and
+`prizes` derives from it through
+[`data/FairRules.kt`](app/src/main/java/com/su/clubfair/data/FairRules.kt).
+`rank` is **nullable and always null**, because no phone can rank a student
+against every other student — everything that renders it shows an em dash.
+`PreviewStudent` is for `@Preview` only; nothing in the running app falls back to
+it, and a screen with no session shows its signed-out state instead.
 
 [`ui/model/Booth.kt`](app/src/main/java/com/su/clubfair/ui/model/Booth.kt) holds
-the 27-club roster. Which booths count as scanned is *derived* from
-`Student.visited` rather than stored per booth, so the list can never disagree
-with the "19 / 27" on Home and the profile. Once scanning is real that flips
-round: the booths become the source of truth and the count is derived from them.
+the 27-club roster, and `boothRoster(scanned: Set<Int>)` ticks it against the
+booth numbers actually collected. The flip the old design predicted has happened:
+the booths are the source of truth and every count derives from them. Previously
+the roster took a `visited` count and marked the first N booths scanned, so
+scanning booth 23 first would have lit up booth 1 — invisible while the count was
+a hardcoded 19, and a card showing the wrong booths the moment scanning was real.
 
-Home, the pass and the profile all read that one holder rather than their own
+Home, the pass and the profile all read one holder rather than their own
 constants. They used to each carry their own copy of the name, ID, major and
 school in `strings.xml`, which is three places for the same person to drift apart
 the moment one of them changed.
+
+### What this app keeps, and what it cannot
+
+Everything is device-local. There is no server, and three things are answered on
+the phone that a server will have to answer instead. Each is marked at its own
+definition as well as here:
+
+- **Sign-in** ([`data/PasswordHasher.kt`](app/src/main/java/com/su/clubfair/data/PasswordHasher.kt))
+  checks the password against a PBKDF2 salt and hash held on the device — a
+  random 128-bit salt, 120k iterations, and the password itself never stored.
+  That is the right way to do the wrong thing: it proves the phone was told the
+  correct password, not that the person holding it is who they say they are.
+- **Checkpoints** ([`data/BoothCode.kt`](app/src/main/java/com/su/clubfair/data/BoothCode.kt))
+  are asserted by the student's own device. The parser is strict about *format*
+  now, which stops the app crediting a booth because the camera swept past a
+  price tag — but every accepted form is guessable from a booth's number, so a
+  student can still mint a code for a booth they never visited. Only a server
+  signing each booth's code and recording who redeemed it fixes that.
+- **The announcements channel** is a fixed seed list. There is nothing to read
+  from and nothing to post to; the composer is behind an `isAdmin` flag no path
+  currently sets.
+
+`FairRepository.unsyncedScans` is the seam for the first of those: every scan
+this device holds, oldest first, which is exactly the backlog to POST once there
+is somewhere to POST it. Settings shows the count, because a student who assumes
+their afternoon is safely recorded somewhere will find out otherwise by losing it.
+
+A reinstall loses everything. Sign-out does not — the account and its scans
+survive so signing back in works; registering a *different* student replaces the
+account and clears the previous one's progress, which is the only shared-phone
+case there is one account to handle.
+
+### Localisation
+
+`values/` is English, `values-th/` is Thai, and `resourceConfigurations` pins the
+APK to those two so it stops carrying every locale AndroidX ships strings for.
+
+**The Thai is a first pass and needs a native review before release.** Every
+string is translated and the plurals and format arguments are correct, but the
+register and tone have not been read by a Thai speaker — and this app's audience
+reads Thai first. Two conventions worth keeping if the copy is rewritten: no
+spaces between words (Thai does not word-space, and doing so is the fastest way
+for a translation to read as machine output), and `<plurals>` carrying only an
+`other` item, since Thai has no grammatical plural and supplying `one` would imply
+a distinction the language does not draw.
+
+`app_name` is deliberately `translatable="false"` — it is the name of the event,
+not a description of it.
+
+Dates and times are never pre-formatted into the model. `Announcement` carries an
+instant and the channel formats it at draw time through `DateUtils`, which is what
+makes a post readable in Thai, in a 24-hour locale, and still correct after
+midnight. It used to be the string `"Today at 12:30"` baked into the data.
 
 ### Window background
 
@@ -537,15 +765,41 @@ the dark colour is the backstop for anything that still slips through.
 
 ### Navigation
 
-`MainActivity` routes Welcome → Login → Register → Onboarding with a
-`rememberSaveable` enum plus a `BackHandler` (back rewinds sign-in only;
-onboarding and Home are one-way). Move to Navigation Compose once there's a
-real post-login graph.
+There is exactly one gate: **is anyone signed in?** `MainActivity` crossfades
+between four phases — restoring, signed out, onboarding, the shell — and the
+signed-out flow keeps its own `rememberSaveable` `AuthStep` enum plus a
+`BackHandler` for Welcome → Login → RegisterGoogle → Register.
+
+Routing used to be a single `Screen` enum that a tap moved through, which meant
+"signed in" was a position in an animation rather than a fact: closing the app on
+Home reopened it on Welcome, and there was nothing for a session to be restored
+*into*.
+
+Two things about that gate are easy to get wrong and both have bitten:
+
+- **`SessionState.Restoring` is not a nicety.** Reading DataStore is
+  asynchronous, so for the first frames after launch the app does not know
+  whether anyone is signed in. Treating "not yet known" as "signed out" makes a
+  returning student watch the Welcome screen flash past on every cold start. The
+  bare backdrop is shown instead — it is what every screen stands on anyway, so
+  the arrival reads as one continuous surface.
+- **The crossfade keys on the phase, not on the session value.** Keying it on
+  `SessionState` directly looks equivalent and is not: `SignedIn` carries the
+  student, so every scan produces a new instance, `Crossfade` reads that as a
+  different screen, and the whole signed-in tree is torn down and rebuilt — which
+  in practice threw you back to the Home tab every time you collected a booth.
 
 Screens swap through an `AnimatedContent` that slides horizontally over 380ms.
-Direction comes from the `Screen` enum's ordinals — a higher ordinal is "deeper"
+Direction comes from the `AuthStep` enum's ordinals — a higher ordinal is "deeper"
 and slides in from the right, a lower one slides back from the left — so keep
 the constants declared in flow order.
+
+Navigation Compose is still not in use, and that is a deliberate hold rather than
+an oversight: its two real wins here are deep links and a back stack, the app has
+no web presence to link into, and the back behaviour is already explicit. What it
+*would* cost is re-expressing every hand-tuned transition in this file as
+per-destination `enterTransition`s. Revisit it when something outside the app needs
+to point at a screen inside it.
 
 The sign-in flow has no crossfade: every screen carries the same backdrop, so the
 outgoing and incoming ones tile exactly while they slide — fading either would
@@ -665,3 +919,59 @@ horizon lines using whole numbers of cycles across the width (so both ends of a
 layer meet at the same height), and seeded generators (so a given screen size
 always produces the same scenery — art that reshuffles on rotation reads as a
 bug).
+
+## Accessibility
+
+Not a full audit, and worth being clear about that — no TalkBack pass has been
+sat through end to end, and the type scale has not been checked at 200% font
+size. What has been fixed is the class of problem where a control is *invisible*
+to a screen reader rather than merely awkward:
+
+- **The checkpoint grid** was 27 undecorated boxes, so 27 stops that each said
+  nothing. It is one node now describing the number it is a picture of.
+- **The pass QR** is a `Canvas` with a decorative logo over it, which made the
+  largest element on the screen completely silent. It names the id it carries, so
+  a student using TalkBack can confirm they are holding up their own pass.
+- **Reaction chips** were an emoji and a number read as two unrelated nodes.
+  They are one `toggleable` announcing "👍, 63" with a state, so lit-or-not is
+  carried by something other than a colour.
+- **Detail rows** on the profile merge, so "Email, Not set" is one announcement.
+- **Form errors** attach with `semantics { error(…) }` as well as being drawn, and
+  the sign-in failure banner is an assertive live region — it arrives after a
+  submit, when focus is nowhere near it. So is the scan result card, which appears
+  while the phone is held up at a sign.
+- **Touch targets**: the password reveal, the search clear/close, the torch and
+  the legal links are all 48dp regardless of the size of the glyph or label inside
+  them. Rows in Settings and Profile are `heightIn(min = 56.dp)`.
+- **Headings** are marked on sheet titles and section labels, so heading
+  navigation works instead of reading from the top each time.
+
+Known gaps: no TalkBack walkthrough, no large-font-scale pass (several cards use
+fixed `dp` heights that will clip before 200%), and no RTL check despite
+`supportsRtl="true"`.
+
+## Tests
+
+```bash
+./gradlew test              # 43 JVM unit tests
+./gradlew connectedAndroidTest   # Compose UI tests, needs a device
+```
+
+The unit tests cover the logic that can be got wrong silently, which is most of
+`data/`:
+
+| | |
+|---|---|
+| `BoothCodeTest` | the strict parse, and specifically the payloads the old trailing-digit regex credited a booth for — a phone number, a room sign, a Wi-Fi QR |
+| `ValidationTest` | phone normalisation across `+66`/spaces/dashes, the password rules and *which* rule failed, student ids |
+| `FairDataTest` | prize milestones, the schedule's three phases, scan record encoding, roster ticking, search matching and ranking |
+| `QrDecoderTest` | drives the real decode path on the JVM against a generated code |
+
+This replaced `assertEquals(4, 2 + 2)`. The instrumented `AuthScreenTest` was also
+asserting against fields the register screen had dropped long ago and passed
+anyway, because nothing ran it — it drives the screens through their state objects
+now, which is the only way the error paths are reachable.
+
+Two habits worth keeping: `FairRepository` takes its clock as a parameter so tests
+can hold time still, and `BoothCode.parse` takes the booth count rather than
+reaching for a global, so a test does not depend on the roster's current length.

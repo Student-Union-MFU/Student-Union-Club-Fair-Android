@@ -150,4 +150,27 @@ class BoothSearchTest {
     fun `no match returns empty`() {
         assertTrue(roster.matching("quidditch").isEmpty())
     }
+
+    @Test
+    fun `a club whose name starts with the term ranks above an incidental match`() {
+        // "art" is genuinely inside "Startup", so it stays in the results — but
+        // below the two clubs the student actually meant.
+        val names = roster.matching("art").map { it.name }
+        assertTrue("Startup Club should still be found", "Startup Club" in names)
+        assertTrue(
+            "name matches should lead, got $names",
+            names.indexOf("Art & Illustration Club") < names.indexOf("Startup Club"),
+        )
+        assertTrue(
+            "name matches should lead, got $names",
+            names.indexOf("Thai Traditional Arts") < names.indexOf("Startup Club"),
+        )
+    }
+
+    @Test
+    fun `ordering is stable at equal rank`() {
+        // Booth order, so the list does not reshuffle as a query is typed.
+        val numbers = roster.matching("club").map { it.number }
+        assertEquals(numbers.sorted(), numbers)
+    }
 }

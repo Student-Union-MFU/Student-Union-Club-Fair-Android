@@ -39,6 +39,8 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -305,7 +307,16 @@ private fun StyledQr(content: String, modifier: Modifier = Modifier) {
         runCatching { Encoder.encode(content, ErrorCorrectionLevel.H).matrix }.getOrNull()
     } ?: return
 
-    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+    // The code is a `Canvas` and the logo over it is decorative, so to a screen
+    // reader this was the largest element on the pass and completely silent. One
+    // description for the pair, naming what the code carries — a student using
+    // TalkBack has to be able to confirm they are holding up their own pass.
+    val label = stringResource(R.string.qr_code_desc, content)
+
+    Box(
+        modifier = modifier.clearAndSetSemantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
+    ) {
         Canvas(modifier = Modifier.fillMaxSize()) { drawQr(matrix) }
         Image(
             painter = painterResource(R.drawable.logo_su),

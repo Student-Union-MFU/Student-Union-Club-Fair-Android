@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">SU Club Fair</string>
+    <!--
+      The launcher label, and the name of the event rather than a description of
+      it — so it stays "SU Club Fair" in every locale. Marked untranslatable so
+      lint stops asking for a Thai version rather than being silenced with a
+      baseline.
+    -->
+    <string name="app_name" translatable="false">SU Club Fair</string>
 
     <string name="welcome_title">Club Fair</string>
     <string name="welcome_subtitle">Clubs, booths\n&amp; a weekend\nto explore</string>
@@ -83,7 +89,7 @@
     <string name="home_stat_left">Ends in</string>
     <string name="home_stat_starts">Starts in</string>
     <string name="home_stat_ended">Fair</string>
-    <string name="home_stat_ended_value">Over</string>
+    <string name="home_stat_ended_value">Ended</string>
     <!-- Countdown, coarsest useful unit only. -->
     <string name="home_countdown_days">%1$dd</string>
     <string name="home_countdown_hours">%1$dh</string>
@@ -104,12 +110,10 @@
     <string name="events_composer_hint">Message #announcements</string>
     <string name="events_send">Send announcement</string>
     <string name="events_just_now">Just now</string>
-    <string name="events_empty">No announcements yet</string>
 
     <string name="scan_title">Scan a booth</string>
     <string name="scan_hint">Point the camera at the QR code on the booth sign</string>
     <string name="scan_permission_title">Camera access needed</string>
-    <string name="scan_permission_body">Scanning a booth QR code needs the camera. Nothing is recorded or uploaded — the code is read on your phone.</string>
     <string name="scan_permission_cta">Allow camera</string>
     <string name="scan_permission_settings">Open settings</string>
     <string name="scan_permission_denied_body">Camera access was turned down. You can allow it in Settings, or type the booth number in by hand.</string>
@@ -157,8 +161,6 @@
     <string name="booth_status_scanned">Scanned</string>
     <string name="booth_status_unscanned">Not scanned yet</string>
     <string name="booth_status_unscanned_hint">Scan the QR at this booth</string>
-    <string name="booth_meets">Meets</string>
-    <string name="booth_meets_value">%1$s · %2$s</string>
 
     <!-- Club search. -->
     <string name="booths_search">Search clubs</string>

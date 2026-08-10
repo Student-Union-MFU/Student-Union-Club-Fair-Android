@@ -50,7 +50,17 @@ data class FairUiState(
     val announcements: List<Announcement> = emptyList(),
     val hapticsEnabled: Boolean = true,
     val unsyncedScans: Int = 0,
-)
+) {
+    /**
+     * The collected booth numbers, for Home's checkpoint grid.
+     *
+     * Derived here rather than carried as a second field, so it cannot drift from
+     * [booths] — the bug that version was: a count and a list of ticks that were
+     * two independent renderings of the same fact.
+     */
+    val scannedBooths: Set<Int> =
+        booths.filter { it.scanned }.mapTo(mutableSetOf()) { it.number }
+}
 
 /**
  * The signed-in half of the app.

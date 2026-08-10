@@ -4,6 +4,7 @@ import android.text.format.DateUtils
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,6 +43,9 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -341,6 +345,11 @@ private fun ReactionChip(
     modifier: Modifier = Modifier,
 ) {
     val accent = LocalAccent.current
+    // "👍, 63" as one announcement, and lit-or-not carried by `toggleable`'s own
+    // state rather than by a colour a screen reader cannot see. Without this the
+    // chip is an emoji and a number read as two unrelated nodes.
+    val label = stringResource(R.string.events_reaction_desc, reaction.emoji, reaction.count)
+
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(Dimens.RadiusPill))
@@ -356,8 +365,9 @@ private fun ReactionChip(
                 color = if (reaction.mine) accent.copy(alpha = 0.55f) else Color.Transparent,
                 shape = RoundedCornerShape(Dimens.RadiusPill),
             )
-            .clickable(onClick = onClick)
-            .padding(horizontal = Dimens.SpaceSm, vertical = 3.dp),
+            .toggleable(value = reaction.mine, role = Role.Checkbox) { onClick() }
+            .padding(horizontal = Dimens.SpaceSm, vertical = 3.dp)
+            .clearAndSetSemantics { contentDescription = label },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(text = reaction.emoji, fontSize = 13.sp)
@@ -378,12 +388,16 @@ private fun AddReactionChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // The visible label is a bare "+", which reads as nothing at all out loud.
+    val label = stringResource(R.string.events_add_reaction_desc)
+
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(Dimens.RadiusPill))
             .background(Color.White.copy(alpha = if (open) 0.16f else 0.08f))
-            .clickable(onClick = onClick)
-            .padding(horizontal = Dimens.SpaceSm, vertical = 3.dp),
+            .clickable(onClick = onClick, role = Role.Button)
+            .padding(horizontal = Dimens.SpaceSm, vertical = 3.dp)
+            .clearAndSetSemantics { contentDescription = label },
         contentAlignment = Alignment.Center,
     ) {
         Text(

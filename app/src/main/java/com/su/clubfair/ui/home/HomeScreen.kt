@@ -74,6 +74,15 @@ private const val GridColumns = 9
 fun HomeScreen(
     modifier: Modifier = Modifier,
     student: Student = PreviewStudent,
+    /**
+     * Which booth *numbers* have been collected — not how many.
+     *
+     * The grid used to fill its first `visited` cells from the count alone, so
+     * scanning booth 7 lit cell 1. That was invisible while the count was a
+     * hardcoded 19 and every cell was a fiction; the moment scanning became real
+     * it was a card showing the wrong booths.
+     */
+    scannedBooths: Set<Int> = (1..student.visited).toSet(),
     onOpenClubs: () -> Unit = {},
     onOpenPrizes: () -> Unit = {},
     onOpenProfile: () -> Unit = {},
@@ -121,7 +130,11 @@ fun HomeScreen(
             )
 
             Spacer(Modifier.height(Dimens.SpaceLg))
-            CheckpointsCard(visited = student.visited, total = student.total)
+            CheckpointsCard(
+                visited = student.visited,
+                total = student.total,
+                scannedBooths = scannedBooths,
+            )
 
             Spacer(Modifier.height(Dimens.Space))
             val countdown = fairCountdown()
@@ -308,6 +321,7 @@ private fun HomeHeader(name: String, modifier: Modifier = Modifier) {
 private fun CheckpointsCard(
     visited: Int,
     total: Int,
+    scannedBooths: Set<Int>,
     modifier: Modifier = Modifier,
 ) {
     val fraction = if (total > 0) visited.toFloat() / total else 0f
@@ -363,15 +377,22 @@ private fun CheckpointsCard(
         )
 
         Spacer(Modifier.height(Dimens.Space))
-        CheckpointGrid(visited = visited, total = total)
+        CheckpointGrid(visited = visited, total = total, scannedBooths = scannedBooths)
     }
 }
 
-/** One cell per booth: filled once scanned, hollow until then. */
+/**
+ * One cell per booth: filled once that booth is scanned, hollow until then.
+ *
+ * Cell *n* is booth *n*. It reads left to right in booth order, so the pattern of
+ * filled cells is a map of which side of the hall has been walked — which is the
+ * only thing a grid tells you that the number above it does not.
+ */
 @Composable
 private fun CheckpointGrid(
     visited: Int,
     total: Int,
+    scannedBooths: Set<Int>,
     modifier: Modifier = Modifier,
 ) {
     val rows = (total + GridColumns - 1) / GridColumns
@@ -392,7 +413,9 @@ private fun CheckpointGrid(
                     val index = row * GridColumns + column
                     if (index < total) {
                         CheckpointCell(
-                            scanned = index < visited,
+                            // Booths are numbered from 1; the grid is indexed
+                            // from 0.
+                            scanned = (index + 1) in scannedBooths,
                             modifier = Modifier.weight(1f),
                         )
                     } else {

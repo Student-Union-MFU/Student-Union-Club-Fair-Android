@@ -1,8 +1,12 @@
 # SU Club Fair — build / emulator helpers.
 # Run `make` or `make help` for the target list.
 
-APP_ID       := com.su.clubfair
-MAIN_ACTIVITY:= .MainActivity
+# The debug build carries an applicationIdSuffix so it installs alongside a
+# release build rather than replacing it (see app/build.gradle.kts). Every target
+# here drives the debug build, so they all address the suffixed id — the launch
+# and logcat targets silently did nothing once the suffix was added.
+APP_ID       := com.su.clubfair.debug
+MAIN_ACTIVITY:= com.su.clubfair.MainActivity
 AVD          ?= Pixel_7
 
 # SDK location: local.properties wins, then $ANDROID_HOME, then the default path.

@@ -117,11 +117,19 @@ fun BoothSearch(
 }
 
 /**
- * Case- and diacritic-insensitive substring match over name and blurb.
+ * Case-insensitive substring match over name and blurb, best matches first.
  *
- * Every word in the query has to match something, so "art club" narrows rather
- * than widening to everything containing "club" — which, in a list where every
- * entry is a club, would be the whole fair.
+ * Every term has to match something, so "art club" narrows rather than widening
+ * to everything containing "club" — which, in a list where every entry is a club,
+ * would be the whole fair.
+ *
+ * Matching stays a plain substring, which is forgiving in the direction that
+ * matters: a student half-way through typing "badmin" should already see the
+ * club. The cost is breadth — "art" also matches "St**art**up Club", because it
+ * genuinely is in there — so the results are *ordered* rather than filtered
+ * harder. A club with a word actually beginning with the term comes first, which
+ * puts Art & Illustration above Startup without dropping either. Losing a real
+ * hit is a worse failure than showing a loose one below it.
  */
 internal fun List<Booth>.matching(query: String): List<Booth> {
     val terms = query.trim().lowercase().split(' ').filter(String::isNotEmpty)
@@ -130,6 +138,24 @@ internal fun List<Booth>.matching(query: String): List<Booth> {
     return filter { booth ->
         val haystack = "${booth.name} ${booth.about}".lowercase()
         terms.all { it in haystack }
+    }.sortedWith(
+        // Rank, then booth order, so the list is stable as a query is typed.
+        compareBy({ booth -> -booth.rankFor(terms) }, Booth::number),
+    )
+}
+
+/**
+ * How well this booth answers [terms]: a word of the *name* starting with a term
+ * beats one hidden mid-word, and either beats a match only in the blurb.
+ */
+private fun Booth.rankFor(terms: List<String>): Int {
+    val nameWords = name.lowercase().split(' ', '&').filter(String::isNotEmpty)
+    return terms.sumOf { term ->
+        when {
+            nameWords.any { it.startsWith(term) } -> 3
+            term in name.lowercase() -> 2
+            else -> 1
+        }
     }
 }
 
