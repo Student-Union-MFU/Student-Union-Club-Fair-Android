@@ -16,10 +16,15 @@
     "other" item. That is not laziness: supplying "one" would make the two forms
     identical and imply a distinction the language does not draw.
 
-  `app_name` is deliberately absent, so the launcher label stays "SU Club Fair"
-  in both locales — it is the name of the event, not a description of it.
+  `app_name` IS translated, unlike the note that used to be here. It was "SU Club
+  Fair" and treated as a brand; it is "Student Union Club Fair" now, which is a
+  description, and องค์การนักศึกษา is the Student Union's own Thai name.
 -->
 <resources>
+
+    <!-- องค์การนักศึกษา is the Student Union's own name; "Club Fair" is kept in
+         Latin script because that is how the event is branded on the signage. -->
+    <string name="app_name">Club Fair องค์การนักศึกษา</string>
 
     <string name="welcome_title">Club Fair</string>
     <string name="welcome_subtitle">ชมรม บูธ\nและสุดสัปดาห์\nแห่งการค้นพบ</string>

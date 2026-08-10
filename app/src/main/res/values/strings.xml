@@ -1,12 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!--
-      The launcher label, and the name of the event rather than a description of
-      it — so it stays "SU Club Fair" in every locale. Marked untranslatable so
-      lint stops asking for a Thai version rather than being silenced with a
-      baseline.
+      The launcher label, and the one string that is the app's own name rather
+      than copy about it.
+
+      Translatable, unlike before. It used to be "SU Club Fair" and was marked
+      untranslatable on the argument that it was the name of the event; "Student
+      Union Club Fair" is a description, and องค์การนักศึกษา is the Student Union's
+      own Thai name — already used in `logo_su` — so leaving it in English would
+      be the only untranslated thing a Thai reader sees on their home screen.
     -->
-    <string name="app_name" translatable="false">SU Club Fair</string>
+    <string name="app_name">Student Union Club Fair</string>
 
     <string name="welcome_title">Club Fair</string>
     <string name="welcome_subtitle">Clubs, booths\n&amp; a weekend\nto explore</string>
