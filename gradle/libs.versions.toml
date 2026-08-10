@@ -11,11 +11,16 @@ espressoCore = "3.7.0"
 backdrop = "2.0.0"
 zxing = "3.5.4"
 camerax = "1.5.0"
-sceneview = "4.26.0"
+datastore = "1.2.1"
+coroutines = "1.10.2"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
+# `viewModel()` in a composable, and `collectAsStateWithLifecycle` so a screen
+# stops collecting when it goes to the background instead of on recomposition.
+androidx-lifecycle-viewmodel-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycleRuntimeKtx" }
+androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycleRuntimeKtx" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
 androidx-animation = { group = "androidx.compose.animation", name = "animation" }
@@ -40,12 +45,14 @@ androidx-camera-core = { group = "androidx.camera", name = "camera-core", versio
 androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
 androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
 androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
-# Filament, wrapped for Compose. Carried for exactly one screen: the animal
-# model that appears when a booth on a zone map is opened. minSdk 24, same as
-# this app, so it costs no floor — but it does bring Filament's native
-# renderer, which is the bulk of the APK growth.
-sceneview = { group = "io.github.sceneview", name = "sceneview", version.ref = "sceneview" }
+# On-device storage for the session and the student's own scan progress.
+# Preferences rather than Proto: what's stored is a flat handful of scalars and
+# a set of booth numbers, which is exactly what Preferences is for — a Proto
+# schema would be ceremony around five keys.
+androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
+
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitExt" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 
