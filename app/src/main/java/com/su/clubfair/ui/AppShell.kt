@@ -18,27 +18,28 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.IntOffset
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.su.clubfair.ui.booths.BoothsScreen
 import com.su.clubfair.ui.components.GlassNavBar
-import com.su.clubfair.ui.components.ScanTab
 import com.su.clubfair.ui.events.EventsScreen
 import com.su.clubfair.ui.home.HomeScreen
-import com.su.clubfair.ui.model.PlaceholderStudent
 import com.su.clubfair.ui.profile.ProfileScreen
 import com.su.clubfair.ui.qr.QrTicketScreen
 import com.su.clubfair.ui.scan.ScanScreen
 import com.su.clubfair.ui.scene.MeshBackground
+import com.su.clubfair.ui.settings.SettingsScreen
 import com.su.clubfair.ui.theme.Dimens
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 
 /** Tab swipe. Long enough to read as a move between places, not a cut. */
 private const val TabTransitionMillis = 380
@@ -76,19 +77,32 @@ private val Emphasized = CubicBezierEasing(0.2f, 0f, 0f, 1f)
  * a swipe reads as content sliding *over* something rather than two slabs
  * cutting.
  *
- * The tabs no longer change it. They used to each stand in a different
- * ecosystem, and the shell panned a continuous world between them as you swiped
- * — pretty, but it meant the app's colour depended on which tab you were on. See
- * [MeshBackground].
+ * State comes from [FairViewModel] rather than from the tabs. The tabs used to
+ * reach for `PlaceholderStudent` and build their own roster, which is why the
+ * checkpoint grid on Home and the ticks in Booths were two independent
+ * renderings of the same fiction and neither could ever change.
  */
 @Composable
 fun AppShell(
     modifier: Modifier = Modifier,
     onSignOut: () -> Unit = {},
 ) {
+    // The activity owns this store, so this is the same instance the session
+    // gate in `MainActivity` is already collecting — not a second one.
+    val fair: FairViewModel = viewModel(factory = FairViewModel.Factory)
+    val session by fair.session.collectAsStateWithLifecycle()
+    val state by fair.uiState.collectAsStateWithLifecycle()
+    val lastScan by fair.lastScan.collectAsStateWithLifecycle()
+
+    // Sign-out flips the session a frame before this leaves the composition;
+    // rendering the shell against a student who is no longer there would crash
+    // on the next read, so it holds until the gate above swaps it out.
+    val student = (session as? SessionState.SignedIn)?.student ?: return
+
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var passOpen by rememberSaveable { mutableStateOf(false) }
     var profileOpen by rememberSaveable { mutableStateOf(false) }
+    var settingsOpen by rememberSaveable { mutableStateOf(false) }
 
     // What the nav bar's liquid glass refracts. The backdrop is captured into a
     // graphics layer by `layerBackdrop` below and sampled by `drawBackdrop` in
@@ -123,13 +137,25 @@ fun AppShell(
             ) { target ->
                 when (target) {
                     0 -> HomeScreen(
+                        student = student,
                         onOpenClubs = { tab = 1 },
                         onOpenProfile = { profileOpen = true },
                     )
 
-                    1 -> BoothsScreen()
-                    2 -> EventsScreen(isAdmin = PlaceholderStudent.isAdmin)
-                    else -> ScanScreen()
+                    1 -> BoothsScreen(booths = state.booths)
+
+                    2 -> EventsScreen(
+                        isAdmin = student.isAdmin,
+                        announcements = state.announcements,
+                        onReact = fair::toggleReaction,
+                    )
+
+                    else -> ScanScreen(
+                        outcome = lastScan,
+                        hapticsEnabled = state.hapticsEnabled,
+                        onScanned = fair::onScanned,
+                        onClearScan = fair::clearScan,
+                    )
                 }
             }
         }
@@ -148,36 +174,35 @@ fun AppShell(
         // being a tab when Events took the slot: it's where you go to check a
         // detail or sign out, not somewhere you move between while walking the
         // fair. Home's top-right button opens it; back closes it.
+        //
         // Fades up rather than sliding in from the side. The sheet carries its
         // own copy of the backdrop, so a horizontal slide dragged the mesh across
         // the screen with it — and the backdrop is the one thing in this app that
         // never moves. Two gradients travelling past each other read as the
         // wallpaper coming loose. A short rise under a crossfade keeps them
         // aligned: the mesh sits still and only the cards arrive.
-        BackHandler(enabled = profileOpen) { profileOpen = false }
-        AnimatedVisibility(
-            visible = profileOpen,
-            enter = fadeIn(tween(ProfileFadeMillis, easing = Emphasized)) +
-                slideInVertically(
-                    animationSpec = tween(ProfileTransitionMillis, easing = Emphasized),
-                    initialOffsetY = { it / ProfileRiseFraction },
-                ),
-            exit = fadeOut(tween(ProfileFadeMillis, easing = Emphasized)) +
-                slideOutVertically(
-                    animationSpec = tween(ProfileTransitionMillis, easing = Emphasized),
-                    targetOffsetY = { it / ProfileRiseFraction },
-                ),
-        ) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                // The sheet covers the shell's backdrop as well as the nav bar,
-                // so it has to bring its own or it would open onto bare black.
-                MeshBackground()
-                ProfileScreen(
-                    onBack = { profileOpen = false },
-                    onOpenPass = { passOpen = true },
-                    onSignOut = onSignOut,
-                )
-            }
+        BackHandler(enabled = profileOpen && !settingsOpen && !passOpen) { profileOpen = false }
+        Sheet(visible = profileOpen) {
+            ProfileScreen(
+                student = student,
+                onBack = { profileOpen = false },
+                onOpenPass = { passOpen = true },
+                onOpenSettings = { settingsOpen = true },
+                onSignOut = onSignOut,
+            )
+        }
+
+        // Settings opens over Profile rather than replacing it, so closing it
+        // returns to the page it was opened from without re-animating that page.
+        BackHandler(enabled = settingsOpen) { settingsOpen = false }
+        Sheet(visible = settingsOpen) {
+            SettingsScreen(
+                hapticsEnabled = state.hapticsEnabled,
+                storedScans = state.unsyncedScans,
+                onHapticsChange = fair::setHapticsEnabled,
+                onEraseDevice = fair::eraseDevice,
+                onBack = { settingsOpen = false },
+            )
         }
 
         // The pass is a sheet over the shell rather than a destination: it's
@@ -195,7 +220,41 @@ fun AppShell(
                 targetOffsetY = { it },
             ),
         ) {
-            QrTicketScreen(onClose = { passOpen = false })
+            QrTicketScreen(student = student, onClose = { passOpen = false })
+        }
+    }
+}
+
+/**
+ * A full-screen page that rises over the shell.
+ *
+ * Extracted because Profile and Settings are the same gesture and were being
+ * spelled out twice — including the backdrop each has to bring, which is the
+ * part that is easy to leave out and opens the page onto bare black.
+ */
+@Composable
+private fun Sheet(
+    visible: Boolean,
+    content: @Composable () -> Unit,
+) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(tween(ProfileFadeMillis, easing = Emphasized)) +
+            slideInVertically(
+                animationSpec = tween(ProfileTransitionMillis, easing = Emphasized),
+                initialOffsetY = { it / ProfileRiseFraction },
+            ),
+        exit = fadeOut(tween(ProfileFadeMillis, easing = Emphasized)) +
+            slideOutVertically(
+                animationSpec = tween(ProfileTransitionMillis, easing = Emphasized),
+                targetOffsetY = { it / ProfileRiseFraction },
+            ),
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            // The sheet covers the shell's backdrop as well as the nav bar, so it
+            // has to bring its own or it would open onto bare black.
+            MeshBackground()
+            content()
         }
     }
 }

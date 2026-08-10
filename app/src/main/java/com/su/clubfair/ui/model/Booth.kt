@@ -317,25 +317,38 @@ private val BoothSeeds = listOf(
     ),
 )
 
+/** How many booths the fair has. The one place that number is stated. */
+val BoothCount: Int = BoothSeeds.size
+
 /**
- * The roster, with the first [visited] booths marked scanned.
+ * The roster, with [scanned] marking the booths this student has recorded.
  *
- * Which ones are scanned is derived from the count rather than stored per booth,
- * so the list can never disagree with the "19 / 27" on Home and the profile. A
- * hand-picked set of scanned ids would be free to drift the moment either number
- * changed. Once scanning is real this flips round: the booths become the source
- * of truth and the count is derived from them.
+ * The flip the old comment predicted has happened: the booths are the source of
+ * truth now and every count is derived from them. This used to take a `visited`
+ * count and mark the first N booths scanned, which meant the ticks on the wall
+ * were a rendering of a number rather than of anything the student had done —
+ * scanning booth 23 first would have lit up booth 1.
  */
-fun boothRoster(visited: Int): List<Booth> = BoothSeeds.mapIndexed { index, seed ->
-    Booth(
-        number = index + 1,
-        name = seed.name,
-        about = seed.about,
-        meets = seed.meets,
-        venue = seed.venue,
-        members = seed.members,
-        zone = seed.zone,
-        icon = seed.icon,
-        scanned = index < visited,
-    )
-}
+fun boothRoster(scanned: Set<Int> = emptySet()): List<Booth> =
+    BoothSeeds.mapIndexed { index, seed ->
+        val number = index + 1
+        Booth(
+            number = number,
+            name = seed.name,
+            about = seed.about,
+            meets = seed.meets,
+            venue = seed.venue,
+            members = seed.members,
+            zone = seed.zone,
+            icon = seed.icon,
+            scanned = number in scanned,
+        )
+    }
+
+/**
+ * A roster with the first [visited] booths ticked, for `@Preview` only.
+ *
+ * Previews have no store to read, and a wall of 27 empty tiles shows neither of
+ * the two states the tiles exist to distinguish.
+ */
+fun previewRoster(visited: Int): List<Booth> = boothRoster((1..visited).toSet())

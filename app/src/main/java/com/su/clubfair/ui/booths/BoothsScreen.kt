@@ -42,18 +42,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.su.clubfair.R
+import com.su.clubfair.ui.components.GlassIconButton
 import com.su.clubfair.ui.components.ProgressTrack
 import com.su.clubfair.ui.components.glassSurface
 import com.su.clubfair.ui.model.Booth
-import com.su.clubfair.ui.model.PlaceholderStudent
-import com.su.clubfair.ui.model.Student
 import com.su.clubfair.ui.model.Zone
-import com.su.clubfair.ui.model.boothRoster
+import com.su.clubfair.ui.model.previewRoster
 import com.su.clubfair.ui.scene.MeshBackground
 import com.su.clubfair.ui.theme.AlanSans
 import com.su.clubfair.ui.theme.Dimens
@@ -89,21 +90,25 @@ private val EnterEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 @Composable
 fun BoothsScreen(
     modifier: Modifier = Modifier,
-    student: Student = PlaceholderStudent,
+    booths: List<Booth> = previewRoster(19),
 ) {
-    val roster = remember(student.visited) { boothRoster(student.visited) }
-    val byZone = remember(roster) { roster.groupBy { it.zone } }
+    val byZone = remember(booths) { booths.groupBy { it.zone } }
+    val visited = remember(booths) { booths.count { it.scanned } }
 
     // Saved, so a trip to another tab and back returns you to the map you were
     // reading rather than to the top of the list.
     var openZone by rememberSaveable { mutableStateOf<Zone?>(null) }
     var selected by remember { mutableStateOf<Booth?>(null) }
+    var query by rememberSaveable { mutableStateOf<String?>(null) }
 
-    // Back closes the sheet first, then the map. Two separate handlers rather
-    // than one with a branch: Compose enables the innermost enabled handler,
-    // so the order falls out of which of the two is on screen.
+    // Back closes the sheet first, then search, then the map. Separate handlers
+    // rather than one with a branch: Compose enables the innermost enabled
+    // handler, so the order falls out of which of them is on screen.
     BackHandler(enabled = selected != null) { selected = null }
-    BackHandler(enabled = selected == null && openZone != null) { openZone = null }
+    BackHandler(enabled = selected == null && query != null) { query = null }
+    BackHandler(enabled = selected == null && query == null && openZone != null) {
+        openZone = null
+    }
 
     Box(modifier = modifier.fillMaxSize()) {
         // The insets go on the content, not on this box. The dimming scrim
@@ -115,33 +120,51 @@ fun BoothsScreen(
         // and the map arrives already slightly too large, settling back. Going
         // out reverses it. This used to be a hard cut, which made the map read
         // as a different screen rather than as the inside of the card.
-        AnimatedContent(
-            targetState = openZone,
-            transitionSpec = {
-                val entering = targetState != null
-                val zoomIn = if (entering) 0.88f else 1.10f
-                val zoomOut = if (entering) 1.12f else 0.92f
-                (fadeIn(tween(220)) + scaleIn(tween(340, easing = EnterEasing), zoomIn))
-                    .togetherWith(
-                        fadeOut(tween(180)) + scaleOut(tween(340, easing = EnterEasing), zoomOut)
+        // Search is its own layer over both the picker and a zone's wall: a club
+        // you are looking for is somewhere in the fair, and having to remember
+        // which of three areas holds it before you can search for it would be the
+        // question search exists to avoid.
+        val currentQuery = query
+        if (currentQuery != null) {
+            BoothSearch(
+                query = currentQuery,
+                booths = booths,
+                onQueryChange = { query = it },
+                onSelectBooth = { selected = it },
+                onClose = { query = null },
+            )
+        } else {
+            AnimatedContent(
+                targetState = openZone,
+                transitionSpec = {
+                    val entering = targetState != null
+                    val zoomIn = if (entering) 0.88f else 1.10f
+                    val zoomOut = if (entering) 1.12f else 0.92f
+                    (fadeIn(tween(220)) + scaleIn(tween(340, easing = EnterEasing), zoomIn))
+                        .togetherWith(
+                            fadeOut(tween(180)) +
+                                scaleOut(tween(340, easing = EnterEasing), zoomOut)
+                        )
+                },
+                label = "zoneEnter",
+            ) { zone ->
+                if (zone == null) {
+                    ZonePicker(
+                        byZone = byZone,
+                        visited = visited,
+                        total = booths.size,
+                        onOpenZone = { openZone = it },
+                        onOpenSearch = { query = "" },
                     )
-            },
-            label = "zoneEnter",
-        ) { zone ->
-            if (zone == null) {
-                ZonePicker(
-                    byZone = byZone,
-                    student = student,
-                    onOpenZone = { openZone = it },
-                )
-            } else {
-                ZoneBoothWall(
-                    zone = zone,
-                    booths = byZone[zone].orEmpty(),
-                    selected = selected,
-                    onSelectBooth = { selected = it },
-                    onBack = { openZone = null },
-                )
+                } else {
+                    ZoneBoothWall(
+                        zone = zone,
+                        booths = byZone[zone].orEmpty(),
+                        selected = selected,
+                        onSelectBooth = { selected = it },
+                        onBack = { openZone = null },
+                    )
+                }
             }
         }
 
@@ -185,8 +208,10 @@ fun BoothsScreen(
 @Composable
 private fun ZonePicker(
     byZone: Map<Zone, List<Booth>>,
-    student: Student,
+    visited: Int,
+    total: Int,
     onOpenZone: (Zone) -> Unit,
+    onOpenSearch: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -196,26 +221,39 @@ private fun ZonePicker(
             .padding(horizontal = Dimens.ScreenPadding),
     ) {
         Spacer(Modifier.height(Dimens.Space))
-        Text(
-            text = stringResource(R.string.booths_title),
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Bold,
-            fontSize = 20.sp,
-            color = Color.White,
-        )
-        Spacer(Modifier.height(2.dp))
-        Text(
-            text = pluralStringResource(
-                R.plurals.booths_progress,
-                student.total,
-                student.visited,
-                student.total,
-            ),
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Normal,
-            fontSize = 12.sp,
-            color = Ink.Muted,
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.booths_title),
+                    modifier = Modifier.semantics { heading() },
+                    fontFamily = AlanSans,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp,
+                    color = Color.White,
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = pluralStringResource(
+                        R.plurals.booths_progress,
+                        total,
+                        visited,
+                        total,
+                    ),
+                    fontFamily = AlanSans,
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 12.sp,
+                    color = Ink.Muted,
+                )
+            }
+            // 27 clubs across three areas is past the point where browsing is
+            // the only way in — a student who has been told to find the Coding
+            // Club should not have to guess which habitat it was filed under.
+            GlassIconButton(
+                icon = R.drawable.ic_search,
+                contentDescription = stringResource(R.string.booths_search),
+                onClick = onOpenSearch,
+            )
+        }
 
         Spacer(Modifier.height(Dimens.SpaceLg))
         Zone.entries.forEachIndexed { index, zone ->

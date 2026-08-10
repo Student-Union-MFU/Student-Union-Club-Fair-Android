@@ -25,6 +25,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,6 +34,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -48,13 +52,16 @@ import com.su.clubfair.ui.components.ProgressTrack
 import com.su.clubfair.ui.components.StatEntry
 import com.su.clubfair.ui.components.StatPane
 import com.su.clubfair.ui.components.glassSurface
-import com.su.clubfair.ui.model.PlaceholderStudent
+import com.su.clubfair.data.FairSchedule
+import com.su.clubfair.data.FairStatus
+import com.su.clubfair.ui.model.PreviewStudent
 import com.su.clubfair.ui.model.Student
 import com.su.clubfair.ui.theme.AlanSans
 import com.su.clubfair.ui.theme.Dimens
 import com.su.clubfair.ui.theme.Ink
 import com.su.clubfair.ui.theme.LocalAccent
 import com.su.clubfair.ui.theme.SUClubFairTheme
+import kotlinx.coroutines.delay
 
 private val CardRadius = Dimens.RadiusLg
 
@@ -66,7 +73,7 @@ private const val GridColumns = 9
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
-    student: Student = PlaceholderStudent,
+    student: Student = PreviewStudent,
     onOpenClubs: () -> Unit = {},
     onOpenPrizes: () -> Unit = {},
     onOpenProfile: () -> Unit = {},
@@ -117,14 +124,19 @@ fun HomeScreen(
             CheckpointsCard(visited = student.visited, total = student.total)
 
             Spacer(Modifier.height(Dimens.Space))
+            val countdown = fairCountdown()
             StatPane(
                 entries = listOf(
-                    StatEntry("#${student.rank}", stringResource(R.string.home_stat_rank)),
-                    StatEntry("${student.prizes}", stringResource(R.string.home_stat_prizes)),
                     StatEntry(
-                        stringResource(R.string.home_stat_left_value),
-                        stringResource(R.string.home_stat_left),
+                        // An em dash where a number can't be known. Printing a
+                        // hardcoded `#42` next to two figures that are real made
+                        // all three unreadable — see Student.rank.
+                        value = student.rank?.let { "#$it" }
+                            ?: stringResource(R.string.home_stat_unknown),
+                        label = stringResource(R.string.home_stat_rank),
                     ),
+                    StatEntry("${student.prizes}", stringResource(R.string.home_stat_prizes)),
+                    StatEntry(countdown.value, countdown.label),
                 ),
             )
 
@@ -216,6 +228,70 @@ private fun greetingWith(name: String): AnnotatedString {
  */
 private const val NamePlaceholder = "\u0000"
 
+/** The third stat tile: a value and the word above it. */
+private data class Countdown(val value: String, val label: String)
+
+/**
+ * How long is left, recomputed on a timer.
+ *
+ * This tile was the string `"4h"` under the word "Ends in" — a constant, so it
+ * read "4h" at nine in the morning and "4h" ten minutes before the fair closed.
+ * It is the one figure on this screen a phone can work out exactly, which made
+ * hardcoding it the least defensible of the three.
+ *
+ * A minute is the resolution worth showing and a *half* minute is the poll, so
+ * the displayed figure is never more than thirty seconds stale. [produceState]
+ * rather than a `LaunchedEffect` writing into a `mutableStateOf`: the coroutine
+ * is tied to this composable's lifetime, so leaving Home stops the clock.
+ */
+@Composable
+private fun fairCountdown(): Countdown {
+    val status by produceState<FairStatus>(
+        initialValue = FairSchedule.statusAt(System.currentTimeMillis()),
+    ) {
+        while (true) {
+            value = FairSchedule.statusAt(System.currentTimeMillis())
+            delay(30_000)
+        }
+    }
+
+    return when (val current = status) {
+        is FairStatus.BeforeStart -> Countdown(
+            value = coarseDuration(current.untilStartMillis),
+            label = stringResource(R.string.home_stat_starts),
+        )
+
+        is FairStatus.Running -> Countdown(
+            value = coarseDuration(current.remainingMillis),
+            label = stringResource(R.string.home_stat_left),
+        )
+
+        FairStatus.Ended -> Countdown(
+            value = stringResource(R.string.home_stat_ended_value),
+            label = stringResource(R.string.home_stat_ended),
+        )
+    }
+}
+
+/**
+ * One unit, the largest that fits: `3d`, `4h`, `12m`.
+ *
+ * A stat tile is two words wide. "1 day, 4 hours, 12 minutes" does not go in it,
+ * and nobody planning the rest of their afternoon needs the minutes while there
+ * are still days left.
+ */
+@Composable
+private fun coarseDuration(millis: Long): String {
+    val minutes = (millis / 60_000L).coerceAtLeast(0)
+    val hours = minutes / 60
+    val days = hours / 24
+    return when {
+        days > 0 -> stringResource(R.string.home_countdown_days, days.toInt())
+        hours > 0 -> stringResource(R.string.home_countdown_hours, hours.toInt())
+        else -> stringResource(R.string.home_countdown_minutes, minutes.toInt())
+    }
+}
+
 /** The greeting, as the page's headline. */
 @Composable
 private fun HomeHeader(name: String, modifier: Modifier = Modifier) {
@@ -299,9 +375,15 @@ private fun CheckpointGrid(
     modifier: Modifier = Modifier,
 ) {
     val rows = (total + GridColumns - 1) / GridColumns
+    val summary = stringResource(R.string.home_checkpoints_desc, visited, total)
 
     Column(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            // 27 undecorated boxes are 27 stops under TalkBack, none of which say
+            // anything. The grid is a picture of one number, so it announces that
+            // number and nothing else.
+            .clearAndSetSemantics { contentDescription = summary },
         verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm),
     ) {
         repeat(rows) { row ->

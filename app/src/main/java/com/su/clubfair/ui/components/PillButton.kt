@@ -28,16 +28,22 @@ fun PillButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     Button(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 52.dp),
+        enabled = enabled,
         shape = CircleShape,
         colors = ButtonDefaults.buttonColors(
             containerColor = Palette.Accent,
             contentColor = Palette.Ink,
+            // Dimmed accent rather than Material's grey, which on this backdrop
+            // reads as a different button rather than as this one, waiting.
+            disabledContainerColor = Palette.Accent.copy(alpha = 0.38f),
+            disabledContentColor = Palette.Ink.copy(alpha = 0.6f),
         ),
     ) {
         Text(

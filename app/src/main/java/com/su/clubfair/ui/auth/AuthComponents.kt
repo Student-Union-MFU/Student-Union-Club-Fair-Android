@@ -4,12 +4,15 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -45,6 +48,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -52,6 +61,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.su.clubfair.R
+import com.su.clubfair.data.PasswordPolicy
 import com.su.clubfair.ui.components.glassSurface
 import com.su.clubfair.ui.scene.MeshBackground
 import com.su.clubfair.ui.theme.AlanSans
@@ -137,6 +147,36 @@ private val FieldTextStyle = TextStyle(
     fontSize = 15.sp,
 )
 
+/**
+ * The copy for one rejected field.
+ *
+ * The mapping lives here rather than in `AuthViewModel` so the ViewModel never
+ * has to hold a `Context` — and so a Thai translation of "at least 8 characters"
+ * is a resource change rather than a Kotlin one.
+ */
+@Composable
+fun fieldErrorText(error: FieldError): String = when (error) {
+    FieldError.Required -> stringResource(R.string.auth_error_required)
+    FieldError.BadPhone -> stringResource(R.string.auth_error_phone)
+    FieldError.BadStudentId -> stringResource(R.string.auth_error_student_id)
+    FieldError.PasswordTooShort ->
+        stringResource(R.string.auth_error_password_short, PasswordPolicy.MinLength)
+
+    FieldError.PasswordNeedsLetter -> stringResource(R.string.auth_error_password_letter)
+    FieldError.PasswordNeedsDigit -> stringResource(R.string.auth_error_password_digit)
+}
+
+/**
+ * A form field, with its complaint underneath it when it has one.
+ *
+ * [error] is what the field thinks; [showError] is whether the form is ready to
+ * say so. Keeping those apart is what stops the screen marking a password field
+ * red on the first keystroke — see `LoginForm.showErrors`.
+ *
+ * The message is attached to the field with `semantics { error(...) }` as well
+ * as drawn under it, so TalkBack announces the reason on focus rather than
+ * reading a field that gives no hint why it was rejected.
+ */
 @Composable
 fun AuthTextField(
     value: String,
@@ -145,26 +185,151 @@ fun AuthTextField(
     modifier: Modifier = Modifier,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     isPassword: Boolean = false,
+    error: FieldError? = null,
+    showError: Boolean = false,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val focused by interactionSource.collectIsFocusedAsState()
+    // Per-field, not hoisted: revealing one password should not reveal the next.
+    var revealed by remember { mutableStateOf(false) }
 
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
+    val visible = error.takeIf { showError }
+    val message = visible?.let { fieldErrorText(it) }
+
+    Column(modifier = modifier) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = FieldHeight)
+                .glassField(rememberFocusRamp(focused))
+                .then(
+                    // A rim in the alert colour, so a rejected field is legible
+                    // as rejected before the message under it is read — and at a
+                    // glance down a form of seven.
+                    if (message != null) {
+                        Modifier.border(1.dp, Palette.Alert.copy(alpha = 0.7f), FieldShape)
+                    } else {
+                        Modifier
+                    },
+                )
+                .semantics { if (message != null) error(message) },
+            interactionSource = interactionSource,
+            placeholder = { Text(text = placeholder, style = FieldTextStyle) },
+            textStyle = FieldTextStyle,
+            singleLine = true,
+            isError = message != null,
+            shape = FieldShape,
+            colors = authFieldColors(),
+            keyboardOptions = keyboardOptions,
+            trailingIcon = if (isPassword) {
+                {
+                    PasswordToggle(
+                        revealed = revealed,
+                        onToggle = { revealed = !revealed },
+                    )
+                }
+            } else {
+                null
+            },
+            visualTransformation = when {
+                isPassword && !revealed -> PasswordVisualTransformation()
+                else -> VisualTransformation.None
+            },
+        )
+
+        if (message != null) {
+            Text(
+                text = message,
+                modifier = Modifier
+                    .padding(start = Dimens.CardPadding, top = Dimens.SpaceXs)
+                    // Already announced through the field's own error semantics;
+                    // reading it twice is how a form gets tedious under TalkBack.
+                    .clearAndSetSemantics {},
+                fontFamily = AlanSans,
+                fontWeight = FontWeight.Normal,
+                fontSize = 12.sp,
+                color = Palette.Alert,
+            )
+        }
+    }
+}
+
+/**
+ * The reveal control inside a password field.
+ *
+ * 48dp of touch target around a 20dp glyph. Material's `IconButton` is exactly
+ * this and would be shorter, but it also brings its own 40dp ripple and its own
+ * content colour, both of which fight the field's glass.
+ */
+@Composable
+private fun PasswordToggle(
+    revealed: Boolean,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
         modifier = modifier
-            .heightIn(min = FieldHeight)
-            .glassField(rememberFocusRamp(focused)),
-        interactionSource = interactionSource,
-        placeholder = { Text(text = placeholder, style = FieldTextStyle) },
-        textStyle = FieldTextStyle,
-        singleLine = true,
-        shape = FieldShape,
-        colors = authFieldColors(),
-        keyboardOptions = keyboardOptions,
-        visualTransformation =
-            if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
-    )
+            .size(48.dp)
+            .clip(CircleShape)
+            .clickable(onClick = onToggle),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            painter = painterResource(
+                if (revealed) R.drawable.ic_eye_off else R.drawable.ic_eye,
+            ),
+            contentDescription = stringResource(
+                if (revealed) R.string.auth_hide_password else R.string.auth_show_password,
+            ),
+            modifier = Modifier.size(20.dp),
+        )
+    }
+}
+
+/**
+ * What went wrong with the form as a whole, after a submit.
+ *
+ * A card above the fields rather than a toast: a wrong password is not
+ * incidental information that can be allowed to disappear on a timer while
+ * someone is still reading the field it refers to.
+ */
+@Composable
+fun AuthFormError(error: FormError, modifier: Modifier = Modifier) {
+    val message = when (error) {
+        FormError.NoAccount -> stringResource(R.string.login_error_no_account)
+        FormError.UnknownPhone -> stringResource(R.string.login_error_unknown_phone)
+        FormError.WrongPassword -> stringResource(R.string.login_error_wrong_password)
+    }
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(FieldShape)
+            .background(Palette.Alert.copy(alpha = 0.14f))
+            .border(1.dp, Palette.Alert.copy(alpha = 0.45f), FieldShape)
+            .padding(horizontal = Dimens.CardPadding, vertical = Dimens.Space)
+            // One announcement for the pair, and it interrupts: this arrives
+            // after a submit, when focus is nowhere near it.
+            .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Assertive },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_alert_circle),
+            contentDescription = null,
+            tint = Palette.Alert,
+            modifier = Modifier.size(18.dp),
+        )
+        Spacer(Modifier.width(Dimens.Space))
+        Text(
+            text = message,
+            fontFamily = AlanSans,
+            fontWeight = FontWeight.Medium,
+            fontSize = 13.sp,
+            color = Palette.Alert,
+        )
+    }
 }
 
 /**
@@ -251,8 +416,11 @@ fun AuthDropdownField(
     placeholder: String,
     options: List<String>,
     modifier: Modifier = Modifier,
+    error: FieldError? = null,
+    showError: Boolean = false,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val message = error.takeIf { showError }?.let { fieldErrorText(it) }
 
     ExposedDropdownMenuBox(
         expanded = expanded,
@@ -269,12 +437,32 @@ fun AuthDropdownField(
                 .heightIn(min = FieldHeight)
                 // Read-only, so it never takes text focus — the open menu is what
                 // makes it the active control.
-                .glassField(rememberFocusRamp(expanded)),
+                .glassField(rememberFocusRamp(expanded))
+                .then(
+                    if (message != null) {
+                        Modifier.border(1.dp, Palette.Alert.copy(alpha = 0.7f), FieldShape)
+                    } else {
+                        Modifier
+                    },
+                )
+                .semantics { if (message != null) error(message) },
             placeholder = { Text(text = placeholder, style = FieldTextStyle) },
             textStyle = FieldTextStyle,
             singleLine = true,
+            isError = message != null,
             shape = FieldShape,
             colors = authFieldColors(),
+            supportingText = message?.let {
+                {
+                    Text(
+                        text = it,
+                        modifier = Modifier.clearAndSetSemantics {},
+                        fontFamily = AlanSans,
+                        fontSize = 12.sp,
+                        color = Palette.Alert,
+                    )
+                }
+            },
             trailingIcon = {
                 Icon(
                     painter = painterResource(R.drawable.ic_chevron_down),

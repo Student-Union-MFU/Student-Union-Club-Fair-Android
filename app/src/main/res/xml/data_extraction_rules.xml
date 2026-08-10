@@ -2,10 +2,24 @@
 <!--
    Backup / device-transfer rules for Android 12 and above.
    https://developer.android.com/guide/topics/data/autobackup
+
+   The DataStore file holds the account's PBKDF2 salt and hash alongside the
+   student's scan history. Both are deliberately treated differently by the two
+   transports:
+
+   - cloud-backup is excluded. Password material should not be sitting in a
+     Google account's backup blob for an app that can re-register in thirty
+     seconds, and a restore onto a *different* person's phone would hand them a
+     signed-in session and someone else's booth progress.
+   - device-transfer keeps it. That is a direct handset-to-handset move by the
+     same person setting up a new phone, which is exactly the case where losing
+     an afternoon of scans would be infuriating.
 -->
 <data-extraction-rules>
     <cloud-backup>
+        <exclude
+            domain="file"
+            path="datastore/clubfair.preferences_pb" />
     </cloud-backup>
-    <device-transfer>
-    </device-transfer>
+    <device-transfer />
 </data-extraction-rules>

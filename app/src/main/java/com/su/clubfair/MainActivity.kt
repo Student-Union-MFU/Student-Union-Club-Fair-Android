@@ -8,40 +8,50 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.IntOffset
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.su.clubfair.ui.AppShell
+import com.su.clubfair.ui.FairViewModel
+import com.su.clubfair.ui.SessionState
+import com.su.clubfair.ui.auth.AuthViewModel
 import com.su.clubfair.ui.auth.LoginScreen
 import com.su.clubfair.ui.auth.RegisterGoogleScreen
 import com.su.clubfair.ui.auth.RegisterScreen
-import com.su.clubfair.ui.AppShell
 import com.su.clubfair.ui.onboarding.OnboardingScreen
+import com.su.clubfair.ui.scene.MeshBackground
 import com.su.clubfair.ui.theme.SUClubFairTheme
 import com.su.clubfair.ui.welcome.WelcomeScreen
 
 /**
- * The screens reachable before sign-in, plus the onboarding card that follows it.
+ * The screens reachable before sign-in.
  *
- * Declaration order is the forward order of the flow — the transition below reads
- * the ordinals to tell "going deeper" from "going back", so keep them in sequence.
+ * Declaration order is the forward order of the flow — the transition below
+ * reads the ordinals to tell "going deeper" from "going back", so keep them in
+ * sequence. Onboarding and Home have left this list: both are now decided by
+ * whether a session exists rather than by where the student last tapped, which
+ * is what makes a login survive closing the app.
  */
-private enum class Screen {
+private enum class AuthStep {
     Welcome,
     Login,
     RegisterGoogle,
     Register,
-    Onboarding,
-    Home,
 }
 
 /** Slide duration between screens. */
@@ -57,91 +67,134 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
         )
         setContent {
-            // Flat state-based routing — enough until there's a post-login graph.
-            var screen by rememberSaveable { mutableStateOf(Screen.Welcome) }
-
             SUClubFairTheme {
-
-                // Back only rewinds the sign-in steps; onboarding is one-way.
-                BackHandler(
-                    enabled = screen == Screen.Login ||
-                        screen == Screen.RegisterGoogle ||
-                        screen == Screen.Register,
-                ) {
-                    screen = when (screen) {
-                        Screen.Register -> Screen.RegisterGoogle
-                        Screen.RegisterGoogle -> Screen.Login
-                        else -> Screen.Welcome
-                    }
-                }
-
-                AnimatedContent(
-                    targetState = screen,
-                    modifier = Modifier.fillMaxSize(),
-                    transitionSpec = {
-                        // Deeper in the flow slides left; backwards slides right.
-                        val forward = targetState.ordinal > initialState.ordinal
-                        val direction = if (forward) 1 else -1
-                        val slide = tween<IntOffset>(
-                            durationMillis = TransitionMillis,
-                            easing = FastOutSlowInEasing,
-                        )
-                        // Slide only, no crossfade: every screen carries the same
-                        // backdrop, so the two tile exactly while they move —
-                        // fading either one would let the window background flash
-                        // through instead.
-                        slideInHorizontally(slide) { width -> direction * width }
-                            .togetherWith(
-                                slideOutHorizontally(slide) { width -> -direction * width }
-                            ).using(
-                            // Both screens are full-bleed; clipping would cut the
-                            // gradient off mid-slide.
-                            SizeTransform(clip = false)
-                        )
-                    },
-                    label = "screen",
-                ) { target ->
-                    when (target) {
-                        Screen.Welcome -> WelcomeScreen(
-                            onGetStarted = { screen = Screen.Login },
-                        )
-
-                        Screen.Login -> LoginScreen(
-                            onLogin = { _, _ -> screen = Screen.Onboarding },
-                            onSignUp = { screen = Screen.RegisterGoogle },
-                            // Lands where the password form lands. There is no
-                            // Google flow behind it yet — no Credential Manager
-                            // call, no ID token, nothing to verify it against —
-                            // and this stays a stub until there is an account
-                            // system for it to authenticate to.
-                            onGoogleLogin = { screen = Screen.Onboarding },
-                        )
-
-                        // Google first, then the form for what Google can't
-                        // supply. Same stub as the login screen's button: this
-                        // advances the flow without a Credential Manager call, an
-                        // ID token, or anything to verify one against.
-                        Screen.RegisterGoogle -> RegisterGoogleScreen(
-                            onGoogleContinue = { screen = Screen.Register },
-                            onLogin = { screen = Screen.Login },
-                        )
-
-                        Screen.Register -> RegisterScreen(
-                            onCreateAccount = { screen = Screen.Onboarding },
-                            onLogin = { screen = Screen.Login },
-                        )
-
-                        Screen.Onboarding -> OnboardingScreen(
-                            onContinue = { screen = Screen.Home },
-                        )
-
-                        Screen.Home -> AppShell(
-                            // Sign-out rewinds to the very start of the flow.
-                            onSignOut = { screen = Screen.Welcome },
-                        )
-                    }
-                }
+                ClubFairApp()
             }
+        }
+    }
+}
+
+/**
+ * The one gate in the app: is anyone signed in?
+ *
+ * Routing used to be a single `Screen` enum that a tap moved through, which
+ * meant "signed in" was a position in an animation rather than a fact — closing
+ * the app on Home reopened it on Welcome, and there was nothing for a session to
+ * be restored *into*.
+ *
+ * [SessionState.Restoring] is the state that makes persistence bearable. Reading
+ * DataStore is asynchronous, so for the first frames after launch the app does
+ * not know whether anyone is signed in. Rendering Welcome during that window is
+ * what makes a returning student watch the sign-in screen flash past on every
+ * cold start; the backdrop alone is shown instead, which is what every screen
+ * stands on anyway, so the arrival reads as one continuous surface.
+ */
+@Composable
+private fun ClubFairApp() {
+    val fair: FairViewModel = viewModel(factory = FairViewModel.Factory)
+    val session by fair.session.collectAsStateWithLifecycle()
+
+    Crossfade(
+        targetState = session,
+        animationSpec = tween(TransitionMillis),
+        label = "session",
+    ) { current ->
+        when (current) {
+            // Deliberately bare. Anything more is a splash screen, and a splash
+            // screen for a DataStore read is an animation in front of nothing.
+            SessionState.Restoring -> Box(Modifier.fillMaxSize()) { MeshBackground() }
+
+            SessionState.SignedOut -> SignedOutFlow()
+
+            is SessionState.SignedIn ->
+                if (current.onboardingSeen) {
+                    AppShell(onSignOut = fair::signOut)
+                } else {
+                    OnboardingScreen(onContinue = fair::markOnboardingSeen)
+                }
+        }
+    }
+}
+
+/** Welcome, sign-in and sign-up, with the slide between them. */
+@Composable
+private fun SignedOutFlow() {
+    val auth: AuthViewModel = viewModel(factory = AuthViewModel.Factory)
+    val loginForm by auth.login.collectAsStateWithLifecycle()
+    val registerForm by auth.register.collectAsStateWithLifecycle()
+    val hasAccount by auth.hasAccount.collectAsStateWithLifecycle()
+
+    var step by rememberSaveable { mutableStateOf(AuthStep.Welcome) }
+
+    // Back rewinds the sign-in steps. It no longer needs to exclude onboarding —
+    // that is not in this flow any more.
+    BackHandler(enabled = step != AuthStep.Welcome) {
+        step = when (step) {
+            AuthStep.Register -> AuthStep.RegisterGoogle
+            AuthStep.RegisterGoogle -> AuthStep.Login
+            else -> AuthStep.Welcome
+        }
+    }
+
+    AnimatedContent(
+        targetState = step,
+        modifier = Modifier.fillMaxSize(),
+        transitionSpec = {
+            // Deeper in the flow slides left; backwards slides right.
+            val forward = targetState.ordinal > initialState.ordinal
+            val direction = if (forward) 1 else -1
+            val slide = tween<IntOffset>(
+                durationMillis = TransitionMillis,
+                easing = FastOutSlowInEasing,
+            )
+            // Slide only, no crossfade: every screen carries the same backdrop,
+            // so the two tile exactly while they move — fading either one would
+            // let the window background flash through instead.
+            slideInHorizontally(slide) { width -> direction * width }
+                .togetherWith(
+                    slideOutHorizontally(slide) { width -> -direction * width }
+                ).using(
+                // Both screens are full-bleed; clipping would cut the gradient
+                // off mid-slide.
+                SizeTransform(clip = false)
+            )
+        },
+        label = "authStep",
+    ) { target ->
+        when (target) {
+            AuthStep.Welcome -> WelcomeScreen(
+                onGetStarted = { step = AuthStep.Login },
+            )
+
+            AuthStep.Login -> LoginScreen(
+                state = loginForm,
+                onPhoneChange = auth::onLoginPhone,
+                onPasswordChange = auth::onLoginPassword,
+                // No navigation on success: writing the session makes
+                // `SessionState` change, and the gate above swaps the whole
+                // tree. A screen that navigated itself as well would be a
+                // second source of truth for the same fact.
+                onSubmit = { auth.submitLogin(onSuccess = {}) },
+                onSignUp = { step = AuthStep.RegisterGoogle },
+                // Lands where the password form lands. There is no Google flow
+                // behind it yet — no Credential Manager call, no ID token,
+                // nothing to verify it against — so it goes to the form that
+                // collects the same facts by asking.
+                onGoogleLogin = { step = AuthStep.RegisterGoogle },
+            )
+
+            AuthStep.RegisterGoogle -> RegisterGoogleScreen(
+                onGoogleContinue = { step = AuthStep.Register },
+                onLogin = { step = AuthStep.Login },
+            )
+
+            AuthStep.Register -> RegisterScreen(
+                state = registerForm,
+                onChange = auth::onRegisterField,
+                onCreateAccount = { auth.submitRegister(onSuccess = {}) },
+                onLogin = { step = AuthStep.Login },
+                replacesExistingAccount = hasAccount,
+            )
         }
     }
 }

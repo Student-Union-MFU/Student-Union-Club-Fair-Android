@@ -1,5 +1,9 @@
 package com.su.clubfair.ui.profile
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -12,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -26,20 +31,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.su.clubfair.R
+import com.su.clubfair.data.Links
 import com.su.clubfair.ui.scene.MeshBackground
-import com.su.clubfair.ui.components.GlassIconButton
+import com.su.clubfair.ui.components.ActionRow
 import com.su.clubfair.ui.components.Hairline
+import com.su.clubfair.ui.components.SheetHeader
 import com.su.clubfair.ui.components.StatEntry
 import com.su.clubfair.ui.components.StatPane
 import com.su.clubfair.ui.components.glassSurface
-import com.su.clubfair.ui.model.PlaceholderStudent
+import com.su.clubfair.ui.model.PreviewStudent
 import com.su.clubfair.ui.model.Student
 import com.su.clubfair.ui.theme.AlanSans
 import com.su.clubfair.ui.theme.Dimens
@@ -56,13 +67,18 @@ private val CardRadius = Dimens.RadiusLg
  * Everything shown comes from [Student] — the same holder Home and the pass read,
  * so the name and ID can't disagree between tabs. Nothing here is editable yet;
  * there's no backend to write to.
+ *
+ * The details are what sign-up actually collected now, not a fixed set of
+ * invented ones, so a field the student was never asked for reads "Not set"
+ * instead of showing somebody else's school.
  */
 @Composable
 fun ProfileScreen(
     modifier: Modifier = Modifier,
-    student: Student = PlaceholderStudent,
+    student: Student = PreviewStudent,
     onBack: () -> Unit = {},
     onOpenPass: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     onSignOut: () -> Unit = {},
 ) {
     val scroll = rememberScrollState()
@@ -81,21 +97,11 @@ fun ProfileScreen(
             // out. The button matches Home's top-bar buttons, which is where the
             // way *in* is — the same control, mirrored.
             Spacer(Modifier.height(Dimens.Space))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                GlassIconButton(
-                    icon = R.drawable.ic_arrow_back,
-                    contentDescription = stringResource(R.string.profile_back),
-                    onClick = onBack,
-                )
-                Spacer(Modifier.size(Dimens.Space))
-                Text(
-                    text = stringResource(R.string.profile_title),
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp,
-                    color = Color.White,
-                )
-            }
+            SheetHeader(
+                title = stringResource(R.string.profile_title),
+                onBack = onBack,
+                backDescription = stringResource(R.string.profile_back),
+            )
 
             Spacer(Modifier.height(Dimens.SpaceLg))
             IdentityCard(student = student)
@@ -114,7 +120,11 @@ fun ProfileScreen(
                         label = stringResource(R.string.profile_stat_booths),
                     ),
                     StatEntry(
-                        value = "#${student.rank}",
+                        // An em dash, not `#null` and not a made-up figure. See
+                        // Student.rank: nothing on a phone can compute a standing
+                        // against every other student.
+                        value = student.rank?.let { "#$it" }
+                            ?: stringResource(R.string.home_stat_unknown),
                         label = stringResource(R.string.home_stat_rank),
                     ),
                     StatEntry(
@@ -126,6 +136,9 @@ fun ProfileScreen(
 
             Spacer(Modifier.height(Dimens.Space))
             DetailsCard(student = student)
+
+            Spacer(Modifier.height(Dimens.Space))
+            SettingsRow(onClick = onOpenSettings)
 
             Spacer(Modifier.height(Dimens.Space))
             SignOutButton(onClick = onSignOut)
@@ -140,6 +153,24 @@ fun ProfileScreen(
             // NavBarClearance would just be dead space at the end of the scroll.
             Spacer(Modifier.height(Dimens.SpaceXl))
         }
+    }
+}
+
+/** Way through to [com.su.clubfair.ui.settings.SettingsScreen]. */
+@Composable
+private fun SettingsRow(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .glassSurface(cornerRadius = CardRadius)
+            .padding(horizontal = Dimens.CardPadding),
+    ) {
+        ActionRow(
+            icon = R.drawable.ic_settings,
+            title = stringResource(R.string.profile_settings),
+            subtitle = stringResource(R.string.profile_settings_hint),
+            onClick = onClick,
+        )
     }
 }
 
@@ -230,17 +261,29 @@ private fun DetailsCard(student: Student, modifier: Modifier = Modifier) {
             .glassSurface(cornerRadius = CardRadius)
             .padding(horizontal = Dimens.CardPadding),
     ) {
+        // Anything sign-up didn't collect says so, rather than rendering a blank
+        // line that reads as the row having failed to load. Email is the one
+        // that is routinely unset: it comes from the Google step, which is still
+        // a stub.
+        val unset = stringResource(R.string.profile_unset)
         val rows = listOf(
-            // Email leads: it comes from the Google account sign-up now goes
-            // through, which makes it the one detail here the student didn't
-            // type by hand.
+            Triple(
+                R.drawable.ic_badge,
+                stringResource(R.string.profile_student_id),
+                student.studentId,
+            ),
             Triple(R.drawable.ic_mail, stringResource(R.string.profile_email), student.email),
             Triple(R.drawable.ic_phone, stringResource(R.string.profile_phone), student.phone),
             Triple(R.drawable.ic_school, stringResource(R.string.profile_school), student.school),
             Triple(R.drawable.ic_major, stringResource(R.string.profile_major), student.major),
         )
         rows.forEachIndexed { index, (icon, label, value) ->
-            DetailRow(icon = icon, label = label, value = value)
+            DetailRow(
+                icon = icon,
+                label = label,
+                value = value.ifBlank { unset },
+                muted = value.isBlank(),
+            )
             if (index != rows.lastIndex) Hairline()
         }
     }
@@ -252,11 +295,15 @@ private fun DetailRow(
     label: String,
     value: String,
     modifier: Modifier = Modifier,
+    muted: Boolean = false,
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = Dimens.Space),
+            .padding(vertical = Dimens.Space)
+            // One announcement per row — "Email, Not set" — rather than TalkBack
+            // stopping on the label and the value as two unrelated fragments.
+            .semantics(mergeDescendants = true) {},
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
@@ -280,7 +327,7 @@ private fun DetailRow(
                 fontFamily = AlanSans,
                 fontWeight = FontWeight.Medium,
                 fontSize = 14.sp,
-                color = Ink.Label,
+                color = if (muted) Ink.Muted else Ink.Label,
             )
         }
     }
@@ -372,33 +419,72 @@ private fun SignOutButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     }
 }
 
-/** The same wording the sign-up screen makes you agree to, kept reachable after. */
+/**
+ * The same wording the sign-up screen makes you agree to, kept reachable after.
+ *
+ * These were plain `Text`. Two policy names, styled like links, going nowhere —
+ * on a screen whose sign-up counterpart makes a student agree to both by tapping
+ * a button. They open now; see [Links] for the pages that have to exist.
+ *
+ * Each is a 48dp target rather than an 11sp line of type, which is what a
+ * tappable thing has to be whatever size its label is set at.
+ */
 @Composable
 private fun LegalLinks(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val noBrowser = stringResource(R.string.settings_no_browser)
+    val open: (String) -> Unit = { url ->
+        try {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(context, noBrowser, Toast.LENGTH_SHORT).show()
+        }
+    }
+
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        listOf(
-            stringResource(R.string.register_legal_terms),
-            stringResource(R.string.register_legal_privacy),
-        ).forEachIndexed { index, label ->
-            if (index > 0) {
-                Text(
-                    text = "  ·  ",
-                    fontFamily = AlanSans,
-                    fontSize = 11.sp,
-                    color = Ink.Faint,
-                )
-            }
-            Text(
-                text = label,
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Normal,
-                fontSize = 11.sp,
-                color = Ink.Muted,
-            )
-        }
+        LegalLink(
+            label = stringResource(R.string.register_legal_terms),
+            onClick = { open(Links.Terms) },
+        )
+        Text(
+            text = "·",
+            fontFamily = AlanSans,
+            fontSize = 11.sp,
+            color = Ink.Faint,
+        )
+        LegalLink(
+            label = stringResource(R.string.register_legal_privacy),
+            onClick = { open(Links.Privacy) },
+        )
+    }
+}
+
+@Composable
+private fun LegalLink(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .heightIn(min = 48.dp)
+            .clip(RoundedCornerShape(Dimens.RadiusSm))
+            .clickable(onClick = onClick, role = Role.Button)
+            .padding(horizontal = Dimens.Space),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            fontFamily = AlanSans,
+            fontWeight = FontWeight.Normal,
+            fontSize = 11.sp,
+            textDecoration = TextDecoration.Underline,
+            color = Ink.Muted,
+        )
     }
 }
 

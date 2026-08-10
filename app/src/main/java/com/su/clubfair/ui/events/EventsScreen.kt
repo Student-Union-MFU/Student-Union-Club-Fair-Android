@@ -1,5 +1,6 @@
 package com.su.clubfair.ui.events
 
+import android.text.format.DateUtils
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -29,6 +30,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -37,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -49,9 +52,9 @@ import com.su.clubfair.R
 import com.su.clubfair.ui.components.Hairline
 import com.su.clubfair.ui.components.glassSurface
 import com.su.clubfair.ui.model.Announcement
-import com.su.clubfair.ui.model.PlaceholderAnnouncements
 import com.su.clubfair.ui.model.Reaction
 import com.su.clubfair.ui.model.ReactionPalette
+import com.su.clubfair.ui.model.SeedAnnouncements
 import com.su.clubfair.ui.scene.MeshBackground
 import com.su.clubfair.ui.theme.AlanSans
 import com.su.clubfair.ui.theme.Dimens
@@ -59,6 +62,7 @@ import com.su.clubfair.ui.theme.Ink
 import com.su.clubfair.ui.theme.LocalAccent
 import com.su.clubfair.ui.theme.Palette
 import com.su.clubfair.ui.theme.SUClubFairTheme
+import kotlinx.coroutines.delay
 
 /**
  * The Events tab: the Student Union's announcements channel, read-only.
@@ -78,11 +82,15 @@ import com.su.clubfair.ui.theme.SUClubFairTheme
 fun EventsScreen(
     modifier: Modifier = Modifier,
     isAdmin: Boolean = false,
-    announcements: List<Announcement> = PlaceholderAnnouncements,
+    announcements: List<Announcement> = SeedAnnouncements,
+    onReact: (postId: Int, emoji: String) -> Unit = { _, _ -> },
 ) {
-    // The feed is local and dies with the process. Reactions and anything posted
-    // here have nowhere to go — there is no channel behind this, only the list.
-    val feed = remember { mutableStateListOf<Announcement>().apply { addAll(announcements) } }
+    // Anything the Student Union posts from the composer below. Local and
+    // deliberately so: there is no channel to publish to, and the composer is
+    // dormant anyway until a server issues the admin role. Reactions are the
+    // opposite case — those go through the repository and survive a restart.
+    val posted = remember { mutableStateListOf<Announcement>() }
+    val feed = remember(announcements, posted.size) { announcements + posted }
     val listState = rememberLazyListState()
 
     // Which post has its picker open, by id. One at a time: two open pickers on
@@ -127,22 +135,22 @@ fun EventsScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(Dimens.SpaceLg),
         ) {
-            itemsIndexed(feed, key = { _, post -> post.id }) { index, post ->
+            itemsIndexed(feed, key = { _, post -> post.id }) { _, post ->
                 AnnouncementRow(
                     post = post,
                     pickerOpen = pickerFor == post.id,
                     onTogglePicker = { pickerFor = if (pickerFor == post.id) null else post.id },
                     onReact = { emoji ->
-                        feed[index] = post.toggling(emoji)
+                        // Straight to the store. The list this row was built from
+                        // is derived from that store, so the chip lights up when
+                        // the write lands rather than optimistically before it —
+                        // one source of truth, and no reconciliation.
+                        onReact(post.id, emoji)
                         pickerFor = null
                     },
                 )
             }
         }
-
-        // Read out here: the send lambda runs on a tap, long after composition,
-        // and a resource lookup is a composable call.
-        val justNow = stringResource(R.string.events_just_now)
 
         // Nothing at all where the message box would be for a student. The
         // channel says "React, don't reply" at the top and every post ends in a
@@ -158,10 +166,10 @@ fun EventsScreen(
             ) {
                 Composer(
                     onSend = { body ->
-                        feed += Announcement(
+                        posted += Announcement(
                             id = (feed.maxOfOrNull { it.id } ?: 0) + 1,
                             author = "Student Union",
-                            timestamp = justNow,
+                            postedAtMillis = System.currentTimeMillis(),
                             body = body,
                         )
                     },
@@ -172,26 +180,39 @@ fun EventsScreen(
 }
 
 /**
- * Applies a tap on [emoji] to this post.
+ * A post's age, in the reader's own language, kept current.
  *
- * Four cases, and the third is the one worth naming: reacting with an emoji that
- * already has other people on it joins their bucket rather than starting a
- * second one, so a chip's count is always the whole of that reaction.
+ * The model used to carry `"Today at 12:30"` as a baked string, which could not
+ * be translated, could not follow a 24-hour locale, and stopped being true at
+ * midnight while the app sat open on a desk. `DateUtils` does the wording and
+ * the pluralisation per locale; the ticker is what stops "Just now" sitting
+ * under a post from an hour ago.
+ *
+ * A minute's poll for a channel of four posts is nothing, and it is the coarsest
+ * interval at which the shortest label can go stale.
  */
-private fun Announcement.toggling(emoji: String): Announcement {
-    val existing = reactions.firstOrNull { it.emoji == emoji }
-    val updated = when {
-        existing == null -> reactions + Reaction(emoji, count = 1, mine = true)
-        // Last one out removes the chip, rather than leaving a dead 0.
-        existing.mine && existing.count == 1 -> reactions - existing
-        existing.mine -> reactions.map {
-            if (it.emoji == emoji) it.copy(count = it.count - 1, mine = false) else it
-        }
-        else -> reactions.map {
-            if (it.emoji == emoji) it.copy(count = it.count + 1, mine = true) else it
+@Composable
+private fun rememberRelativeTime(postedAtMillis: Long): String {
+    val context = LocalContext.current
+    val justNow = stringResource(R.string.events_just_now)
+
+    val label by produceState(initialValue = justNow, postedAtMillis, justNow) {
+        while (true) {
+            val elapsed = System.currentTimeMillis() - postedAtMillis
+            value = if (elapsed < DateUtils.MINUTE_IN_MILLIS) {
+                justNow
+            } else {
+                DateUtils.getRelativeTimeSpanString(
+                    postedAtMillis,
+                    System.currentTimeMillis(),
+                    DateUtils.MINUTE_IN_MILLIS,
+                    DateUtils.FORMAT_ABBREV_RELATIVE,
+                ).toString()
+            }
+            delay(60_000)
         }
     }
-    return copy(reactions = updated)
+    return label
 }
 
 @Composable
@@ -240,7 +261,7 @@ private fun AnnouncementRow(
             )
             Spacer(Modifier.size(Dimens.SpaceSm))
             Text(
-                text = post.timestamp,
+                text = rememberRelativeTime(post.postedAtMillis),
                 fontFamily = AlanSans,
                 fontWeight = FontWeight.Normal,
                 fontSize = 11.sp,

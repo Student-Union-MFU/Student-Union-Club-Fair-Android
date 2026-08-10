@@ -1,5 +1,7 @@
 package com.su.clubfair.ui.model
 
+import com.su.clubfair.data.FairRules
+
 /**
  * The signed-in student, as far as the UI is concerned.
  *
@@ -13,7 +15,9 @@ package com.su.clubfair.ui.model
  * both. [name] rebuilds the display form so callers that only want the whole
  * thing are unaffected.
  *
- * Nothing populates this from a backend yet; [PlaceholderStudent] stands in.
+ * [visited] and [prizes] are now real: the first counts what this device has
+ * actually scanned, the second falls out of it by [FairRules]. [rank] is the one
+ * field a phone cannot compute — see its own note.
  */
 data class Student(
     val firstName: String,
@@ -23,17 +27,28 @@ data class Student(
     val phone: String,
     val school: String,
     val major: String,
+    /** Booths this device has recorded a scan for. */
     val visited: Int,
+    /** Booths at the fair. */
     val total: Int,
-    val rank: Int,
-    val prizes: Int,
+    /**
+     * Standing against every other student — or null when that isn't known.
+     *
+     * Null is the honest value today and will be until something ranks students
+     * centrally. It was a hardcoded `42`, which Home printed as `#42` beside two
+     * numbers that were real; one invented figure in a row of measurements makes
+     * the other two unreadable, because a student has no way to tell which is
+     * which. Everything that renders this has to handle null rather than
+     * defaulting it to a number.
+     */
+    val rank: Int? = null,
     /**
      * Whether this account may post to the announcements channel.
      *
      * There is no role system behind this — no backend, no claim on a token,
-     * nothing to check. It is a local flag standing in for one, and it decides
+     * nothing to check. It is a stored flag standing in for one, and it decides
      * whether the Events tab shows a composer or the read-only footer that every
-     * student sees. Flip it to preview the Student Union's side of that screen.
+     * student sees.
      */
     val isAdmin: Boolean = false,
 ) {
@@ -43,10 +58,23 @@ data class Student(
     /** Avatar monogram — one letter from each name, so two students rarely collide. */
     val initials: String
         get() = "${firstName.take(1)}${surname.take(1)}".uppercase()
+
+    /** Prize tiers earned, derived from [visited] rather than stored. */
+    val prizes: Int get() = FairRules.prizesFor(visited)
+
+    /** 0f..1f across the whole fair, for the progress track and the percentage. */
+    val progress: Float get() = if (total > 0) visited.toFloat() / total else 0f
 }
 
-/** Stand-in until sign-in returns a real profile. */
-val PlaceholderStudent = Student(
+/**
+ * A stand-in student for `@Preview` and for screenshot tests.
+ *
+ * Preview-only, and named so it cannot be mistaken for a fallback: nothing in
+ * the running app reaches for this any more. The signed-in student comes from
+ * `FairRepository`, and a screen with no session shows its signed-out state
+ * rather than quietly rendering someone made up.
+ */
+val PreviewStudent = Student(
     firstName = "Yion",
     surname = "Suriya",
     email = "yion.sur@lamduan.mfu.ac.th",
@@ -56,6 +84,5 @@ val PlaceholderStudent = Student(
     major = "Software Engineering",
     visited = 19,
     total = 27,
-    rank = 42,
-    prizes = 3,
+    rank = null,
 )

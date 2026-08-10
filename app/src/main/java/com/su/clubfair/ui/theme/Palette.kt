@@ -52,6 +52,18 @@ object Palette {
      * menu would show the field it is covering straight through its options.
      */
     val Panel = Color(0xFF11201A)
+
+    /**
+     * Something is wrong: a rejected field, a code that isn't a booth's.
+     *
+     * Coral rather than a signal red. The app stands on a near-black green under
+     * a lime accent, and a saturated red on that ground is the loudest thing on
+     * any screen it appears on — which is the wrong weight for "check this
+     * field". Warm enough to read as a warning against green, light enough to
+     * hold its own contrast on [Base], and far enough from [Accent] in hue that
+     * a lit chip and a rejected field are never confusable.
+     */
+    val Alert = Color(0xFFFF9E80)
 }
 
 /**

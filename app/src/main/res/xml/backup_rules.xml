@@ -2,6 +2,13 @@
 <!--
    Full-backup rules for Android 11 and below.
    https://developer.android.com/guide/topics/data/autobackup
+
+   Android 11 has one transport rather than the two `data_extraction_rules.xml`
+   can distinguish, so the account file is excluded outright — the cloud case is
+   the one worth protecting against, and it cannot be separated here.
 -->
 <full-backup-content>
+    <exclude
+        domain="file"
+        path="datastore/clubfair.preferences_pb" />
 </full-backup-content>

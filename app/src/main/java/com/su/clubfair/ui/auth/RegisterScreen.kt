@@ -14,10 +14,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -35,31 +31,41 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.su.clubfair.R
+import com.su.clubfair.data.Campus
 import com.su.clubfair.ui.components.PillButton
 import com.su.clubfair.ui.theme.AlanSans
 import com.su.clubfair.ui.theme.Dimens
+import com.su.clubfair.ui.theme.Ink
 import com.su.clubfair.ui.theme.SUClubFairTheme
 
 /**
  * The second half of sign-up: what Google's account doesn't already establish.
  *
- * This was a six-field form — name, phone, password, confirmation, school and
- * major — from when it was the whole of registration. [RegisterGoogleScreen] now
- * runs ahead of it, so the identity questions belong there and this asks for two
- * things only. The school and major pickers went with the rest; `AuthDropdownField`
- * and their `register_school_hint` / `register_major_hint` strings are deliberately
- * left in place, since those two are the likeliest of the six to come back.
+ * This asked for a name and a password, on the reasoning that
+ * [RegisterGoogleScreen] establishes the rest. It doesn't — that button is a
+ * stub with no Credential Manager call behind it — so everything the app then
+ * showed had to be invented, and it was: a hardcoded student id, school, major
+ * and phone number that belonged to nobody using the app.
+ *
+ * So the form asks. Each field below is one the app then actually renders:
+ *
+ *  - name → the greeting on Home, the initials on the pass
+ *  - student id → **the QR code on the pass**, which is the whole point of it
+ *  - phone → the identifier sign-in matches against
+ *  - school, major → the profile's details card
+ *
+ * Email is the one still left to the Google step, and Profile shows it as unset
+ * rather than guessing at a `@lamduan.mfu.ac.th` address from a name.
  */
 @Composable
 fun RegisterScreen(
+    state: RegisterForm,
     modifier: Modifier = Modifier,
+    onChange: (RegisterForm.() -> RegisterForm) -> Unit = {},
     onCreateAccount: () -> Unit = {},
     onLogin: () -> Unit = {},
+    replacesExistingAccount: Boolean = false,
 ) {
-    var firstName by rememberSaveable { mutableStateOf("") }
-    var surname by rememberSaveable { mutableStateOf("") }
-    var password by rememberSaveable { mutableStateOf("") }
-
     AuthBackground(modifier = modifier) {
         Column(
             modifier = Modifier
@@ -86,35 +92,111 @@ fun RegisterScreen(
                 color = Color.White,
             )
 
+            // Said before the form rather than in the confirmation after it: by
+            // the time someone has filled in seven fields, "this wipes the other
+            // account" is news arriving far too late to act on.
+            if (replacesExistingAccount) {
+                Spacer(Modifier.height(Dimens.Space))
+                Text(
+                    text = stringResource(R.string.register_replaces_account),
+                    fontFamily = AlanSans,
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 12.sp,
+                    lineHeight = 1.4.em,
+                    color = Ink.Muted,
+                )
+            }
+
             Spacer(Modifier.height(24.dp))
             // Side by side rather than stacked: they are two halves of one answer,
             // and a full-width field each would read as two unrelated questions.
-            Row(horizontalArrangement = Arrangement.spacedBy(Dimens.Space)) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(Dimens.Space),
+                verticalAlignment = Alignment.Top,
+            ) {
                 AuthTextField(
-                    value = firstName,
-                    onValueChange = { firstName = it },
+                    value = state.firstName,
+                    onValueChange = { value -> onChange { copy(firstName = value) } },
                     placeholder = stringResource(R.string.register_first_hint),
                     modifier = Modifier.weight(1f),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Text,
                         imeAction = ImeAction.Next,
                     ),
+                    error = state.firstNameError,
+                    showError = state.showErrors,
                 )
                 AuthTextField(
-                    value = surname,
-                    onValueChange = { surname = it },
+                    value = state.surname,
+                    onValueChange = { value -> onChange { copy(surname = value) } },
                     placeholder = stringResource(R.string.register_surname_hint),
                     modifier = Modifier.weight(1f),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Text,
                         imeAction = ImeAction.Next,
                     ),
+                    error = state.surnameError,
+                    showError = state.showErrors,
                 )
             }
+
             Spacer(Modifier.height(Dimens.Space))
             AuthTextField(
-                value = password,
-                onValueChange = { password = it },
+                value = state.studentId,
+                onValueChange = { value -> onChange { copy(studentId = value) } },
+                placeholder = stringResource(R.string.register_student_id_hint),
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Number,
+                    imeAction = ImeAction.Next,
+                ),
+                error = state.studentIdError,
+                showError = state.showErrors,
+            )
+
+            Spacer(Modifier.height(Dimens.Space))
+            AuthTextField(
+                value = state.phone,
+                onValueChange = { value -> onChange { copy(phone = value) } },
+                placeholder = stringResource(R.string.register_phone_hint),
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Phone,
+                    imeAction = ImeAction.Next,
+                ),
+                error = state.phoneError,
+                showError = state.showErrors,
+            )
+
+            Spacer(Modifier.height(Dimens.Space))
+            AuthDropdownField(
+                value = state.school,
+                onValueChange = { value -> onChange { copy(school = value) } },
+                placeholder = stringResource(R.string.register_school_hint),
+                options = Campus.Schools,
+                modifier = Modifier.fillMaxWidth(),
+                error = state.schoolError,
+                showError = state.showErrors,
+            )
+
+            Spacer(Modifier.height(Dimens.Space))
+            AuthTextField(
+                value = state.major,
+                onValueChange = { value -> onChange { copy(major = value) } },
+                placeholder = stringResource(R.string.register_major_hint),
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Text,
+                    imeAction = ImeAction.Next,
+                ),
+                error = state.majorError,
+                showError = state.showErrors,
+            )
+
+            Spacer(Modifier.height(Dimens.Space))
+            AuthTextField(
+                value = state.password,
+                onValueChange = { value -> onChange { copy(password = value) } },
                 placeholder = stringResource(R.string.auth_password_hint),
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(
@@ -122,12 +204,17 @@ fun RegisterScreen(
                     imeAction = ImeAction.Done,
                 ),
                 isPassword = true,
+                error = state.passwordError,
+                showError = state.showErrors,
             )
 
             Spacer(Modifier.height(24.dp))
             PillButton(
-                text = stringResource(R.string.register_cta),
+                text = stringResource(
+                    if (state.submitting) R.string.register_working else R.string.register_cta,
+                ),
                 onClick = onCreateAccount,
+                enabled = !state.submitting,
             )
 
             Spacer(Modifier.height(Dimens.SpaceSm))
@@ -188,6 +275,21 @@ private fun legalNotice(): AnnotatedString {
 @Composable
 private fun RegisterScreenPreview() {
     SUClubFairTheme {
-        RegisterScreen()
+        RegisterScreen(state = RegisterForm())
+    }
+}
+
+@Preview(showBackground = true, device = "id:pixel_7")
+@Composable
+private fun RegisterScreenErrorPreview() {
+    SUClubFairTheme {
+        RegisterScreen(
+            state = RegisterForm(
+                firstName = "Yion",
+                studentId = "683",
+                password = "short",
+                showErrors = true,
+            ),
+        )
     }
 }

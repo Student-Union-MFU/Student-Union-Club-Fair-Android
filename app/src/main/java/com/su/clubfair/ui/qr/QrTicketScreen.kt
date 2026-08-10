@@ -54,7 +54,7 @@ import com.su.clubfair.R
 import com.su.clubfair.ui.components.PillButton
 import com.su.clubfair.ui.scene.MeshBackground
 import com.su.clubfair.ui.components.glassSurface
-import com.su.clubfair.ui.model.PlaceholderStudent
+import com.su.clubfair.ui.model.PreviewStudent
 import com.su.clubfair.ui.model.Student
 import com.su.clubfair.ui.theme.AlanSans
 import com.su.clubfair.ui.theme.Dimens
@@ -87,7 +87,7 @@ private const val StubLine = 0.80f
 @Composable
 fun QrTicketScreen(
     modifier: Modifier = Modifier,
-    student: Student = PlaceholderStudent,
+    student: Student = PreviewStudent,
     onClose: () -> Unit = {},
 ) {
     Box(modifier = modifier.fillMaxSize()) {

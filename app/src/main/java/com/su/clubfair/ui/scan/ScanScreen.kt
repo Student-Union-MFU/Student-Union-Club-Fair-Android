@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview as CameraPreview
@@ -24,6 +25,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,6 +34,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -45,6 +48,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,10 +63,16 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -70,14 +80,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.su.clubfair.R
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import com.su.clubfair.data.ScanOutcome
 import com.su.clubfair.ui.components.PillButton
 import com.su.clubfair.ui.scene.MeshBackground
 import com.su.clubfair.ui.components.glassSurface
 import com.su.clubfair.ui.components.liquidGlass
-import com.su.clubfair.ui.model.boothRoster
 import com.su.clubfair.ui.theme.AlanSans
 import com.su.clubfair.ui.theme.Dimens
 import com.su.clubfair.ui.theme.Ink
@@ -134,16 +145,24 @@ private val HeaderDrop = Dimens.ScreenPadding * 2
  * sheet from Profile. The two directions are different jobs: the pass is
  * something a booth scans off the student, this is the student scanning a booth.
  *
- * Nothing is persisted. [onScanned] hands the payload up; wiring a checkpoint to
- * it needs a backend, which is the same story as the rest of the placeholder
- * data in this app.
+ * A scan is recorded now rather than shown and discarded. [outcome] is the
+ * repository's answer — collected, already had it, or not a fair code — and the
+ * card at the foot of the screen says which; see [ScanOutcome].
+ *
+ * The screen is deliberately not a dead end when the camera is unavailable.
+ * Permission refused, no camera, a damaged code, a booth whose sign has gone:
+ * all four used to end here, and all four now fall through to [ManualEntry].
  */
 @Composable
 fun ScanScreen(
     modifier: Modifier = Modifier,
+    outcome: ScanOutcome? = null,
+    hapticsEnabled: Boolean = true,
     onScanned: (String) -> Unit = {},
+    onClearScan: () -> Unit = {},
 ) {
     val context = LocalContext.current
+    val haptics = LocalHapticFeedback.current
     val hasCamera = remember {
         context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)
     }
@@ -164,10 +183,36 @@ fun ScanScreen(
         if (hasCamera && !granted) permissionLauncher.launch(Manifest.permission.CAMERA)
     }
 
-    var result by remember { mutableStateOf<String?>(null) }
+    var torchOn by remember { mutableStateOf(false) }
+    var hasTorch by remember { mutableStateOf(false) }
+    var manualOpen by rememberSaveable { mutableStateOf(false) }
+
     // Bumping this rebuilds the analyzer, which is how a one-shot scanner is
     // pointed at the next booth.
     var attempt by remember { mutableStateOf(0) }
+
+    /**
+     * A booth read at arm's length is a phone nobody is looking at — it is held
+     * up at a sign while the student watches the sign, not the screen. The buzz
+     * is what says "done" without needing eyes on the display, which is why it
+     * fires on the two conclusive outcomes and stays quiet for a code that was
+     * simply not ours: a long buzz for every stray QR the camera swept past
+     * would make the phone feel broken.
+     */
+    LaunchedEffect(outcome, hapticsEnabled) {
+        if (!hapticsEnabled) return@LaunchedEffect
+        when (outcome) {
+            is ScanOutcome.Recorded -> haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+            is ScanOutcome.AlreadyScanned ->
+                haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+
+            else -> Unit
+        }
+    }
+
+    // A result on screen means the camera has done its job; close the keypad so
+    // the answer is not behind it.
+    LaunchedEffect(outcome) { if (outcome != null) manualOpen = false }
 
     // What the header pane refracts: the feed, the scrim and the frame, and
     // nothing above them. A pane sampling a layer it is drawn inside samples
@@ -190,16 +235,15 @@ fun ScanScreen(
             if (granted && hasCamera) {
                 CameraFeed(
                     attempt = attempt,
-                    onDecoded = { payload ->
-                        if (result == null) {
-                            result = payload
-                            onScanned(payload)
-                        }
-                    },
+                    torchOn = torchOn,
+                    // The analyzer fires per frame; the ViewModel drops repeats
+                    // while a result is on screen, so this stays a plain hand-up.
+                    onDecoded = onScanned,
+                    onTorchAvailable = { hasTorch = it },
                 )
             }
 
-            Reticle(active = result == null && granted && hasCamera)
+            Reticle(active = outcome == null && granted && hasCamera)
         }
 
         Column(
@@ -262,32 +306,85 @@ fun ScanScreen(
                 )
             }
 
+            // The torch sits beside the window it lights, not down with the
+            // result card: it is a control for the act of aiming, and it has to
+            // be reachable while the phone is already held up at a sign.
+            if (granted && hasCamera && hasTorch && outcome == null) {
+                Spacer(Modifier.height(Dimens.SpaceLg))
+                TorchButton(enabled = torchOn, onToggle = { torchOn = it })
+            }
+
             Spacer(Modifier.weight(1f))
 
             when {
+                manualOpen -> ManualEntry(
+                    onSubmit = onScanned,
+                    onCancel = { manualOpen = false },
+                )
+
+                outcome != null -> ResultCard(
+                    outcome = outcome,
+                    onAgain = {
+                        onClearScan()
+                        attempt++
+                    },
+                )
+
                 !hasCamera -> Explainer(
                     title = stringResource(R.string.scan_unavailable_title),
                     body = stringResource(R.string.scan_unavailable_body),
+                    cta = stringResource(R.string.scan_manual_cta),
+                    onCta = { manualOpen = true },
                 )
 
                 !granted -> Explainer(
                     title = stringResource(R.string.scan_permission_title),
-                    body = stringResource(R.string.scan_permission_body),
+                    body = stringResource(R.string.scan_permission_denied_body),
                     cta = stringResource(R.string.scan_permission_cta),
                     onCta = { permissionLauncher.launch(Manifest.permission.CAMERA) },
+                    secondaryCta = stringResource(R.string.scan_manual_cta),
+                    onSecondaryCta = { manualOpen = true },
                 )
 
-                else -> ResultCard(
-                    payload = result,
-                    onAgain = {
-                        result = null
-                        attempt++
-                    },
-                )
+                // Camera is up and nothing has been read yet. The way out for a
+                // code that will not scan — glare, damage, a sign that has gone
+                // — lives here rather than only in the failure states, because
+                // "the camera works but this code will not read" is the most
+                // common of the four and the only one with no error to land on.
+                else -> ManualEntryPrompt(onClick = { manualOpen = true })
             }
 
             Spacer(Modifier.height(Dimens.NavBarClearance))
         }
+    }
+}
+
+/** The quiet way through to [ManualEntry] while the camera is running. */
+@Composable
+private fun ManualEntryPrompt(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .heightIn(min = 48.dp)
+            .clip(RoundedCornerShape(Dimens.RadiusPill))
+            .background(Color.White.copy(alpha = 0.10f))
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = Dimens.CardPadding),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_hash),
+            contentDescription = null,
+            tint = Ink.Muted,
+            modifier = Modifier.size(16.dp),
+        )
+        Spacer(Modifier.width(Dimens.SpaceSm))
+        Text(
+            text = stringResource(R.string.scan_manual_cta),
+            fontFamily = AlanSans,
+            fontWeight = FontWeight.Medium,
+            fontSize = 13.sp,
+            color = Ink.Label,
+        )
     }
 }
 
@@ -301,11 +398,17 @@ fun ScanScreen(
 @Composable
 private fun CameraFeed(
     attempt: Int,
+    torchOn: Boolean,
     onDecoded: (String) -> Unit,
+    onTorchAvailable: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    // Held so the torch can be driven after binding. CameraX exposes the light
+    // through the bound camera's control, not through the use case, so there is
+    // nothing else to keep a handle on.
+    var camera by remember { mutableStateOf<Camera?>(null) }
     val previewView = remember {
         PreviewView(context).apply {
             scaleType = PreviewView.ScaleType.FILL_CENTER
@@ -348,13 +451,26 @@ private fun CameraFeed(
                     preview,
                     analysis,
                 )
+            }.onSuccess { bound ->
+                camera = bound
+                // Asked, not assumed. Plenty of devices have no flash unit, and
+                // a torch button that silently does nothing is worse than none.
+                onTorchAvailable(bound.cameraInfo.hasFlashUnit())
             }
         }, mainExecutor)
 
         onDispose {
             runCatching { future.get().unbindAll() }
+            camera = null
             executor.shutdown()
         }
+    }
+
+    // Separate from the binding effect: the torch is toggled far more often than
+    // the camera is rebound, and folding it in would tear down and rebuild the
+    // whole session on every tap.
+    LaunchedEffect(camera, torchOn) {
+        runCatching { camera?.cameraControl?.enableTorch(torchOn) }
     }
 }
 
@@ -473,7 +589,14 @@ private fun Reticle(active: Boolean, modifier: Modifier = Modifier) {
     }
 }
 
-/** Glass card for the states where there's no camera to show. */
+/**
+ * Glass card for the states where there's no camera to show.
+ *
+ * [secondaryCta] is the escape hatch — "type the number instead" — under the
+ * action that would fix the problem properly. Below rather than beside, because
+ * they are not equal choices: allowing the camera is what this screen is for,
+ * and typing is what to do when that is not going to happen.
+ */
 @Composable
 private fun Explainer(
     title: String,
@@ -481,6 +604,8 @@ private fun Explainer(
     modifier: Modifier = Modifier,
     cta: String? = null,
     onCta: () -> Unit = {},
+    secondaryCta: String? = null,
+    onSecondaryCta: () -> Unit = {},
 ) {
     Column(
         modifier = modifier
@@ -491,6 +616,7 @@ private fun Explainer(
     ) {
         Text(
             text = title,
+            modifier = Modifier.semantics { heading() },
             fontFamily = AlanSans,
             fontWeight = FontWeight.Bold,
             fontSize = 16.sp,
@@ -507,27 +633,47 @@ private fun Explainer(
             Spacer(Modifier.height(Dimens.SpaceXs))
             PillButton(text = cta, onClick = onCta)
         }
+        if (secondaryCta != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .clip(RoundedCornerShape(Dimens.RadiusPill))
+                    .clickable(role = Role.Button, onClick = onSecondaryCta),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = secondaryCta,
+                    fontFamily = AlanSans,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 14.sp,
+                    color = Color.White,
+                )
+            }
+        }
     }
 }
 
 /**
- * What was read, once something was.
+ * What the scan turned out to be.
  *
- * A payload ending in a booth number is shown as that booth; anything else is
- * shown verbatim and called out as not a booth code, rather than silently
- * ignored — a student holding the phone at a sign needs to know the difference
- * between "wrong code" and "not scanning".
+ * Three outcomes, three cards, and the middle one is the one that used to be
+ * missing: re-scanning a booth you have already collected produced a card
+ * identical to a fresh checkpoint, so a student walking back past a stall was
+ * told they had gained something they had not. It says so now, in the accent's
+ * quieter register rather than as an error, because nothing has gone wrong.
+ *
+ * The card is announced as a live region: it appears while the phone is held up
+ * at a sign, which is exactly when nobody is looking at the screen.
  */
 @Composable
 private fun ResultCard(
-    payload: String?,
+    outcome: ScanOutcome,
     onAgain: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val roster = remember { boothRoster(0) }
-
     AnimatedVisibility(
-        visible = payload != null,
+        visible = true,
         enter = slideInVertically(
             animationSpec = tween(240, easing = FastOutSlowInEasing),
             initialOffsetY = { it / 2 },
@@ -535,17 +681,31 @@ private fun ResultCard(
         exit = slideOutVertically(targetOffsetY = { it / 2 }) + fadeOut(),
         modifier = modifier,
     ) {
-        val text = payload.orEmpty()
-        val booth = remember(text) {
-            BoothCodePattern.find(text)?.groupValues?.get(1)?.toIntOrNull()
-                ?.let { number -> roster.firstOrNull { it.number == number } }
+        val accent = LocalAccent.current
+        val booth = when (outcome) {
+            is ScanOutcome.Recorded -> outcome.booth
+            is ScanOutcome.AlreadyScanned -> outcome.booth
+            is ScanOutcome.NotABoothCode -> null
+        }
+        val tint = if (outcome is ScanOutcome.NotABoothCode) Palette.Alert else accent
+
+        val eyebrow = when (outcome) {
+            is ScanOutcome.Recorded -> stringResource(R.string.scan_result_recorded)
+            is ScanOutcome.AlreadyScanned -> stringResource(R.string.scan_result_already)
+            is ScanOutcome.NotABoothCode -> stringResource(R.string.scan_result_unknown)
+        }
+        val headline = booth?.name ?: stringResource(R.string.scan_result_unknown_body)
+        val body = when (outcome) {
+            is ScanOutcome.AlreadyScanned -> stringResource(R.string.scan_result_already_body)
+            else -> null
         }
 
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .glassSurface(cornerRadius = Dimens.RadiusLg)
-                .padding(Dimens.CardPadding),
+                .padding(Dimens.CardPadding)
+                .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Assertive },
             verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -554,41 +714,51 @@ private fun ResultCard(
                 // appears in the app as text alone, and a scan that comes back as
                 // a line of type reads like a receipt rather than like the booth
                 // you are standing in front of.
-                if (booth != null) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(RoundedCornerShape(Dimens.RadiusMd))
-                            .background(LocalAccent.current.copy(alpha = 0.18f)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            painter = painterResource(booth.icon),
-                            contentDescription = null,
-                            tint = LocalAccent.current,
-                            modifier = Modifier.size(24.dp),
-                        )
-                    }
-                    Spacer(Modifier.width(Dimens.Space))
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(Dimens.RadiusMd))
+                        .background(tint.copy(alpha = 0.18f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(
+                            booth?.icon ?: R.drawable.ic_alert_circle,
+                        ),
+                        contentDescription = null,
+                        tint = tint,
+                        modifier = Modifier.size(24.dp),
+                    )
                 }
+                Spacer(Modifier.width(Dimens.Space))
 
                 Column(Modifier.weight(1f)) {
                     Text(
-                        text = booth?.let { stringResource(R.string.scan_result_booth, it.number) }
-                            ?: stringResource(R.string.scan_result_unknown),
+                        text = booth?.let {
+                            "$eyebrow · " + stringResource(R.string.scan_result_booth, it.number)
+                        } ?: eyebrow,
                         fontFamily = AlanSans,
                         fontWeight = FontWeight.Medium,
                         fontSize = 11.sp,
                         letterSpacing = 0.6.sp,
-                        color = if (booth != null) LocalAccent.current else Ink.Muted,
+                        color = tint,
                     )
                     Text(
-                        text = booth?.name ?: text,
+                        text = headline,
                         fontFamily = AlanSans,
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
                         color = Color.White,
                     )
+                    if (body != null) {
+                        Text(
+                            text = body,
+                            fontFamily = AlanSans,
+                            fontWeight = FontWeight.Normal,
+                            fontSize = 12.sp,
+                            color = Ink.Muted,
+                        )
+                    }
                 }
             }
             Spacer(Modifier.height(Dimens.SpaceXs))
@@ -596,15 +766,6 @@ private fun ResultCard(
         }
     }
 }
-
-/**
- * Pulls a booth number off a scanned payload.
- *
- * Placeholder, like the roster it looks up: it takes the trailing digits, so
- * `7`, `booth-07` and `https://su.mfu.ac.th/fair/booth/7` all resolve. Replace it
- * with a strict parse once the real codes are printed and their format is known.
- */
-private val BoothCodePattern = Regex("""(\d{1,2})\s*$""")
 
 @Preview(showBackground = true, device = "id:pixel_7")
 @Composable
