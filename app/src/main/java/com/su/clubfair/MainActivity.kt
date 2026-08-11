@@ -19,8 +19,10 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -29,11 +31,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.su.clubfair.ui.AppShell
 import com.su.clubfair.ui.FairViewModel
+import com.su.clubfair.ui.ProvideAppLanguage
 import com.su.clubfair.ui.SessionState
 import com.su.clubfair.data.net.GoogleSignIn
 import com.su.clubfair.ui.auth.AuthViewModel
+import com.su.clubfair.ui.auth.CompleteProfileScreen
+import com.su.clubfair.ui.auth.FormError
 import com.su.clubfair.ui.auth.LoginScreen
-import com.su.clubfair.ui.auth.RegisterScreen
+import com.su.clubfair.ui.auth.RegisterGoogleScreen
+import com.su.clubfair.ui.loading.LoadingScreen
+import com.su.clubfair.ui.model.Student
 import com.su.clubfair.ui.onboarding.OnboardingScreen
 import com.su.clubfair.ui.scene.MeshBackground
 import com.su.clubfair.ui.theme.SUClubFairTheme
@@ -50,16 +57,23 @@ import kotlinx.coroutines.launch
  * whether a session exists rather than by where the student last tapped, which
  * is what makes a login survive closing the app.
  *
- * `RegisterGoogle` has left it too. That screen existed to put Google first and
- * then ask for what Google could not supply — but the button is not wired to a
- * client id yet, so it was a step that did nothing before a form that asks for
- * everything anyway. Sign-up goes straight to the form; the screen file stays for
- * when there is a client id to put behind it.
+ * `RegisterGoogle` is back, and is now what "Sign up" opens. It was dropped when
+ * the Google button had no client id behind it — a step that did nothing in
+ * front of a form that asked for everything anyway. There is a client id now, so
+ * the order it was written for holds again: identity first, from someone who can
+ * verify it, then only the fields Google cannot answer.
+ *
+ * `Register` — the email form — is *not* in this list. Sign-up is Google and
+ * nothing else: every account is an MFU one, so the address establishes the
+ * student id and Google is the only party that can vouch for it. The screen file
+ * survives, unreferenced, on the same terms `RegisterGoogleScreen` did while it
+ * was out: deleting it would take `RegisterForm`, `submitRegister` and
+ * `POST /auth/register` with it, and the server still answers that route.
  */
 private enum class AuthStep {
     Welcome,
     Login,
-    Register,
+    RegisterGoogle,
 }
 
 /** Slide duration between screens. */
@@ -101,6 +115,8 @@ class MainActivity : ComponentActivity() {
 private fun ClubFairApp() {
     val fair: FairViewModel = viewModel(factory = FairViewModel.Factory)
     val session by fair.session.collectAsStateWithLifecycle()
+    val contentReady by fair.contentReady.collectAsStateWithLifecycle()
+    val language by fair.language.collectAsStateWithLifecycle()
 
     // The crossfade keys on the *phase*, not on the session value.
     //
@@ -114,35 +130,105 @@ private fun ClubFairApp() {
     val phase = when (val current = session) {
         SessionState.Restoring -> AppPhase.Restoring
         SessionState.SignedOut -> AppPhase.SignedOut
-        is SessionState.SignedIn ->
-            if (current.onboardingSeen) AppPhase.Shell else AppPhase.Onboarding
+        is SessionState.SignedIn -> when {
+            // A Google sign-in creates the account before the student has given a
+            // password, a phone number, a school or a major — so a session can
+            // exist for someone who has not finished signing up. They get the
+            // rest of the form, ahead of onboarding: the account is the thing
+            // they are in the middle of, and an intro to the fair on top of a
+            // half-made account is an interruption of it.
+            !current.student.profileComplete -> AppPhase.CompletingSignUp
+            !current.onboardingSeen -> AppPhase.Onboarding
+            // Onboarding first, and the wait after it. The intro needs nothing
+            // from the network, so making a new student watch a loading bar
+            // before it would be a wait invented for its own sake — and by the
+            // time they have read it the fetch has usually landed anyway.
+            !contentReady -> AppPhase.Preparing
+            else -> AppPhase.Shell
+        }
     }
 
-    Crossfade(
-        targetState = phase,
-        animationSpec = tween(TransitionMillis),
-        label = "phase",
-    ) { current ->
-        when (current) {
-            // Deliberately bare. Anything more is a splash screen, and a splash
-            // screen for a DataStore read is an animation in front of nothing.
-            AppPhase.Restoring -> Box(Modifier.fillMaxSize()) { MeshBackground() }
-            AppPhase.SignedOut -> SignedOutFlow()
-            AppPhase.Onboarding -> OnboardingScreen(onContinue = fair::markOnboardingSeen)
-            AppPhase.Shell -> AppShell(onSignOut = fair::signOut)
+    // Held across the crossfade. Signing out flips the session to `SignedOut`
+    // immediately, while the outgoing frame of the screen being faded away still
+    // has to draw a student — without this it draws a blank one for the length
+    // of the transition.
+    val lastSignedIn = remember { mutableStateOf<SessionState.SignedIn?>(null) }
+    (session as? SessionState.SignedIn)?.let { lastSignedIn.value = it }
+
+    // Above the gate, so every screen in the app is inside it — the sign-in
+    // forms included. A student who cannot read the sign-in screen cannot reach
+    // the setting that would fix it, so the language has to apply before there
+    // is an account to attach it to.
+    ProvideAppLanguage(language) {
+        Crossfade(
+            targetState = phase,
+            animationSpec = tween(TransitionMillis),
+            label = "phase",
+        ) { current ->
+            when (current) {
+                // Deliberately bare, and still bare now that there is a real
+                // loading screen a branch below. Anything more is a splash
+                // screen, and a splash screen for a DataStore read is an
+                // animation in front of nothing: this phase is over in a frame
+                // or two, and the wordmark would be gone before it had drawn.
+                AppPhase.Restoring -> Box(Modifier.fillMaxSize()) { MeshBackground() }
+                AppPhase.SignedOut -> SignedOutFlow()
+                AppPhase.CompletingSignUp -> lastSignedIn.value?.let { signedIn ->
+                    CompleteSignUpFlow(student = signedIn.student, onSignOut = fair::signOut)
+                }
+
+                AppPhase.Onboarding -> OnboardingScreen(onContinue = fair::markOnboardingSeen)
+                AppPhase.Preparing -> LoadingScreen()
+                AppPhase.Shell -> AppShell(onSignOut = fair::signOut)
+            }
         }
     }
 }
 
-/** What the app is showing at the top level — see [ClubFairApp]. */
-private enum class AppPhase { Restoring, SignedOut, Onboarding, Shell }
+/**
+ * What the app is showing at the top level — see [ClubFairApp].
+ *
+ * [Preparing] is the gap a session leaves behind it: signed in, past onboarding,
+ * and the first fetch made with the new token has not landed. Its own phase
+ * rather than an empty shell, because the shell would draw a booth list of none
+ * and a rank of nothing and then quietly rearrange itself.
+ */
+private enum class AppPhase { Restoring, SignedOut, CompletingSignUp, Onboarding, Preparing, Shell }
+
+/**
+ * The rest of sign-up for an account Google has just created.
+ *
+ * Its own composable so the form's ViewModel is scoped to the phase: the moment
+ * `profile_complete` flips, the gate drops this branch and the half-typed state
+ * goes with it, rather than lingering for the rest of the process.
+ *
+ * No `BackHandler`. There is nothing behind this screen — the account already
+ * exists — so back would have to mean either "do nothing" or "sign out", and a
+ * gesture that silently signs someone out is worse than one that does nothing.
+ * The sign-out is on the screen instead, where it says what it does.
+ */
+@Composable
+private fun CompleteSignUpFlow(student: Student, onSignOut: () -> Unit) {
+    val auth: AuthViewModel = viewModel(factory = AuthViewModel.Factory)
+    val form by auth.completeProfile.collectAsStateWithLifecycle()
+
+    // Seeds once; a background refresh of the session must not overwrite a form
+    // the student is halfway through. See `seedCompleteProfile`.
+    LaunchedEffect(student.id) { auth.seedCompleteProfile(student) }
+
+    CompleteProfileScreen(
+        state = form,
+        onChange = auth::onCompleteProfileField,
+        onSubmit = auth::submitCompleteProfile,
+        onSignOut = onSignOut,
+    )
+}
 
 /** Welcome, sign-in and sign-up, with the slide between them. */
 @Composable
 private fun SignedOutFlow() {
     val auth: AuthViewModel = viewModel(factory = AuthViewModel.Factory)
     val loginForm by auth.login.collectAsStateWithLifecycle()
-    val registerForm by auth.register.collectAsStateWithLifecycle()
 
     // Credential Manager shows UI, so it needs the Activity rather than the
     // application context.
@@ -154,7 +240,7 @@ private fun SignedOutFlow() {
     // that is not in this flow any more.
     BackHandler(enabled = step != AuthStep.Welcome) {
         step = when (step) {
-            AuthStep.Register -> AuthStep.Login
+            AuthStep.RegisterGoogle -> AuthStep.Login
             else -> AuthStep.Welcome
         }
     }
@@ -198,15 +284,21 @@ private fun SignedOutFlow() {
                 // whole tree. A screen that navigated itself as well would be a
                 // second source of truth for one fact.
                 onSubmit = auth::submitLogin,
-                onSignUp = { step = AuthStep.Register },
+                onSignUp = { step = AuthStep.RegisterGoogle },
                 onGoogleLogin = { requestGoogleSignIn(activity, auth) },
                 googleAvailable = auth.googleAvailable,
             )
 
-            AuthStep.Register -> RegisterScreen(
-                state = registerForm,
-                onChange = auth::onRegisterField,
-                onCreateAccount = auth::submitRegister,
+            // Google here does the same thing it does on the login screen, and
+            // that is not a duplicate: `auth/google` creates the account if it
+            // is not there and returns a session if it is, so "sign in" and
+            // "sign up" are one call. What differs is where the student lands
+            // afterwards, and the gate above decides that from
+            // `profile_complete` rather than from which button was pressed.
+            AuthStep.RegisterGoogle -> RegisterGoogleScreen(
+                state = loginForm,
+                googleAvailable = auth.googleAvailable,
+                onGoogleContinue = { requestGoogleSignIn(activity, auth) },
                 onLogin = { step = AuthStep.Login },
             )
         }
@@ -216,25 +308,37 @@ private fun SignedOutFlow() {
 /**
  * Opens the Google credential sheet and hands the ID token to the ViewModel.
  *
- * Unreachable today — the button that calls it is disabled until a Web OAuth
- * client id is built in — but wired rather than stubbed, so turning Google on is a
- * `-PgoogleWebClientId=…` away and not a code change.
+ * Disabled unless a Web OAuth client id was built in — see
+ * `GoogleSignIn.isConfigured`, and `localConfig` in the app's build file for
+ * where that id comes from. A build without one keeps the button visibly off
+ * rather than opening a sheet that cannot succeed.
+ *
+ * A student who has never used the app before ends up signed in to an account
+ * that exists but is not finished; the gate in [ClubFairApp] sends them to
+ * [CompleteProfileScreen] rather than into the fair.
  *
  * The app never inspects the token. su-server verifies the signature, the
  * audience, `email_verified` and the MFU domain; a client-side check would prove
- * nothing, since a client can be modified.
+ * nothing, since a client can be modified. The profile beside it — name, photo,
+ * address — is passed on too, and is only ever used to fill in what the server
+ * has no copy of. See `GoogleAccount`.
  */
 private fun requestGoogleSignIn(activity: android.app.Activity?, auth: AuthViewModel) {
     val host = activity ?: return
     // The ViewModel's own scope, so a rotation mid-sheet does not orphan the call.
     CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
         when (val result = GoogleSignIn.requestIdToken(host)) {
-            is GoogleSignIn.Result.Token -> auth.submitGoogle(result.idToken)
+            is GoogleSignIn.Result.Token -> auth.submitGoogle(result.idToken, result.account)
             // Dismissing the sheet is not a failure. Say nothing.
             GoogleSignIn.Result.Cancelled -> Unit
-            GoogleSignIn.Result.NoAccount -> auth.onGoogleFailed(null)
-            GoogleSignIn.Result.NotConfigured -> auth.onGoogleFailed(null)
-            is GoogleSignIn.Result.Failed -> auth.onGoogleFailed(null)
+            GoogleSignIn.Result.NoAccount ->
+                auth.onGoogleFailed(FormError.GoogleNoAccount)
+            // Both mean "this could not have worked", and neither is anything the
+            // student can fix — so they get the same message, which points at the
+            // password field rather than pretending to diagnose the console.
+            GoogleSignIn.Result.NotConfigured,
+            is GoogleSignIn.Result.Failed,
+            -> auth.onGoogleFailed(FormError.GoogleUnavailable)
         }
     }
 }

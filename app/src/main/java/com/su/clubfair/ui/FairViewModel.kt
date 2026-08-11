@@ -87,6 +87,39 @@ class FairViewModel(private val repository: FairRepository) : ViewModel() {
         )
 
     /**
+     * The language the app is read in, as a BCP-47 tag, or null to follow the
+     * phone.
+     *
+     * Held apart from [uiState] because it is read a level above the signed-in
+     * shell — the sign-in screens are in it too — and because it must be
+     * available before anything is drawn. The initial null is the phone's own
+     * language, which is the right thing to show for the frame or two before
+     * DataStore answers.
+     */
+    val language: StateFlow<String?> = repository.language.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = null,
+    )
+
+    fun setLanguage(tag: String?) {
+        viewModelScope.launch { repository.setLanguage(tag) }
+    }
+
+    /**
+     * Whether the fair is worth drawing yet — see `FairRepository.ready`.
+     *
+     * Its own flow rather than a field on [SessionState.SignedIn]: it is a fact
+     * about the data, not about the session, and folding it in would rebuild the
+     * signed-in tree every time it changed.
+     */
+    val contentReady: StateFlow<Boolean> = repository.ready.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = false,
+    )
+
+    /**
      * The four collections the repository owns, gathered first.
      *
      * Two steps rather than one, because `combine` has typed overloads up to five

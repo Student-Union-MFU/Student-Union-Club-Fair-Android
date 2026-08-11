@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Savannah: an acacia under a low sun.
+
+  Flat and wide, which is the whole difference between this and the
+  rainforest's dome — the two sit next to each other on the picker, so the
+  silhouettes have to separate at a glance. The sun is clear of the canopy;
+  overlapping them turned two readable shapes into one unreadable one.
+
+  Drawn in white and tinted at the call site with the zone's own ZoneAccent, so
+  one drawable serves whatever colour the floor plan gives an area.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96">
+    <path android:pathData="M70,20 A10,10 0 1 1 70,19.98" android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="3.4"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M12,58 Q46,30 80,58 Q46,47 12,58 Z" android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="3.4"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M46,58 V84" android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="3.4"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M31,84 H61" android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="3.4"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+</vector>

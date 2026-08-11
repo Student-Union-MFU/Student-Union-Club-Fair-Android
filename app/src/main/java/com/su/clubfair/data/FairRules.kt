@@ -17,10 +17,16 @@ import java.util.TimeZone
 /**
  * When the fair runs.
  *
- * **These are placeholder dates**, matching the "26–27 Jul" printed on the
- * student pass. Set them to the real ones before release — they are the only
- * thing the countdown on Home reads, and a wrong end time is worse than none,
- * because a student plans the end of their afternoon around it.
+ * **These are placeholder dates.** Set them to the real ones before release —
+ * they are the only thing the countdown on Home reads, and a wrong end time is
+ * worse than none, because a student plans the end of their afternoon around it.
+ *
+ * They were 26–27 July 2026, which is now in the past, so every phone showed
+ * "Fair · Ended" on the one tile of the home screen that is supposed to give the
+ * student a reason to hurry. A placeholder that has expired is not a neutral
+ * stand-in — it actively tells students the event is over. So the window is
+ * 22–23 August 2026, which is ahead of today and keeps the countdown doing the
+ * job it is on the screen to do.
  *
  * Fixed to Bangkok rather than the device's zone on purpose: the fair opens at
  * 09:00 local to the campus whatever a visiting student's phone is set to.
@@ -33,8 +39,8 @@ object FairSchedule {
 
     private val Campus: TimeZone = TimeZone.getTimeZone("Asia/Bangkok")
 
-    val startMillis: Long = campusTime(2026, Calendar.JULY, 26, hour = 9, minute = 0)
-    val endMillis: Long = campusTime(2026, Calendar.JULY, 27, hour = 17, minute = 0)
+    val startMillis: Long = campusTime(2026, Calendar.AUGUST, 22, hour = 9, minute = 0)
+    val endMillis: Long = campusTime(2026, Calendar.AUGUST, 23, hour = 17, minute = 0)
 
     fun statusAt(nowMillis: Long): FairStatus = when {
         nowMillis < startMillis -> FairStatus.BeforeStart(startMillis - nowMillis)

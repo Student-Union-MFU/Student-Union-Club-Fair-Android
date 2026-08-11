@@ -32,10 +32,13 @@
     <!-- The one failure the student can act on by moving. -->
     <string name="auth_error_offline">Can\'t reach the server. Check your connection and try again.</string>
     <string name="auth_google_unavailable">Google sign-in isn\'t set up yet — use your phone number and password.</string>
+    <!-- The same build problem, on the screen with no fallback to point at:
+         sign-up is Google-only, so there is nothing else to suggest. -->
+    <string name="auth_google_unavailable_signup">Google sign-in isn\'t set up in this build, so new accounts can\'t be created yet.</string>
 
     <string name="register_title">Create an Account</string>
     <string name="register_subtitle">Sign up to explore clubs and collect your booth stamps</string>
-    <string name="register_google_subtitle">Sign up with your Google account. We\'ll ask for your school details next.</string>
+    <string name="register_google_subtitle">Sign up with your MFU Google account. We\'ll ask for your school details next.</string>
     <string name="register_first_hint">First name</string>
     <string name="register_surname_hint">Surname</string>
     <string name="register_email_hint">MFU email</string>
@@ -52,23 +55,81 @@
     <string name="register_legal">By tapping Create Account, you agree to our Terms of Service and acknowledge our Privacy Policy</string>
     <string name="register_legal_terms">Terms of Service</string>
     <string name="register_legal_privacy">Privacy Policy</string>
+
+    <!-- The second half of sign-up, shown after Google has created the account
+         but before the student has given the details Google cannot supply. -->
+    <string name="complete_title">Almost there</string>
+    <string name="complete_subtitle">Signed in as %1$s. A few details we can\'t get from Google.</string>
+    <string name="complete_student_id">Student ID %1$s</string>
+    <string name="complete_school_derived">Filled in from your student ID — change it if it\'s wrong.</string>
+    <string name="complete_password_hint">Create a password</string>
+    <string name="complete_password_why">Lets you sign in with your phone number if Google isn\'t available.</string>
+    <string name="complete_cta">Finish Sign-up</string>
+    <string name="complete_working">Saving…</string>
+    <string name="complete_wrong_account">Wrong account? Sign out</string>
     <!-- Replaces the previous account on this device; said plainly because it
          takes the previous student's booth progress with it. -->
 
+
+    <!-- Shown between signing in and the fair being on screen. -->
+    <string name="loading_fair">Getting the fair ready…</string>
 
     <!-- Field-level validation. -->
     <string name="auth_error_required">Required</string>
     <string name="auth_error_phone">Enter a Thai mobile number, e.g. 0683150329</string>
     <string name="auth_error_email">Enter a valid email address</string>
     <string name="auth_error_email_mfu">Use your @lamduan.mfu.ac.th address</string>
+    <!-- %1$s is the intake the fair is open to, as the leading digits of a
+         student id — "69", or "69 / 70" for a fair run for two years. -->
+    <string name="auth_error_intake">This fair is for student IDs starting %1$s</string>
     <string name="auth_error_password_short">At least %1$d characters</string>
     <string name="auth_error_password_letter">Add at least one letter</string>
     <string name="auth_error_password_digit">Add at least one number</string>
+    <string name="auth_error_google_failed">Google sign-in couldn\'t start. Use your phone number and password instead.</string>
+    <string name="auth_error_google_no_account">No Google account on this phone. Add one in Settings, or use your phone number and password.</string>
     <string name="auth_show_password">Show password</string>
     <string name="auth_hide_password">Hide password</string>
 
     <string name="onboarding_headline">Visit all 27 booths, scan each QR code, and win prizes!</string>
     <string name="onboarding_cta">Continue</string>
+
+    <!-- The server's `category` tokens, said in words. Also what a zone's
+         subtitle is built from — see `zoneIntent`. -->
+    <string name="booth_category_sports">Sports</string>
+    <string name="booth_category_student_relations">Student relations</string>
+    <string name="booth_category_volunteer">Volunteering</string>
+    <string name="booth_category_religion_and_culture">Religion &amp; culture</string>
+    <string name="booth_category_academic">Academic</string>
+
+    <!--
+      PLACEHOLDER booth descriptions, one per category.
+
+      Stand-ins until the Student Union writes `booth.about`, which is empty on
+      all 28 rows. Per category and not per club on purpose: the server tells
+      the app what kind of club a booth is and nothing more, and a sentence
+      invented about a named student society would be a fabrication on the card
+      a student uses to choose where to walk. Each line is true of every club in
+      its category. Delete these once real copy exists — the server's `about`
+      already wins wherever it is filled in.
+    -->
+    <string name="booth_about_sports">Training, friendly matches and a team that turns up every week. Come and try a session.</string>
+    <string name="booth_about_student_relations">The students who run the events, the welcome and the welfare across campus. Ask them how to get involved.</string>
+    <string name="booth_about_volunteer">Volunteer work off campus — community, conservation and the trips that go with it.</string>
+    <string name="booth_about_religion_and_culture">Faith, tradition and Thai performing arts, kept alive by the students who practise them.</string>
+    <string name="booth_about_academic">Debate, performance and competition — clubs that take a skill and enter it into things.</string>
+    <string name="booth_about_generic">Come and meet the club at their stall.</string>
+
+    <!-- The Prizes page. The tier names and descriptions are the server's; only
+         the notice below is the app's, and it exists because those rows are
+         still the seeded placeholders rather than the real prize list. -->
+    <string name="prizes_title">Prizes</string>
+    <string name="prizes_earned_of">of %1$d prizes earned</string>
+    <string name="prizes_booths_progress">%1$d of %2$d booths collected</string>
+    <string name="prizes_tiers_section">How to earn them</string>
+    <string name="prizes_placeholder_notice">The prize list isn\'t final yet — these tiers are placeholders while the Student Union confirms what\'s on offer. The booth targets are real.</string>
+    <string name="prizes_remaining">%1$d more booths to go</string>
+    <string name="prizes_ready">Earned — claim it at the Student Union desk</string>
+    <string name="prizes_claimed">Claimed</string>
 
     <string name="home_headline">Find your club this weekend</string>
     <string name="home_checkpoints">Checkpoints</string>
@@ -98,14 +159,20 @@
     <string name="home_stat_prizes">Prizes</string>
     <!-- Stands in for any figure this app cannot know without a server. -->
     <string name="home_stat_unknown">—</string>
-    <string name="home_stat_left">Ends in</string>
-    <string name="home_stat_starts">Starts in</string>
     <string name="home_stat_ended">Fair</string>
     <string name="home_stat_ended_value">Ended</string>
-    <!-- Countdown, coarsest useful unit only. -->
-    <string name="home_countdown_days">%1$dd</string>
-    <string name="home_countdown_hours">%1$dh</string>
-    <string name="home_countdown_minutes">%1$dm</string>
+    <!-- The countdown banner. Whole days until the fair opens, with the date
+         itself on the line above so nobody has to do the arithmetic. -->
+    <string name="home_opens_on">Fair opens %1$s</string>
+    <!-- The countdown runs days + hours + minutes on one line, so the units are
+         abbreviated: spelled out, three of them do not fit at 40sp. -->
+    <string name="home_unit_days">%1$dd</string>
+    <string name="home_unit_hours">%1$dh</string>
+    <string name="home_unit_minutes">%1$dm</string>
+    <string name="home_open_now">Fair is open</string>
+    <!-- Wraps the figure above once the fair is running: the same units, but
+         counting down to the close rather than to the opening. -->
+    <string name="home_open_ends_in">Fair is open · ends in</string>
 
     <string name="nav_home">Home</string>
     <string name="nav_booths">Booths</string>
@@ -171,7 +238,6 @@
     <string name="booths_empty">Nothing here yet</string>
     <string name="booth_status_scanned">Scanned</string>
     <string name="booth_status_unscanned">Not scanned yet</string>
-    <string name="booth_status_unscanned_hint">Scan the QR at this booth</string>
 
     <!-- Club search. -->
     <string name="booths_search">Search clubs</string>
@@ -204,6 +270,10 @@
     <string name="settings_feedback_section">Feedback</string>
     <string name="settings_haptics">Vibrate on a scan</string>
     <string name="settings_haptics_hint">A short buzz when a booth is collected</string>
+    <string name="settings_language">Language</string>
+    <!-- The "use whatever the phone is set to" option. The two real languages
+         are named in themselves — "English", "ไทย" — and are not translated. -->
+    <string name="settings_language_system">Follow phone</string>
     <string name="settings_data_section">Your data</string>
     <string name="settings_stored_title">Your checkpoints</string>
     <plurals name="settings_pending_scans">

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Whether the reader wants Thai for the names the server sends in both.
+
+      A resource rather than a `Locale` comparison in Kotlin, because this is
+      exactly the question the resource system already answers: it is resolved
+      by the same qualifier matching that picks `values-th/strings.xml`, so it
+      follows the in-app language override (see `ProvideAppLanguage`), the
+      phone's setting under "Follow phone", and any locale added later —
+      without a list of language codes anywhere in the app to fall out of step.
+
+      Only for data the *server* sends in two languages: booth names, zone
+      names. Anything the app owns is a string resource and needs none of this.
+    -->
+    <bool name="prefer_thai_names">false</bool>
+</resources>

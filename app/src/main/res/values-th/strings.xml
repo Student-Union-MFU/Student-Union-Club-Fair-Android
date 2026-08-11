@@ -41,10 +41,11 @@
     <string name="login_error_generic">เข้าสู่ระบบไม่สำเร็จ ตรวจสอบเบอร์โทรและรหัสผ่าน</string>
     <string name="auth_error_offline">เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่</string>
     <string name="auth_google_unavailable">ยังไม่ได้ตั้งค่าการเข้าสู่ระบบด้วย Google — ใช้เบอร์โทรและรหัสผ่านแทน</string>
+    <string name="auth_google_unavailable_signup">บิลด์นี้ยังไม่ได้ตั้งค่าการเข้าสู่ระบบด้วย Google จึงยังสมัครบัญชีใหม่ไม่ได้</string>
 
     <string name="register_title">สร้างบัญชี</string>
     <string name="register_subtitle">สมัครสมาชิกเพื่อสำรวจชมรมและสะสมแสตมป์จากบูธ</string>
-    <string name="register_google_subtitle">สมัครด้วยบัญชี Google ของคุณ แล้วเราจะถามข้อมูลสำนักวิชาในขั้นตอนถัดไป</string>
+    <string name="register_google_subtitle">สมัครด้วยบัญชี Google ของ มฟล. แล้วเราจะถามข้อมูลสำนักวิชาในขั้นตอนถัดไป</string>
     <string name="register_first_hint">ชื่อ</string>
     <string name="register_surname_hint">นามสกุล</string>
     <string name="register_email_hint">อีเมลมหาวิทยาลัย</string>
@@ -60,19 +61,62 @@
     <string name="register_legal_terms">เงื่อนไขการให้บริการ</string>
     <string name="register_legal_privacy">นโยบายความเป็นส่วนตัว</string>
 
+    <!-- ขั้นตอนที่สองของการสมัคร แสดงหลัง Google สร้างบัญชีให้แล้ว
+         แต่ยังขาดข้อมูลที่ Google ไม่มี -->
+    <string name="complete_title">อีกนิดเดียว</string>
+    <string name="complete_subtitle">เข้าสู่ระบบในชื่อ %1$s ขอข้อมูลอีกเล็กน้อยที่ Google ไม่ได้บอกเรา</string>
+    <string name="complete_student_id">รหัสนักศึกษา %1$s</string>
+    <string name="complete_school_derived">กรอกให้จากรหัสนักศึกษา — ถ้าไม่ถูกต้องแก้ไขได้</string>
+    <string name="complete_password_hint">ตั้งรหัสผ่าน</string>
+    <string name="complete_password_why">ไว้เข้าสู่ระบบด้วยเบอร์โทรเมื่อใช้ Google ไม่ได้</string>
+    <string name="complete_cta">สมัครให้เสร็จ</string>
+    <string name="complete_working">กำลังบันทึก…</string>
+    <string name="complete_wrong_account">ไม่ใช่บัญชีนี้? ออกจากระบบ</string>
 
+
+    <string name="loading_fair">กำลังเตรียมงานให้คุณ…</string>
     <string name="auth_error_required">จำเป็นต้องกรอก</string>
     <string name="auth_error_phone">กรอกเบอร์มือถือไทย เช่น 0683150329</string>
     <string name="auth_error_email">กรอกอีเมลให้ถูกต้อง</string>
     <string name="auth_error_email_mfu">ใช้อีเมล @lamduan.mfu.ac.th ของคุณ</string>
+    <string name="auth_error_intake">งานนี้เปิดให้เฉพาะนักศึกษารหัสขึ้นต้น %1$s</string>
     <string name="auth_error_password_short">อย่างน้อย %1$d ตัวอักษร</string>
     <string name="auth_error_password_letter">ต้องมีตัวอักษรอย่างน้อยหนึ่งตัว</string>
     <string name="auth_error_password_digit">ต้องมีตัวเลขอย่างน้อยหนึ่งตัว</string>
+    <string name="auth_error_google_failed">เริ่มการเข้าสู่ระบบด้วย Google ไม่ได้ กรุณาใช้เบอร์โทรและรหัสผ่านแทน</string>
+    <string name="auth_error_google_no_account">ไม่พบบัญชี Google ในเครื่องนี้ เพิ่มบัญชีในการตั้งค่า หรือใช้เบอร์โทรและรหัสผ่านแทน</string>
     <string name="auth_show_password">แสดงรหัสผ่าน</string>
     <string name="auth_hide_password">ซ่อนรหัสผ่าน</string>
 
     <string name="onboarding_headline">เยี่ยมชมครบทั้ง 27 บูธ สแกน QR ทุกบูธ แล้วลุ้นรับรางวัล!</string>
     <string name="onboarding_cta">ถัดไป</string>
+
+    <!-- หมวดหมู่ชมรมตามที่เซิร์ฟเวอร์ส่งมา ใช้เป็นคำอธิบายใต้ชื่อโซนด้วย -->
+    <string name="booth_category_sports">ชมรมด้านกีฬา</string>
+    <string name="booth_category_student_relations">ชมรมด้านนักศึกษาสัมพันธ์</string>
+    <string name="booth_category_volunteer">ชมรมด้านการบำเพ็ญประโยชน์</string>
+    <string name="booth_category_religion_and_culture">ชมรมด้านศาสนาและวัฒนธรรม</string>
+    <string name="booth_category_academic">ชมรมด้านวิชาการ</string>
+
+    <!-- คำอธิบายบูธชั่วคราว แยกตามหมวดหมู่ — ดูหมายเหตุในไฟล์ภาษาอังกฤษ
+         ใช้ไปก่อนจนกว่าองค์การนักศึกษาจะเขียนคำอธิบายจริงลง booth.about -->
+    <string name="booth_about_sports">ซ้อมประจำสัปดาห์ แข่งกระชับมิตร และเพื่อนร่วมทีมที่มาครบทุกครั้ง แวะมาลองเล่นได้เลย</string>
+    <string name="booth_about_student_relations">กลุ่มนักศึกษาที่ดูแลกิจกรรม การต้อนรับ และสวัสดิการทั่วมหาวิทยาลัย มาถามวิธีเข้าร่วมได้</string>
+    <string name="booth_about_volunteer">งานอาสานอกมหาวิทยาลัย ทั้งงานชุมชน งานอนุรักษ์ และทริปที่ตามมา</string>
+    <string name="booth_about_religion_and_culture">ศาสนา ประเพณี และศิลปะการแสดงไทย ที่นักศึกษายังฝึกซ้อมและสืบทอดกันอยู่</string>
+    <string name="booth_about_academic">โต้วาที การแสดง และการแข่งขัน ชมรมที่เอาทักษะไปลงสนามจริง</string>
+    <string name="booth_about_generic">แวะมาทำความรู้จักชมรมที่บูธได้เลย</string>
+
+    <!-- หน้ารางวัล ชื่อและรายละเอียดของแต่ละขั้นมาจากเซิร์ฟเวอร์
+         มีเฉพาะข้อความแจ้งเตือนที่เป็นของแอป เพราะรายการรางวัลยังเป็นข้อมูลตัวอย่าง -->
+    <string name="prizes_title">รางวัล</string>
+    <string name="prizes_earned_of">ได้รับแล้ว จากทั้งหมด %1$d รางวัล</string>
+    <string name="prizes_booths_progress">เก็บแล้ว %1$d จาก %2$d บูธ</string>
+    <string name="prizes_tiers_section">วิธีรับรางวัล</string>
+    <string name="prizes_placeholder_notice">รายการรางวัลยังไม่สรุป ขั้นรางวัลที่เห็นเป็นข้อมูลตัวอย่างระหว่างรอองค์การนักศึกษายืนยัน แต่จำนวนบูธที่ต้องเก็บเป็นข้อมูลจริง</string>
+    <string name="prizes_remaining">อีก %1$d บูธ</string>
+    <string name="prizes_ready">ได้รับแล้ว รับรางวัลที่จุดองค์การนักศึกษา</string>
+    <string name="prizes_claimed">รับรางวัลแล้ว</string>
 
     <string name="home_headline">ค้นหาชมรมของคุณในสุดสัปดาห์นี้</string>
     <string name="home_checkpoints">จุดเช็คอิน</string>
@@ -93,13 +137,16 @@
     <string name="home_stat_rank">อันดับ</string>
     <string name="home_stat_prizes">รางวัล</string>
     <string name="home_stat_unknown">—</string>
-    <string name="home_stat_left">เหลืออีก</string>
-    <string name="home_stat_starts">เริ่มในอีก</string>
     <string name="home_stat_ended">งาน</string>
     <string name="home_stat_ended_value">จบแล้ว</string>
-    <string name="home_countdown_days">%1$d วัน</string>
-    <string name="home_countdown_hours">%1$d ชม.</string>
-    <string name="home_countdown_minutes">%1$d น.</string>
+    <string name="home_opens_on">งานเปิด %1$s</string>
+    <!-- The countdown runs days + hours + minutes on one line, so the units are
+         abbreviated: spelled out, three of them do not fit at 40sp. -->
+    <string name="home_unit_days">%1$d ว.</string>
+    <string name="home_unit_hours">%1$d ชม.</string>
+    <string name="home_unit_minutes">%1$d น.</string>
+    <string name="home_open_now">งานเปิดอยู่</string>
+    <string name="home_open_ends_in">งานเปิดอยู่ · ปิดใน</string>
 
     <string name="nav_home">หน้าแรก</string>
     <string name="nav_booths">บูธ</string>
@@ -162,7 +209,6 @@
     <string name="booths_empty">ยังไม่มีอะไรที่นี่</string>
     <string name="booth_status_scanned">สแกนแล้ว</string>
     <string name="booth_status_unscanned">ยังไม่ได้สแกน</string>
-    <string name="booth_status_unscanned_hint">สแกน QR ที่บูธนี้</string>
 
     <string name="booths_search">ค้นหาชมรม</string>
     <string name="booths_search_hint">ค้นหาชมรม</string>
@@ -192,6 +238,8 @@
     <string name="settings_feedback_section">การตอบสนอง</string>
     <string name="settings_haptics">สั่นเมื่อสแกนสำเร็จ</string>
     <string name="settings_haptics_hint">สั่นสั้น ๆ เมื่อเก็บบูธได้</string>
+    <string name="settings_language">ภาษา</string>
+    <string name="settings_language_system">ตามเครื่อง</string>
     <string name="settings_data_section">ข้อมูลของคุณ</string>
     <string name="settings_stored_title">จุดเช็คอินของคุณ</string>
     <plurals name="settings_pending_scans">

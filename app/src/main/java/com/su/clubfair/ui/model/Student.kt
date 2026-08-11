@@ -1,6 +1,8 @@
 package com.su.clubfair.ui.model
 
 import com.su.clubfair.data.CachedUser
+import com.su.clubfair.data.MfuEmail
+import com.su.clubfair.data.net.GoogleAccount
 import com.su.clubfair.data.net.UserDto
 
 /**
@@ -33,6 +35,12 @@ data class Student(
     val isStaff: Boolean,
     /** Whether a password is set, so a Google-only account can be offered one. */
     val hasPassword: Boolean,
+    /**
+     * Whether sign-up finished. False for an account Google has just created,
+     * which the gate in `MainActivity` sends to the sign-up form rather than
+     * into the fair.
+     */
+    val profileComplete: Boolean = true,
 ) {
     /** Both names, for anywhere that just wants to print the person. */
     val name: String get() = "$firstName $surname"
@@ -56,6 +64,7 @@ data class Student(
             avatarUrl = dto.avatarUrl,
             isStaff = isStaffRole(dto.role),
             hasPassword = dto.hasPassword,
+            profileComplete = dto.profileComplete,
         )
 
         fun from(cached: CachedUser) = Student(
@@ -70,9 +79,61 @@ data class Student(
             avatarUrl = cached.avatarUrl,
             isStaff = isStaffRole(cached.role),
             hasPassword = cached.hasPassword,
+            profileComplete = cached.profileComplete,
         )
     }
 }
+
+/**
+ * Fills the gaps in a server account from what Google said about the same person.
+ *
+ * **The server stays authoritative.** Every field below is written only where the
+ * server left a null or a blank, so nothing a student has actually saved can be
+ * overwritten by a credential bundle — a student who fixes their surname in
+ * su-server's admin keeps the fix, and does not have it reverted at the next
+ * sign-in by whatever Google has on file. The direction matters more than the
+ * fields do: this is a fallback, not a sync.
+ *
+ * This is a **fallback layer, not the main supply**, and it is worth being clear
+ * about that because most of these fields normally arrive filled:
+ *
+ *  - **The phone** is the one that genuinely earns its place. The server has no
+ *    phone for a Google account until the student types one, and Google
+ *    sometimes has a verified number — so this pre-fills the sign-up field. It
+ *    is still validated and still editable.
+ *  - **The photo** is normally the server's: `clubfair_auth_service.go` reads
+ *    the token's `picture` claim and stores it as `avatar_url`, refreshing it on
+ *    every sign-in. This covers only the case where that column is empty. Note
+ *    that displaying it is a separate matter — the URL was stored and never
+ *    drawn until `StudentAvatar` existed.
+ *  - **The student id** the server also derives, from the same email local part.
+ *    Kept for the same reason: cheap, and the pass needs something to encode.
+ *  - **The name** the server always has. Reached only if it came back blank, so
+ *    that an empty greeting is not the result.
+ *
+ * A [google] belonging to a different address is ignored outright — see
+ * [GoogleAccount.isFor] for the shared-phone case that motivates it.
+ */
+fun Student.filledFrom(google: GoogleAccount?): Student {
+    if (google == null || !google.isFor(email)) return this
+    return copy(
+        firstName = firstName.ifBlank { google.firstName ?: firstName },
+        surname = surname.ifBlank { google.surname ?: surname },
+        avatarUrl = avatarUrl.orNull() ?: google.photoUrl.orNull(),
+        studentId = studentId.orNull() ?: MfuEmail.studentIdFrom(google.email),
+        phone = phone.orNull() ?: google.phone.orNull(),
+    )
+}
+
+/**
+ * Blank and null are the same thing, on both sides.
+ *
+ * Applied to Google's values as well as the server's, which is not symmetry for
+ * its own sake: a credential can carry `phone = ""`, and letting that through
+ * would pre-fill the sign-up form with an empty string that then fails the
+ * form's own validation — a field the student never touched, reported as wrong.
+ */
+private fun String?.orNull(): String? = this?.trim()?.takeIf { it.isNotEmpty() }
 
 fun Student.toCachedUser(role: String) = CachedUser(
     id = id,
@@ -86,6 +147,7 @@ fun Student.toCachedUser(role: String) = CachedUser(
     major = major,
     avatarUrl = avatarUrl,
     hasPassword = hasPassword,
+    profileComplete = profileComplete,
 )
 
 /**

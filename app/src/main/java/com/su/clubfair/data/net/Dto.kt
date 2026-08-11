@@ -36,6 +36,18 @@ data class UserDto(
     val major: String? = null,
     @SerialName("avatar_url") val avatarUrl: String? = null,
     @SerialName("has_password") val hasPassword: Boolean = false,
+    /**
+     * Whether sign-up finished — see `ClubFairUser.ProfileComplete` on the
+     * server. A Google sign-in creates the account before the student has given
+     * a password, a phone number, a school or a major, so "signed in" and
+     * "signed up" are two different questions and this is the second one.
+     *
+     * Defaults to **true**, unlike every other flag here. A server too old to
+     * send it is one whose accounts all predate the sign-up gate, and defaulting
+     * to false would march every existing student back through a form they have
+     * already filled in.
+     */
+    @SerialName("profile_complete") val profileComplete: Boolean = true,
 )
 
 @Serializable
@@ -156,6 +168,9 @@ data class UpdateProfileRequest(
 )
 
 @Serializable
+data class SetPasswordRequest(val password: String)
+
+@Serializable
 data class ReactionRequest(val emoji: String)
 
 /** `{"error": "<Thai message>"}` — what su-server sends on every failure. */
@@ -165,3 +180,7 @@ data class ApiErrorDto(val error: String? = null)
 /** `{"mine": true}` from the reaction toggle. */
 @Serializable
 data class ReactionStateDto(val mine: Boolean)
+
+/** `{"ok": true}` — the password endpoint's acknowledgement, and nothing else. */
+@Serializable
+data class OkDto(val ok: Boolean = false)

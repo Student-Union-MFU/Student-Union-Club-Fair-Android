@@ -24,6 +24,50 @@ val keystoreProperties = Properties().apply {
 fun signingValue(key: String, env: String): String? =
     keystoreProperties.getProperty(key) ?: System.getenv(env)
 
+/**
+ * An untracked `.env` at the repo root, for local configuration.
+ *
+ * Read at configure time so a value can come from the file rather than from a
+ * `-P` flag on every command. `.env` is gitignored — a client id is public by
+ * design, unlike a client *secret*, but it is still per-developer and
+ * per-environment and has no business in the repo.
+ */
+val dotenv = Properties().apply {
+    val file = rootProject.file(".env")
+    if (file.exists()) file.inputStream().use(::load)
+}
+
+/**
+ * One local setting, from the first place that has it.
+ *
+ * Gradle property first — `-PgoogleWebClientId=…` or `~/.gradle/gradle.properties`
+ * — so a command-line override always wins over a file someone forgot they wrote.
+ * Then `.env`, then the environment, then a default.
+ */
+fun localConfig(gradleProperty: String, envKey: String, default: String = ""): String =
+    ((properties[gradleProperty] as String?)
+        ?: dotenv.getProperty(envKey)
+        ?: System.getenv(envKey)
+        ?: default)
+        .let(::unquote)
+
+/**
+ * Strips one matching pair of surrounding quotes.
+ *
+ * `.env` files are conventionally written either way — `KEY=value` and
+ * `KEY="value"` mean the same thing to a shell — but [Properties] is not a shell
+ * and keeps the quotes as part of the value. Every value here ends up inside a
+ * generated `String` literal, so a stray quote is not a wrong client id, it is a
+ * `BuildConfig.java` that will not compile.
+ */
+fun unquote(raw: String): String {
+    val value = raw.trim()
+    val quoted = value.length >= 2 &&
+        (value.startsWith('"') && value.endsWith('"') ||
+            value.startsWith('\'') && value.endsWith('\''))
+    return if (quoted) value.substring(1, value.length - 1) else value
+}
+
 android {
     namespace = "com.su.clubfair"
     compileSdk = 37
@@ -37,18 +81,42 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // The **web** OAuth client id, even on Android: it becomes the ID token's
-        // `aud`, which is what su-server compares against its own
-        // GOOGLE_CLIENT_ID. Supply it with
-        //   ./gradlew installDebug -PgoogleWebClientId=...apps.googleusercontent.com
-        // or in ~/.gradle/gradle.properties so it is never committed.
+        // The OAuth client id Credential Manager requests a token for.
         //
-        // Empty by default, and the app keeps the Google button disabled rather
-        // than opening a sheet that cannot succeed — see GoogleSignIn.isConfigured.
+        // ⚠ It must be the **Web** client id, not the Android one, even though
+        // this is an Android app. Credential Manager's `setServerClientId` is
+        // documented as taking the server's client id, and the token it returns
+        // carries that value as its `aud` — which is exactly what su-server
+        // compares against its own GOOGLE_CLIENT_ID. An Android client id is
+        // never pasted anywhere: it exists in the console only so Google will
+        // issue a token to this package and signing certificate at all.
+        //
+        // From, in order: -PgoogleWebClientId, the root .env's
+        // GOOGLE_OAUTH_CLIENT_ID_SERVER, or the environment. The key says
+        // _SERVER because that is whose id it is — su-server's — and the file
+        // also carries the Android one, which nothing reads. Empty by default,
+        // and the app then keeps the Google button disabled rather than opening
+        // a sheet that cannot succeed — see GoogleSignIn.isConfigured.
         buildConfigField(
             "String",
             "GOOGLE_WEB_CLIENT_ID",
-            "\"${properties["googleWebClientId"] ?: ""}\"",
+            "\"${localConfig("googleWebClientId", "GOOGLE_OAUTH_CLIENT_ID_SERVER")}\"",
+        )
+
+        // Which intakes may sign up, as the leading digits of a student id —
+        // "69" is the 2569 intake, so 67-69 is the three years currently on
+        // campus. Mirrors su-server's own default and its
+        // CLUBFAIR_INTAKE_PREFIXES so the form can say no before a round trip;
+        // the server remains the one that decides, and is the only side that
+        // knows whether an account already exists. Comma-separated for a fair
+        // run for two intakes, "*" to accept any.
+        //
+        // Configured rather than compiled in because the answer changes every
+        // year, and a Gradle property is cheaper than a Play Store release.
+        buildConfigField(
+            "String",
+            "INTAKE_PREFIXES",
+            "\"${localConfig("clubfairIntakePrefixes", "CLUBFAIR_INTAKE_PREFIXES", "67,68,69")}\"",
         )
 
         // Only the languages actually translated. Without this the APK carries
@@ -97,7 +165,7 @@ android {
             buildConfigField(
                 "String",
                 "API_BASE_URL",
-                "\"${properties["clubfairApiBase"] ?: "http://localhost:8080"}\"",
+                "\"${localConfig("clubfairApiBase", "CLUBFAIR_API_BASE", "http://localhost:8080")}\"",
             )
         }
         release {
@@ -107,7 +175,7 @@ android {
             buildConfigField(
                 "String",
                 "API_BASE_URL",
-                "\"${properties["clubfairApiBase"] ?: ""}\"",
+                "\"${localConfig("clubfairApiBase", "CLUBFAIR_API_BASE")}\"",
             )
             isMinifyEnabled = true
             isShrinkResources = true
@@ -198,6 +266,9 @@ dependencies {
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services)
     implementation(libs.googleid)
+
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)

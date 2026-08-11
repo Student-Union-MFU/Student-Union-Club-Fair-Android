@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+A wrapped prize.
+
+  The gift metaphor is the one the old ic_gift glyph established and the
+  Prizes page still uses, so nothing has to be re-learned.
+
+  White line work, at the two weights the app uses everywhere else: full for
+  the shape, a little over half for secondary detail.
+
+  It was lime — Palette.Accent — which was one step too far in the same
+  direction that put the accent on the countdown figure. The accent is the
+  app's action colour: it belongs on a scanned checkpoint and a filled
+  progress bar, on things that mean something has happened. A drawing on a
+  tile has not happened, and three lime drawings on one screen made a page of
+  white type look like it was decorated rather than laid out.
+
+  The two earlier versions are worth remembering: filled shapes in three
+  palette colours read as clip-art dropped on the screen, because solid colour
+  carries far more weight than the frosted glass around it. An outline weighs
+  what an icon weighs, and white is what the icons are.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96">
+    <path android:pathData="M28,45 H68 A7,7 0 0 1 75,52 V73 A7,7 0 0 1 68,80 H28 A7,7 0 0 1 21,73 V52 A7,7 0 0 1 28,45 Z" android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="3.2"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M21,32 H75 A5,5 0 0 1 80,37 V41 A5,5 0 0 1 75,46 H21 A5,5 0 0 1 16,41 V37 A5,5 0 0 1 21,32 Z" android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="3.2"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M48,46 V80" android:fillColor="#00000000"
+        android:strokeColor="#8AFFFFFF" android:strokeWidth="3.2"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M48,32 C40,32 30,28 32,21 C34,14.5 44,20 48,32" android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="3.2"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M48,32 C56,32 66,28 64,21 C62,14.5 52,20 48,32" android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="3.2"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M82,15 Q83.44,19.56 88,21 Q83.44,22.44 82,27 Q80.56,22.44 76,21 Q80.56,19.56 82,15 Z" android:fillColor="#FFFFFFFF" />
+    <path android:pathData="M15,20.8 Q16.008,23.992 19.2,25 Q16.008,26.008 15,29.2 Q13.992,26.008 10.8,25 Q13.992,23.992 15,20.8 Z" android:fillColor="#8AFFFFFF" />
+</vector>

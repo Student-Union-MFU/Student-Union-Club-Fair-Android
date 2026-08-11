@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
@@ -49,6 +48,7 @@ import com.su.clubfair.ui.components.Hairline
 import com.su.clubfair.ui.components.SheetHeader
 import com.su.clubfair.ui.components.StatEntry
 import com.su.clubfair.ui.components.StatPane
+import com.su.clubfair.ui.components.StudentAvatar
 import com.su.clubfair.ui.components.glassSurface
 import com.su.clubfair.ui.model.FairProgress
 import com.su.clubfair.ui.model.PreviewProgress
@@ -186,25 +186,10 @@ private fun IdentityCard(student: Student, modifier: Modifier = Modifier) {
             .padding(Dimens.CardPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            modifier = Modifier
-                .size(64.dp)
-                .clip(CircleShape)
-                .background(LocalAccent.current.copy(alpha = 0.18f)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                // Initials rather than a stock avatar — there are no photos to
-                // show, and a generic silhouette says less than the letters do.
-                // Both names now that sign-up asks for both: one letter collides
-                // across a fair of thousands, two mostly don't.
-                text = student.initials,
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Bold,
-                fontSize = 26.sp,
-                color = LocalAccent.current,
-            )
-        }
+        // The Google account photo when there is one, initials when there is not
+        // — which is still most students, since a phone-and-password sign-up
+        // brings no photo with it. Both cases live in the one composable.
+        StudentAvatar(student = student, size = 64.dp)
 
         Spacer(Modifier.size(Dimens.CardPadding))
         Column(modifier = Modifier.weight(1f)) {

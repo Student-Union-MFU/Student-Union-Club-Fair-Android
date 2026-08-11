@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+The day the fair opens, as a calendar.
+
+  A compass said 'find your way', which is the Booths tab's job. This card
+  is about a date, and the ringed day is the one the figure beside it counts
+  down to.
+
+  White line work, at the two weights the app uses everywhere else: full for
+  the shape, a little over half for secondary detail.
+
+  It was lime — Palette.Accent — which was one step too far in the same
+  direction that put the accent on the countdown figure. The accent is the
+  app's action colour: it belongs on a scanned checkpoint and a filled
+  progress bar, on things that mean something has happened. A drawing on a
+  tile has not happened, and three lime drawings on one screen made a page of
+  white type look like it was decorated rather than laid out.
+
+  The two earlier versions are worth remembering: filled shapes in three
+  palette colours read as clip-art dropped on the screen, because solid colour
+  carries far more weight than the frosted glass around it. An outline weighs
+  what an icon weighs, and white is what the icons are.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96">
+    <path android:pathData="M32,12 V25" android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="3.2"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M64,12 V25" android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="3.2"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M25,20 H71 A11,11 0 0 1 82,31 V71 A11,11 0 0 1 71,82 H25 A11,11 0 0 1 14,71 V31 A11,11 0 0 1 25,20 Z" android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="3.2"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M14,39 H82" android:fillColor="#00000000"
+        android:strokeColor="#8AFFFFFF" android:strokeWidth="3.2"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M28,49.4 A2.6,2.6 0 1 1 28,54.6 A2.6,2.6 0 1 1 28,49.4 Z" android:fillColor="#8AFFFFFF" />
+    <path android:pathData="M42,49.4 A2.6,2.6 0 1 1 42,54.6 A2.6,2.6 0 1 1 42,49.4 Z" android:fillColor="#8AFFFFFF" />
+    <path android:pathData="M56,49.4 A2.6,2.6 0 1 1 56,54.6 A2.6,2.6 0 1 1 56,49.4 Z" android:fillColor="#8AFFFFFF" />
+    <path android:pathData="M70,49.4 A2.6,2.6 0 1 1 70,54.6 A2.6,2.6 0 1 1 70,49.4 Z" android:fillColor="#8AFFFFFF" />
+    <path android:pathData="M28,61.4 A2.6,2.6 0 1 1 28,66.6 A2.6,2.6 0 1 1 28,61.4 Z" android:fillColor="#8AFFFFFF" />
+    <path android:pathData="M42,61.4 A2.6,2.6 0 1 1 42,66.6 A2.6,2.6 0 1 1 42,61.4 Z" android:fillColor="#8AFFFFFF" />
+    <path android:pathData="M70,61.4 A2.6,2.6 0 1 1 70,66.6 A2.6,2.6 0 1 1 70,61.4 Z" android:fillColor="#8AFFFFFF" />
+    <path android:pathData="M28,73.4 A2.6,2.6 0 1 1 28,78.6 A2.6,2.6 0 1 1 28,73.4 Z" android:fillColor="#8AFFFFFF" />
+    <path android:pathData="M42,73.4 A2.6,2.6 0 1 1 42,78.6 A2.6,2.6 0 1 1 42,73.4 Z" android:fillColor="#8AFFFFFF" />
+    <path android:pathData="M56,73.4 A2.6,2.6 0 1 1 56,78.6 A2.6,2.6 0 1 1 56,73.4 Z" android:fillColor="#8AFFFFFF" />
+    <path android:pathData="M70,73.4 A2.6,2.6 0 1 1 70,78.6 A2.6,2.6 0 1 1 70,73.4 Z" android:fillColor="#8AFFFFFF" />
+    <path android:pathData="M56,60.6 A3.4,3.4 0 1 1 56,67.4 A3.4,3.4 0 1 1 56,60.6 Z" android:fillColor="#FFFFFFFF" />
+    <path android:pathData="M56,56 A8,8 0 1 1 56,72 A8,8 0 1 1 56,56 Z" android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="2.6"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+</vector>

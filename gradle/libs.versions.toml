@@ -17,6 +17,7 @@ okhttp = "5.4.0"
 serialization = "1.11.0"
 credentials = "1.6.0"
 googleid = "1.2.0"
+coil = "3.5.0"
 desugar = "2.1.5"
 
 [libraries]
@@ -71,6 +72,18 @@ kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 androidx-credentials = { group = "androidx.credentials", name = "credentials", version.ref = "credentials" }
 androidx-credentials-play-services = { group = "androidx.credentials", name = "credentials-play-services-auth", version.ref = "credentials" }
 googleid = { group = "com.google.android.libraries.identity.googleid", name = "googleid", version.ref = "googleid" }
+
+# Remote images. There is exactly one in the app — the Google account photo,
+# which arrives on the credential as a googleusercontent.com URL — and
+# everything else is a bundled drawable. That is a thin reason for a library
+# until you write the alternative: an off-main-thread fetch, a bitmap cache
+# bounded by memory, disk persistence so the avatar survives a cold start
+# offline, and cancellation when the row scrolls away. `coil-network-okhttp`
+# rather than the Ktor engine so it goes through the app's own client and
+# connection pool instead of standing up a second HTTP stack — see
+# `ClubFairApplication`.
+coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
+coil-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil" }
 
 # java.time on API 24. The app's floor is 24 and java.time arrived in 26, so
 # without this `Instant.parse` on a server timestamp crashes on Android 7 — which

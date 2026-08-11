@@ -45,9 +45,11 @@ import androidx.compose.ui.util.lerp
 fun Modifier.glassSurface(
     cornerRadius: Dp,
     intensity: Float = 0f,
+    tint: Color = Color.White,
 ): Modifier = glassSurface(
     shape = RoundedCornerShape(cornerRadius),
     intensity = intensity,
+    tint = tint,
 )
 
 /** [glassSurface] over an arbitrary outline — the ticket's notched shape needs this. */
@@ -55,18 +57,29 @@ fun Modifier.glassSurface(
 fun Modifier.glassSurface(
     shape: Shape,
     intensity: Float = 0f,
+    /**
+     * What the glass is made of.
+     *
+     * White everywhere by default, which is what glass is here. The zone picker
+     * passes the area's own colour so its three cards are the same material as
+     * the booth tiles inside them — see `cardTint`, which is the recipe both
+     * ends share. A parameter rather than a second modifier because the fill
+     * and the hairline have to move together; tinting one and leaving the other
+     * white is what makes a surface look like a sticker on a pane.
+     */
+    tint: Color = Color.White,
 ): Modifier {
     val fill = lerp(0.10f, 0.17f, intensity)
     val edge = lerp(0.22f, 0.38f, intensity)
 
     return this
-        .background(color = Color.White.copy(alpha = fill), shape = shape)
+        .background(color = tint.copy(alpha = fill), shape = shape)
         // One hairline, even the whole way round. It used to ramp from bright at
         // the top-left to dim at the bottom-right, on the theory that a light
         // would catch it there — but at 1dp a gradient doesn't read as lighting,
         // it just reads as a border that fades out, which looks like a rendering
         // fault rather than a material.
-        .border(width = 1.dp, color = Color.White.copy(alpha = edge), shape = shape)
+        .border(width = 1.dp, color = tint.copy(alpha = edge), shape = shape)
     // No Modifier.shadow: Android renders elevation shadows assuming an opaque
     // surface, so under a translucent fill the shadow reads straight through the
     // glass as a dark inner rectangle.

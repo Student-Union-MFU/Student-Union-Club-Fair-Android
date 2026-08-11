@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Rainforest: a canopy over a trunk.
+
+  Two branches used to come off the trunk and turned the whole thing into a
+  standard lamp. A dome, a stem and the ground is the entire drawing.
+
+  Drawn in white and tinted at the call site with the zone's own ZoneAccent, so
+  one drawable serves whatever colour the floor plan gives an area.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96">
+    <path android:pathData="M18,54 C18,28 32,15 48,15 C64,15 78,28 78,54 Z" android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="3.4"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M48,54 V84" android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="3.4"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M33,84 H63" android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="3.4"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+</vector>

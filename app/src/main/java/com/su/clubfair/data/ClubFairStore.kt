@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.su.clubfair.data.net.GoogleAccount
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
@@ -72,6 +73,12 @@ data class CachedUser(
     val major: String? = null,
     val avatarUrl: String? = null,
     val hasPassword: Boolean = false,
+    /**
+     * Cached so the sign-up gate survives a cold start. Defaults to true for the
+     * same reason the DTO field does: a cache written by an older build belongs
+     * to an account that finished signing up before the gate existed.
+     */
+    val profileComplete: Boolean = true,
 )
 
 class ClubFairStore(context: Context) {
@@ -133,6 +140,28 @@ class ClubFairStore(context: Context) {
     }
 
     /**
+     * What Google said about the signed-in student, kept beside the session.
+     *
+     * Stored rather than held in memory because it has to survive the two things
+     * that outlive the credential sheet: a profile refresh, which rewrites
+     * [CachedUser] from the server's answer and would otherwise drop the avatar
+     * on the floor, and a cold start, where there is no sheet to ask again.
+     * Written only after a sign-in the server accepted, and dropped with
+     * everything else on sign-out.
+     *
+     * Read on demand rather than exposed as a flow — nothing observes it, it is
+     * only consulted at the moment an account is written to the cache.
+     */
+    suspend fun currentGoogleAccount(): GoogleAccount? =
+        preferences.first()[Keys.GoogleAccount]?.let { raw ->
+            runCatching { json.decodeFromString<GoogleAccount>(raw) }.getOrNull()
+        }
+
+    suspend fun saveGoogleAccount(account: GoogleAccount) {
+        store.edit { it[Keys.GoogleAccount] = json.encodeToString(account) }
+    }
+
+    /**
      * Sign-out: drop the token, the profile and every cached read.
      *
      * The whole lot rather than the token alone. This is a shared-phone situation
@@ -146,6 +175,9 @@ class ClubFairStore(context: Context) {
         store.edit { prefs ->
             prefs.remove(Keys.AuthToken)
             prefs.remove(Keys.CachedUser)
+            // Goes with the profile it was filling in. Leaving it would hand the
+            // next student on a shared phone the last one's photo.
+            prefs.remove(Keys.GoogleAccount)
             prefs.remove(Keys.CachedProgress)
             prefs.remove(Keys.CachedAnnouncements)
             prefs.remove(Keys.PendingScans)
@@ -217,6 +249,24 @@ class ClubFairStore(context: Context) {
     }
 
     /**
+     * The language the student picked, as a BCP-47 tag — or null for "follow the
+     * phone".
+     *
+     * Null is a real, distinct answer rather than a stand-in for English. A phone
+     * set to Thai should open the app in Thai without anyone choosing anything,
+     * and storing "th" at install time would then be indistinguishable from a
+     * student who had deliberately chosen Thai on an English phone — so the next
+     * time they changed the phone's language, the app would ignore them.
+     */
+    val language: Flow<String?> = preferences.map { it[Keys.Language] }
+
+    suspend fun setLanguage(tag: String?) {
+        store.edit { prefs ->
+            if (tag == null) prefs.remove(Keys.Language) else prefs[Keys.Language] = tag
+        }
+    }
+
+    /**
      * Whether the "how the fair works" card has been shown.
      *
      * Survives sign-out on purpose: a student who signs out and back in during the
@@ -236,12 +286,14 @@ class ClubFairStore(context: Context) {
     private object Keys {
         val AuthToken = stringPreferencesKey("auth_token")
         val CachedUser = stringPreferencesKey("cached_user")
+        val GoogleAccount = stringPreferencesKey("google_account")
         val CachedBooths = stringPreferencesKey("cached_booths")
         val CachedZones = stringPreferencesKey("cached_zones")
         val CachedProgress = stringPreferencesKey("cached_progress")
         val CachedAnnouncements = stringPreferencesKey("cached_announcements")
         val PendingScans = stringSetPreferencesKey("pending_scans")
         val Haptics = booleanPreferencesKey("haptics")
+        val Language = stringPreferencesKey("language")
         val OnboardingSeen = booleanPreferencesKey("onboarding_seen")
     }
 }

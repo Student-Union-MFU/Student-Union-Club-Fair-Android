@@ -10,11 +10,14 @@ import com.su.clubfair.data.AuthOutcome
 import com.su.clubfair.data.EmailAddress
 import com.su.clubfair.data.FairRepository
 import com.su.clubfair.data.MfuEmail
+import com.su.clubfair.data.MfuStudentId
 import com.su.clubfair.data.PasswordPolicy
 import com.su.clubfair.data.PasswordProblem
 import com.su.clubfair.data.PersonName
 import com.su.clubfair.data.PhoneNumber
+import com.su.clubfair.data.net.GoogleAccount
 import com.su.clubfair.data.net.GoogleSignIn
+import com.su.clubfair.ui.model.Student
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -40,6 +43,7 @@ enum class FieldError {
     BadPhone,
     BadEmail,
     NotMfuEmail,
+    IneligibleIntake,
     PasswordTooShort,
     PasswordNeedsLetter,
     PasswordNeedsDigit,
@@ -57,6 +61,19 @@ enum class FieldError {
 sealed interface FormError {
     data class Rejected(val message: String?) : FormError
     data object Offline : FormError
+
+    /**
+     * The Google credential sheet failed before any request was made.
+     *
+     * Its own case because the fallback for a null server message is "check your
+     * number and password", which is actively misleading when the student never
+     * typed either — they tapped a Google button and something on the device or
+     * in the console configuration went wrong.
+     */
+    data object GoogleUnavailable : FormError
+
+    /** No Google account on the device that Google would offer. */
+    data object GoogleNoAccount : FormError
 }
 
 data class LoginForm(
@@ -112,6 +129,14 @@ data class RegisterForm(
         // Checked here as well as on the server so the student is told before
         // filling in six more fields, not after submitting them.
         !MfuEmail.isMfuAddress(email) -> FieldError.NotMfuEmail
+        // The intake rule, applied to the id the address carries. Same reason it
+        // is here: the address is the first field on the form, and being turned
+        // away on submit after typing six more is the version worth avoiding.
+        // Derived again rather than read off `derivedStudentId` below: property
+        // initialisers run in declaration order, and this one runs first.
+        !MfuStudentId.isEligibleIntake(MfuEmail.studentIdFrom(email).orEmpty()) ->
+            FieldError.IneligibleIntake
+
         else -> null
     }
 
@@ -143,6 +168,85 @@ data class RegisterForm(
 }
 
 /**
+ * The rest of sign-up, for a student Google has just introduced.
+ *
+ * Google establishes who they are — name, MFU address, and therefore the student
+ * id — so this form only asks for what Google cannot answer. That is the same
+ * split [RegisterForm] makes, minus every field the account already has.
+ *
+ * [school] is derived from the student id rather than asked for, and is still
+ * editable: the code table can go stale, and a student who knows their own
+ * school should not be stuck behind our copy of MFU's numbering. See
+ * [MfuStudentId] for why the major is picked rather than derived.
+ */
+data class CompleteProfileForm(
+    /** From the Google account, shown but not editable. */
+    val firstName: String = "",
+    val surname: String = "",
+    val studentId: String? = null,
+
+    val phone: String = "",
+    val school: String = "",
+    val major: String = "",
+    val password: String = "",
+    val showErrors: Boolean = false,
+    val formError: FormError? = null,
+    val submitting: Boolean = false,
+) {
+    val phoneError: FieldError? = when {
+        phone.isBlank() -> FieldError.Required
+        !PhoneNumber.isValid(phone) -> FieldError.BadPhone
+        else -> null
+    }
+
+    val schoolError = FieldError.Required.takeIf { school.isBlank() }
+    val majorError = FieldError.Required.takeIf { major.isBlank() }
+
+    val passwordError: FieldError? = when (PasswordPolicy.check(password)) {
+        PasswordProblem.Ok -> null
+        PasswordProblem.TooShort ->
+            if (password.isEmpty()) FieldError.Required else FieldError.PasswordTooShort
+
+        PasswordProblem.NeedsLetter -> FieldError.PasswordNeedsLetter
+        PasswordProblem.NeedsDigit -> FieldError.PasswordNeedsDigit
+    }
+
+    /** The majors to offer: this school's, or all of them if it is unrecognised. */
+    val majorOptions: List<String>
+        get() = MfuStudentId.MajorsBySchool[school]
+            ?: studentId?.let(MfuStudentId::majorsOf)
+            ?: MfuStudentId.MajorsBySchool.values.flatten().distinct().sorted()
+
+    /** True when the school came from the id rather than from the student. */
+    val schoolWasDerived: Boolean
+        get() = studentId != null && MfuStudentId.schoolOf(studentId) == school
+
+    val isValid: Boolean = listOf(phoneError, schoolError, majorError, passwordError)
+        .all { it == null }
+
+    companion object {
+        /**
+         * Seeded from the account Google just created.
+         *
+         * The school is filled in from the student id here rather than on first
+         * keystroke, so it is on screen before the student touches anything and
+         * reads as something already known about them rather than as a guess the
+         * form makes while they type.
+         */
+        fun from(student: Student) = CompleteProfileForm(
+            firstName = student.firstName,
+            surname = student.surname,
+            studentId = student.studentId,
+            phone = student.phone.orEmpty(),
+            school = student.school
+                ?: student.studentId?.let(MfuStudentId::schoolOf).orEmpty(),
+            major = student.major
+                ?: student.studentId?.let(MfuStudentId::suggestedMajorOf).orEmpty(),
+        )
+    }
+}
+
+/**
  * The signed-out half of the app: two forms and what happens when they are sent.
  *
  * Separate from `FairViewModel` because it has a different lifetime and a
@@ -170,6 +274,9 @@ class AuthViewModel(private val repository: FairRepository) : ViewModel() {
 
     private val _register = MutableStateFlow(RegisterForm())
     val register: StateFlow<RegisterForm> = _register.asStateFlow()
+
+    private val _completeProfile = MutableStateFlow(CompleteProfileForm())
+    val completeProfile: StateFlow<CompleteProfileForm> = _completeProfile.asStateFlow()
 
     fun onLoginPhone(value: String) =
         _login.update { it.copy(phone = value, formError = null) }
@@ -244,16 +351,18 @@ class AuthViewModel(private val repository: FairRepository) : ViewModel() {
     /**
      * Signs in with Google, once there is a client id to do it with.
      *
-     * [idToken] comes from `GoogleSignIn.requestIdToken`, which needs an Activity
-     * context — so the screen fetches it and hands the raw token here. The app
-     * never inspects it: su-server verifies the signature, the audience,
-     * `email_verified` and the MFU domain, and a client-side check would prove
-     * nothing anyway.
+     * Both halves of the credential come from `GoogleSignIn.requestIdToken`,
+     * which needs an Activity context — so the screen fetches them and hands
+     * them here. They are used for different things and that is deliberate:
+     * [idToken] is the only one that proves anything, and su-server verifies its
+     * signature, audience, `email_verified` and MFU domain. [account] is the
+     * unverified profile riding alongside it, kept to fill in what the server has
+     * no copy of, and it decides nothing.
      */
-    fun submitGoogle(idToken: String) {
+    fun submitGoogle(idToken: String, account: GoogleAccount) {
         _login.update { it.copy(submitting = true, formError = null) }
         viewModelScope.launch {
-            when (val outcome = repository.signInWithGoogle(idToken)) {
+            when (val outcome = repository.signInWithGoogle(idToken, account)) {
                 AuthOutcome.Success -> _login.value = LoginForm()
 
                 AuthOutcome.Offline ->
@@ -267,8 +376,65 @@ class AuthViewModel(private val repository: FairRepository) : ViewModel() {
     }
 
     /** Reports a credential-sheet problem on the form, without a server round trip. */
-    fun onGoogleFailed(message: String?) {
-        _login.update { it.copy(submitting = false, formError = FormError.Rejected(message)) }
+    fun onGoogleFailed(error: FormError) {
+        _login.update { it.copy(submitting = false, formError = error) }
+    }
+
+    // ---- Finishing sign-up -----------------------------------------------
+
+    fun onCompleteProfileField(update: CompleteProfileForm.() -> CompleteProfileForm) =
+        _completeProfile.update { it.update().copy(formError = null) }
+
+    /**
+     * Seeds the form from the account that has just signed in.
+     *
+     * Called by the gate every time it draws the screen, and deliberately does
+     * nothing once the student has started typing: the session refreshes in the
+     * background, and re-seeding on a refresh would wipe a half-filled form.
+     * [studentId] is the marker for "already seeded" because it is the one field
+     * that comes from the account and is never edited.
+     */
+    fun seedCompleteProfile(student: Student) {
+        _completeProfile.update { current ->
+            if (current.studentId != null) current else CompleteProfileForm.from(student)
+        }
+    }
+
+    /**
+     * Sends the rest of sign-up.
+     *
+     * No navigation on success, for the same reason the other two forms do none:
+     * the write updates the cached account, `profile_complete` flips, and the
+     * gate swaps the tree on its own.
+     */
+    fun submitCompleteProfile() {
+        val form = _completeProfile.value
+        if (!form.isValid) {
+            _completeProfile.update { it.copy(showErrors = true) }
+            return
+        }
+        if (form.submitting) return
+
+        _completeProfile.update { it.copy(submitting = true, formError = null) }
+        viewModelScope.launch {
+            val outcome = repository.completeSignUp(
+                phone = form.phone.trim(),
+                school = form.school.trim(),
+                major = form.major.trim(),
+                password = form.password,
+            )
+            when (outcome) {
+                AuthOutcome.Success -> _completeProfile.value = CompleteProfileForm()
+
+                AuthOutcome.Offline -> _completeProfile.update {
+                    it.copy(submitting = false, formError = FormError.Offline)
+                }
+
+                is AuthOutcome.Rejected -> _completeProfile.update {
+                    it.copy(submitting = false, formError = FormError.Rejected(outcome.message))
+                }
+            }
+        }
     }
 
     companion object {

@@ -20,8 +20,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -62,6 +62,11 @@ import com.su.clubfair.ui.components.ProgressTrack
 import com.su.clubfair.ui.components.liquidGlass
 import com.su.clubfair.ui.model.Booth
 import com.su.clubfair.ui.model.Zone
+import com.su.clubfair.ui.model.blurb
+import com.su.clubfair.ui.model.categoryName
+import com.su.clubfair.ui.model.displayName
+import com.su.clubfair.ui.model.displayTitle
+import com.su.clubfair.ui.model.zoneIntent
 import com.su.clubfair.ui.scene.MeshBackground
 import com.su.clubfair.ui.theme.AlanSans
 import com.su.clubfair.ui.theme.Dimens
@@ -163,14 +168,21 @@ private val SizePlan = listOf(
 )
 
 /**
- * How many lines of blurb a tile that carries one will show.
+ * The blurb is not clipped at all. Its own note because it used to be.
  *
- * Three rather than two, so nothing is ellipsised: a blurb runs to about fifty
- * characters and a 6-lane tile holds twenty-five to a line, so two lines clipped
- * the longest of them. Tiles are as tall as what is written on them, so an extra
- * allowance costs nothing on the ones that don't need it.
+ * The cap was three lines, chosen when every blurb was written to the same
+ * fifty characters and so nothing ever reached it. That stopped being true the
+ * moment the copy came from the server: `about` is written per club by the
+ * Student Union and runs to whatever it runs to, so a fixed cap trailed some
+ * clubs off mid-sentence and left others short of it. A wall where one card
+ * ends in "…" and the card beside it does not reads as the first one having
+ * failed to load, not as it having more to say.
+ *
+ * Nothing is lost by removing it. Tiles are as tall as what is written on them —
+ * that is what the masonry packer is for — and uneven text is a better source of
+ * ragged heights than [TileSize] guessing at them, because the raggedness then
+ * comes from the content rather than from a pattern laid over it.
  */
-private const val BlurbLines = 3
 
 /**
  * The club's icon, on its plate, at exactly one size on every tile.
@@ -258,8 +270,13 @@ private fun cardInk(accent: Color): Color = lerp(accent, Color.White, 0.22f)
  *
  * Lifting toward white rather than dropping alpha keeps the hue: alpha alone,
  * over a near-black mesh, makes a colour darker on its way to disappearing.
+ *
+ * Not private any more: the zone picker's three cards are made of this too, so
+ * the card you tap and the wall of tiles behind it are one material rather than
+ * two that happen to sit next to each other. One recipe, stated once — copying
+ * `0.82` into the other file is how the two drift apart the next time it moves.
  */
-private fun cardTint(accent: Color): Color = lerp(accent, Color.White, 0.82f)
+internal fun cardTint(accent: Color): Color = lerp(accent, Color.White, 0.82f)
 
 /**
  * The white ink, at the two weights a tile uses it.
@@ -400,6 +417,7 @@ fun ZoneBoothWall(
                 ) {
                     ZoneMasthead(
                         zone = zone,
+                        booths = booths,
                         scanned = booths.count { it.scanned },
                         total = booths.size,
                         modifier = Modifier.onSizeChanged { mastheadPx = it.height },
@@ -635,11 +653,10 @@ private fun Modifier.tileSurface(
  * for, and it was smaller here than the same club's name is anywhere else in the
  * app.
  *
- * The name is never truncated. Two lines hold 32 characters at 15sp in the wide
- * column and 26 in the narrow one; the longest club in the roster is 27 and
- * breaks after "International", so it fits either way. The blurb is the only
- * thing allowed to trail off, because the panel repeats it in full — at
- * [BlurbLines] almost nothing does.
+ * Nothing on the tile is truncated. The name has two lines, which hold 32
+ * characters at 15sp in the wide column and 26 in the narrow one; the longest
+ * club in the roster is 27 and breaks after "International", so it fits either
+ * way. The blurb has no cap at all — see the note above it.
  */
 @Composable
 private fun BoothTile(
@@ -660,7 +677,7 @@ private fun BoothTile(
 
         Spacer(Modifier.height(Dimens.Space))
         Text(
-            text = booth.name,
+            text = booth.displayName(),
             fontFamily = AlanSans,
             fontWeight = FontWeight.Bold,
             fontSize = 15.sp,
@@ -670,29 +687,28 @@ private fun BoothTile(
             overflow = TextOverflow.Ellipsis,
         )
 
-        // On every tile without exception. It is the line that says why to walk
-        // over, and a booth card without one is a card that can't be used.
-        // When there is one. `about` is null on all 28 booths until the Student
-        // Union writes the copy, and an empty line under every name reads as a
-        // card that failed to load — so the tile omits it rather than reserving
-        // space for nothing.
-        booth.about?.let { blurb ->
-            Spacer(Modifier.height(Dimens.SpaceXs))
-            Text(
-                text = blurb,
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Normal,
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
-                color = Color.White.copy(alpha = InkBlurb),
-                maxLines = BlurbLines,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
+        // On every tile without exception, again. It is the line that says why
+        // to walk over, and a booth card without one is a card that can't be
+        // used — which is why the tile stopped omitting it: `Booth.blurb` falls
+        // back to placeholder copy for the club's category while `about` is
+        // empty, so there is always something here and the tiles stop varying
+        // in height for no reason a student can see.
+        Spacer(Modifier.height(Dimens.SpaceXs))
+        Text(
+            text = booth.blurb(),
+            fontFamily = AlanSans,
+            fontWeight = FontWeight.Normal,
+            fontSize = 12.sp,
+            lineHeight = 16.sp,
+            color = Color.White.copy(alpha = InkBlurb),
+        )
 
         if (size != TileSize.Standard) {
             Spacer(Modifier.height(Dimens.SpaceSm))
-            // The club's English name, where there is one.
+            // What kind of club it is — the line that makes this tile taller
+            // than a Standard one, so it has to carry something on every card.
+            // It held the club's name in the other language until that turned
+            // out to mean a Thai line on every tile of an English screen.
             //
             // A member count and a "meets Wed 17:00 · Main Field" line used to sit
             // here. Both are gone rather than ported: `members`, `meets` and
@@ -700,9 +716,9 @@ private fun BoothTile(
             // Student Union has never supplied any of the three. There is nothing
             // to render, and a fabricated figure on a card a student uses to choose
             // where to walk is worse than a shorter card.
-            booth.nameEn?.let { english ->
+            booth.categoryName()?.let { category ->
                 Text(
-                    text = english,
+                    text = category,
                     fontFamily = AlanSans,
                     fontWeight = FontWeight.Medium,
                     fontSize = 11.sp,
@@ -835,6 +851,7 @@ private fun ZoneTopBar(onBack: () -> Unit, modifier: Modifier = Modifier) {
 @Composable
 private fun ZoneMasthead(
     zone: Zone,
+    booths: List<Booth>,
     scanned: Int,
     total: Int,
     modifier: Modifier = Modifier,
@@ -860,7 +877,7 @@ private fun ZoneMasthead(
             Spacer(Modifier.width(Dimens.Space))
             Column(Modifier.weight(1f)) {
                 Text(
-                    text = zone.title,
+                    text = zone.displayTitle(),
                     fontFamily = AlanSans,
                     fontWeight = FontWeight.Bold,
                     // 24sp, one step up from the 20sp of a card title: this is
@@ -870,8 +887,7 @@ private fun ZoneMasthead(
                     color = Color.White,
                 )
                 Text(
-                    text = listOfNotNull(zone.titleEn, zone.subtitle)
-                        .joinToString("  ·  "),
+                    text = zoneIntent(zone, booths).orEmpty(),
                     fontFamily = AlanSans,
                     fontWeight = FontWeight.Normal,
                     fontSize = 12.sp,

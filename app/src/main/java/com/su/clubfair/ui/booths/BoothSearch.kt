@@ -52,6 +52,7 @@ import com.su.clubfair.R
 import com.su.clubfair.ui.components.glassSurface
 import com.su.clubfair.ui.model.Booth
 import com.su.clubfair.ui.model.accent
+import com.su.clubfair.ui.model.displayName
 import com.su.clubfair.ui.model.previewRoster
 import com.su.clubfair.ui.scene.MeshBackground
 import com.su.clubfair.ui.theme.AlanSans
@@ -329,7 +330,7 @@ private fun ResultRow(
         Spacer(Modifier.size(Dimens.Space))
         Column(Modifier.weight(1f)) {
             Text(
-                text = booth.name,
+                text = booth.displayName(),
                 fontFamily = AlanSans,
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.sp,

@@ -68,6 +68,16 @@ class ClubFairApi(
     suspend fun updateProfile(body: UpdateProfileRequest): ApiResult<UserDto> =
         send("PATCH", "me", body)
 
+    /**
+     * Adds the password a Google-only account signs in with.
+     *
+     * Answers `{"ok": true}` rather than the account, so the caller that wants
+     * the updated `has_password` and `profile_complete` has to re-read them —
+     * which the profile update immediately after this one already does.
+     */
+    suspend fun setPassword(password: String): ApiResult<OkDto> =
+        send("PUT", "me/password", SetPasswordRequest(password))
+
     suspend fun progress(): ApiResult<ProgressDto> = get("progress")
 
     suspend fun checkIns(): ApiResult<List<CheckInDto>> = get("checkins")

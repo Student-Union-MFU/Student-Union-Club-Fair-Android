@@ -24,7 +24,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -34,6 +36,9 @@ import androidx.compose.ui.unit.sp
 import com.su.clubfair.R
 import com.su.clubfair.ui.model.Booth
 import com.su.clubfair.ui.model.accent
+import com.su.clubfair.ui.model.blurb
+import com.su.clubfair.ui.model.categoryName
+import com.su.clubfair.ui.model.displayName
 import com.su.clubfair.ui.theme.AlanSans
 import com.su.clubfair.ui.theme.Dimens
 import com.su.clubfair.ui.theme.Ink
@@ -78,7 +83,22 @@ fun BoothSheet(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.45f))
+            // A gradient, not a flat 45% black.
+            //
+            // The flat version dimmed the top of the screen as hard as the
+            // bottom, which turned the whole window into a dark slab with a
+            // darker rectangle sliding up it — the wall behind was too dim to
+            // read as the page you were still on, and not dim enough to read as
+            // deliberate. Weighted to the bottom instead: the zone you tapped
+            // from stays legible at the top, the shade deepens towards the
+            // panel, and the panel arrives out of it rather than on top of it.
+            .background(
+                Brush.verticalGradient(
+                    0f to Color.Black.copy(alpha = 0.06f),
+                    0.4f to Color.Black.copy(alpha = 0.34f),
+                    1f to Color.Black.copy(alpha = 0.78f),
+                ),
+            )
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -92,7 +112,16 @@ fun BoothSheet(
                 .safeDrawingPadding()
                 .padding(Dimens.Space)
                 .clip(RoundedCornerShape(Dimens.RadiusLg))
-                .background(Palette.Panel)
+                // Opaque still — see the note above on why glass fails here —
+                // but lit from the top with the zone's own colour instead of
+                // being one flat near-black. Ten percent is enough to tie the
+                // fill to the accent border around it and to the tile the panel
+                // came from; more and the text on it starts losing contrast.
+                .background(
+                    Brush.verticalGradient(
+                        listOf(lerp(Palette.Panel, accent, 0.10f), Palette.Panel),
+                    ),
+                )
                 .border(
                     width = 1.dp,
                     color = accent.copy(alpha = 0.35f),
@@ -124,19 +153,22 @@ fun BoothSheet(
                 Spacer(Modifier.width(Dimens.Space))
                 Column(Modifier.weight(1f)) {
                     Text(
-                        text = booth.name,
+                        text = booth.displayName(),
                         fontFamily = AlanSans,
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp,
                         lineHeight = 24.sp,
                         color = Color.White,
                     )
-                    // The code printed on the stall, then the English name where
-                    // there is one. A member count used to share this line and was
-                    // invented per club — the Student Union has never supplied any,
-                    // so it is gone rather than guessed.
+                    // The code printed on the stall, then what kind of club it
+                    // is. This briefly carried the club's name in the other
+                    // language, which put a line of Thai under the heading of a
+                    // panel someone had asked to be in English. A member count
+                    // was here before that and was invented per club — the
+                    // Student Union has never supplied any, so it is gone
+                    // rather than guessed.
                     Text(
-                        text = listOfNotNull(booth.displayCode, booth.nameEn)
+                        text = listOfNotNull(booth.displayCode, booth.categoryName())
                             .joinToString("  ·  "),
                         fontFamily = AlanSans,
                         fontWeight = FontWeight.Medium,
@@ -151,7 +183,7 @@ fun BoothSheet(
 
             Spacer(Modifier.height(Dimens.Space))
             Text(
-                text = booth.about.orEmpty(),
+                text = booth.blurb(),
                 fontFamily = AlanSans,
                 fontWeight = FontWeight.Normal,
                 fontSize = 14.sp,
@@ -163,48 +195,52 @@ fun BoothSheet(
 }
 
 /**
- * Scanned or not, said in words.
+ * Scanned or not, said in words — as a chip, not a banner.
  *
- * This is the whole reason the band exists. The state used to be a 20dp tick
- * that appeared beside the club's name when a booth was done and left nothing
- * at all when it wasn't — so "not scanned" was rendered as blank space, which
- * is indistinguishable from "this panel has no tick in it". A student cannot
- * tell an absent mark from a mark they missed.
+ * The reason it exists at all still holds: the state used to be a 20dp tick
+ * beside the club's name that simply wasn't there when a booth was undone, and
+ * blank space is indistinguishable from a mark you missed. Both states have to
+ * draw something, in the same place, and say which one they are.
  *
- * Both states now draw the same full-width band in the same place, and both say
- * which one they are. Done is the area's colour under dark ink, the app's
- * loudest positive pairing; not done is an empty ring on faint glass with the
- * instruction for fixing that on the second line.
+ * What was wrong was the weight. It was a full-width bordered box with a 24dp
+ * ring and two lines of type — about seventy dp spent on one bit of state, in a
+ * panel whose whole job is three short things. It read as the most important
+ * element on the sheet, above the club's own name.
+ *
+ * So: one line, sized to its text, sitting under the header like the label it
+ * is. Done is the area's colour under dark ink, the app's loudest positive
+ * pairing, and undone is an empty ring on faint glass — the shape of the thing
+ * that is missing is what makes it read as "not yet" rather than as nothing.
+ *
+ * The second line went with the box. "Scan the QR at this booth" was an
+ * instruction repeated on all 28 panels, next to a nav bar with a scan button
+ * in it, under a heading that already says the booth has not been scanned.
  */
 @Composable
 private fun StatusBand(scanned: Boolean, accent: Color, modifier: Modifier = Modifier) {
     Row(
         modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(Dimens.RadiusMd))
+            .clip(RoundedCornerShape(Dimens.RadiusPill))
             .background(if (scanned) accent else Color.White.copy(alpha = 0.06f))
             .then(
                 if (scanned) Modifier
                 else Modifier.border(
                     width = 1.dp,
                     color = Color.White.copy(alpha = 0.16f),
-                    shape = RoundedCornerShape(Dimens.RadiusMd),
+                    shape = RoundedCornerShape(Dimens.RadiusPill),
                 ),
             )
-            .padding(horizontal = Dimens.Space, vertical = Dimens.SpaceSm + 2.dp),
+            .padding(horizontal = Dimens.SpaceSm + 2.dp, vertical = Dimens.SpaceXs + 1.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             modifier = Modifier
-                .size(24.dp)
+                .size(16.dp)
                 .clip(CircleShape)
-                .background(if (scanned) Palette.Ink.copy(alpha = 0.12f) else Color.Transparent)
+                .background(if (scanned) Palette.Ink.copy(alpha = 0.14f) else Color.Transparent)
                 .then(
                     if (scanned) Modifier
-                    // An empty ring, the same size as the tick's disc. The
-                    // shape of the thing that is missing is what makes it read
-                    // as "not yet" rather than as nothing.
-                    else Modifier.border(width = 2.dp, color = Ink.Faint, shape = CircleShape),
+                    else Modifier.border(width = 1.5.dp, color = Ink.Faint, shape = CircleShape),
                 ),
             contentAlignment = Alignment.Center,
         ) {
@@ -213,33 +249,22 @@ private fun StatusBand(scanned: Boolean, accent: Color, modifier: Modifier = Mod
                     painter = painterResource(R.drawable.ic_check),
                     contentDescription = null,
                     tint = Palette.Ink,
-                    modifier = Modifier.size(16.dp),
+                    modifier = Modifier.size(11.dp),
                 )
             }
         }
 
-        Spacer(Modifier.width(Dimens.SpaceSm))
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = stringResource(
-                    if (scanned) R.string.booth_status_scanned
-                    else R.string.booth_status_unscanned
-                ),
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-                color = if (scanned) Palette.Ink else Color.White,
-            )
-            if (!scanned) {
-                Text(
-                    text = stringResource(R.string.booth_status_unscanned_hint),
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Normal,
-                    fontSize = 12.sp,
-                    color = Ink.Muted,
-                )
-            }
-        }
+        Spacer(Modifier.width(Dimens.SpaceXs + 2.dp))
+        Text(
+            text = stringResource(
+                if (scanned) R.string.booth_status_scanned
+                else R.string.booth_status_unscanned
+            ),
+            fontFamily = AlanSans,
+            fontWeight = FontWeight.Bold,
+            fontSize = 13.sp,
+            color = if (scanned) Palette.Ink else Color.White,
+        )
     }
 }
 

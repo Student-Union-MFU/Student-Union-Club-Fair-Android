@@ -1,5 +1,6 @@
 package com.su.clubfair.ui.booths
 
+import androidx.annotation.DrawableRes
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
@@ -39,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -55,7 +58,9 @@ import com.su.clubfair.ui.components.glassSurface
 import com.su.clubfair.ui.model.Booth
 import com.su.clubfair.ui.model.PreviewZones
 import com.su.clubfair.ui.model.Zone
+import com.su.clubfair.ui.model.displayTitle
 import com.su.clubfair.ui.model.previewRoster
+import com.su.clubfair.ui.model.zoneIntent
 import com.su.clubfair.ui.scene.MeshBackground
 import com.su.clubfair.ui.theme.AlanSans
 import com.su.clubfair.ui.theme.Dimens
@@ -320,21 +325,63 @@ private fun ZoneCard(
     val scanned = booths.count { it.scanned }
     val total = booths.size
 
-    Column(
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .glassSurface(cornerRadius = CardRadius)
+            // The area's colour, in the glass itself, so tapping a card does
+            // not move you from a neutral surface into a room full of tinted
+            // ones with no hint of where it went.
+            //
+            // Lifted less far toward white than `cardTint` lifts a booth tile,
+            // and that difference is the point rather than a drift. A tile
+            // carries its hue as one of nine on a wall, through blurred glass
+            // that is already pulling colour off the mesh; measured against the
+            // backdrop it shifts a channel by 37. One card has neither
+            // accumulation nor blur, and at the tile's 82% lift it came out
+            // neutral — A and B were seven degrees of hue apart, which is to
+            // say identical. Same idea, weighted for a surface that has to
+            // carry it alone.
+            .glassSurface(
+                cornerRadius = CardRadius,
+                intensity = 0.7f,
+                tint = zoneCardTint(zone.accent),
+            )
             .clip(RoundedCornerShape(CardRadius))
-            .clickable(onClick = onClick)
-            .padding(Dimens.CardPadding),
+            .clickable(onClick = onClick),
     ) {
+        // The area's own mark, large and very quiet, in the bottom corner.
+        //
+        // Behind the content rather than in the header row: the row already
+        // carries the letter, the two names and a chevron, and a fourth thing
+        // in it would be the third mark competing for the same glance. At 10%
+        // it is texture — it gives each of the three cards a face without
+        // asking to be looked at, and the corner it sits in was empty.
+        Icon(
+            painter = painterResource(zoneArt(zone.code)),
+            contentDescription = null,
+            tint = zone.accent.copy(alpha = 0.10f),
+            modifier = Modifier
+                // Wholly inside the card. Bled past the corner at first, which
+                // is fine for a texture and wrong for a drawing: a canopy with
+                // its right half cut off is a shape the eye cannot name, and an
+                // unnameable shape reads as a rendering fault rather than as a
+                // watermark.
+                .align(Alignment.BottomEnd)
+                .padding(end = Dimens.Space, bottom = Dimens.SpaceSm)
+                .size(108.dp),
+        )
+
+        Column(modifier = Modifier.padding(Dimens.CardPadding)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            // The same 40dp accent tile the profile's pass row uses, holding the
-            // letter that is on the signage the student is standing under.
+            // The letter that is painted on the signage the student will be
+            // standing under, so it is the one thing on this card they can
+            // match against the hall. It was the profile pass row's 40dp tile
+            // at 18sp — a size chosen to sit quietly in a list of rows, which
+            // is not what this is.
             Box(
                 modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(Dimens.RadiusSm))
+                    .size(58.dp)
+                    .clip(RoundedCornerShape(Dimens.RadiusMd))
                     .background(zone.accent.copy(alpha = 0.18f)),
                 contentAlignment = Alignment.Center,
             ) {
@@ -342,7 +389,7 @@ private fun ZoneCard(
                     text = zone.letter,
                     fontFamily = AlanSans,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
+                    fontSize = 28.sp,
                     color = zone.accent,
                 )
             }
@@ -350,7 +397,7 @@ private fun ZoneCard(
             Spacer(Modifier.size(Dimens.CardPadding))
             Column(Modifier.weight(1f)) {
                 Text(
-                    text = zone.title,
+                    text = zone.displayTitle(),
                     fontFamily = AlanSans,
                     fontWeight = FontWeight.Bold,
                     // 20sp, like every other titled card. It was 24sp, a size
@@ -359,9 +406,9 @@ private fun ZoneCard(
                     color = Color.White,
                 )
                 Text(
-                    // The area's own English name where there is one, and the
-                    // Thai title is already the headline above.
-                    text = listOfNotNull(zone.titleEn, zone.subtitle).joinToString("  ·  "),
+                    // Whichever of the area's two names is not the headline
+                    // above, so both are on screen whatever the language.
+                    text = zoneIntent(zone, booths).orEmpty(),
                     fontFamily = AlanSans,
                     fontWeight = FontWeight.Normal,
                     fontSize = 12.sp,
@@ -406,8 +453,33 @@ private fun ZoneCard(
             color = Color.White,
         )
         Spacer(Modifier.height(Dimens.SpaceSm))
-        ProgressTrack(fraction = if (total == 0) 0f else scanned.toFloat() / total, accent = zone.accent)
+        ProgressTrack(
+            fraction = if (total == 0) 0f else scanned.toFloat() / total,
+            accent = zone.accent,
+        )
+        }
     }
+}
+
+/**
+ * The glass a whole zone card is made of — see the note at its call site for
+ * why this lifts less far toward white than a booth tile's [cardTint].
+ */
+private fun zoneCardTint(accent: Color): Color = lerp(accent, Color.White, 0.42f)
+
+/**
+ * The drawing for an area, by its signage letter.
+ *
+ * A `when` on the code rather than a column on `clubfair_zone`: the mark is the
+ * app's reading of a habitat, not a fact the Student Union stores, and a fourth
+ * zone arriving as data should fall back to no mark rather than to a broken
+ * resource id. [ZoneAccent.forCode] answers the colour question the same way.
+ */
+@DrawableRes
+private fun zoneArt(code: String): Int = when (code.uppercase()) {
+    "A" -> R.drawable.zone_rainforest
+    "B" -> R.drawable.zone_savannah
+    else -> R.drawable.zone_deepocean
 }
 
 @Preview(showBackground = true, device = "id:pixel_7")

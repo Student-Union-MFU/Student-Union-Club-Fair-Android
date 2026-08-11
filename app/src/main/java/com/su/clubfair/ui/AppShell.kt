@@ -34,6 +34,7 @@ import com.su.clubfair.ui.booths.BoothsScreen
 import com.su.clubfair.ui.components.GlassNavBar
 import com.su.clubfair.ui.events.EventsScreen
 import com.su.clubfair.ui.home.HomeScreen
+import com.su.clubfair.ui.prizes.PrizesScreen
 import com.su.clubfair.ui.profile.ProfileScreen
 import com.su.clubfair.ui.qr.QrTicketScreen
 import com.su.clubfair.ui.scan.ScanScreen
@@ -93,6 +94,7 @@ fun AppShell(
     val session by fair.session.collectAsStateWithLifecycle()
     val state by fair.uiState.collectAsStateWithLifecycle()
     val lastScan by fair.lastScan.collectAsStateWithLifecycle()
+    val language by fair.language.collectAsStateWithLifecycle()
 
     // Sign-out flips the session a frame before this leaves the composition;
     // rendering the shell against a student who is no longer there would crash
@@ -103,6 +105,7 @@ fun AppShell(
     var passOpen by rememberSaveable { mutableStateOf(false) }
     var profileOpen by rememberSaveable { mutableStateOf(false) }
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
+    var prizesOpen by rememberSaveable { mutableStateOf(false) }
 
     // What the nav bar's liquid glass refracts. The backdrop is captured into a
     // graphics layer by `layerBackdrop` below and sampled by `drawBackdrop` in
@@ -141,6 +144,7 @@ fun AppShell(
                         progress = state.progress,
                         offline = state.offline,
                         onOpenClubs = { tab = 1 },
+                        onOpenPrizes = { prizesOpen = true },
                         onOpenProfile = { profileOpen = true },
                     )
 
@@ -204,11 +208,24 @@ fun AppShell(
         Sheet(visible = settingsOpen) {
             SettingsScreen(
                 hapticsEnabled = state.hapticsEnabled,
+                language = AppLanguage.ofTag(language),
                 pendingScans = state.pendingScans,
                 offline = state.offline,
                 onHapticsChange = fair::setHapticsEnabled,
+                onLanguageChange = { fair.setLanguage(it.tag) },
                 onEraseDevice = fair::eraseDevice,
                 onBack = { settingsOpen = false },
+            )
+        }
+
+        // Prizes opens the same way Settings does — a page over the shell
+        // rather than a fourth tab, because it is something you check twice at
+        // the fair rather than a place you navigate between.
+        BackHandler(enabled = prizesOpen) { prizesOpen = false }
+        Sheet(visible = prizesOpen) {
+            PrizesScreen(
+                progress = state.progress,
+                onBack = { prizesOpen = false },
             )
         }
 

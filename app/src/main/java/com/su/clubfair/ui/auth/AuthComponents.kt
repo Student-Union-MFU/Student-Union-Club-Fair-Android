@@ -61,6 +61,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.su.clubfair.R
+import com.su.clubfair.data.MfuStudentId
 import com.su.clubfair.data.PasswordPolicy
 import com.su.clubfair.ui.components.glassSurface
 import com.su.clubfair.ui.scene.MeshBackground
@@ -160,6 +161,9 @@ fun fieldErrorText(error: FieldError): String = when (error) {
     FieldError.BadPhone -> stringResource(R.string.auth_error_phone)
     FieldError.BadEmail -> stringResource(R.string.auth_error_email)
     FieldError.NotMfuEmail -> stringResource(R.string.auth_error_email_mfu)
+    FieldError.IneligibleIntake ->
+        stringResource(R.string.auth_error_intake, MfuStudentId.eligibleIntakeLabel)
+
     FieldError.PasswordTooShort ->
         stringResource(R.string.auth_error_password_short, PasswordPolicy.MinLength)
 
@@ -304,6 +308,8 @@ fun AuthFormError(error: FormError, modifier: Modifier = Modifier) {
     val message = when (error) {
         is FormError.Rejected -> error.message ?: stringResource(R.string.login_error_generic)
         FormError.Offline -> stringResource(R.string.auth_error_offline)
+        FormError.GoogleUnavailable -> stringResource(R.string.auth_error_google_failed)
+        FormError.GoogleNoAccount -> stringResource(R.string.auth_error_google_no_account)
     }
 
     Row(

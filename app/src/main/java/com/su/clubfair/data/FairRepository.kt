@@ -5,9 +5,11 @@ import com.su.clubfair.data.net.ApiResult
 import com.su.clubfair.data.net.BoothDto
 import com.su.clubfair.data.net.CheckInRequest
 import com.su.clubfair.data.net.ClubFairApi
+import com.su.clubfair.data.net.GoogleAccount
 import com.su.clubfair.data.net.ProgressDto
 import com.su.clubfair.data.net.RegisterRequest
 import com.su.clubfair.data.net.UpdateProfileRequest
+import com.su.clubfair.data.net.UserDto
 import com.su.clubfair.data.net.ZoneDto
 import com.su.clubfair.data.net.valueOrNull
 import com.su.clubfair.ui.model.Announcement
@@ -18,6 +20,7 @@ import com.su.clubfair.ui.model.Reaction
 import com.su.clubfair.ui.model.Student
 import com.su.clubfair.ui.model.Zone
 import com.su.clubfair.ui.model.boothFrom
+import com.su.clubfair.ui.model.filledFrom
 import com.su.clubfair.ui.model.toCachedUser
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -115,6 +118,23 @@ class FairRepository(
      */
     private val _offline = MutableStateFlow(false)
 
+    /**
+     * Whether there is anything worth drawing yet.
+     *
+     * False in exactly two windows: before the cache has been read at process
+     * start, and between a sign-in and the first fetch made with the new token.
+     * The second is the one that is visibly slow — [completeSignIn] runs four
+     * round trips before the shell has a booth list, a rank or a prize tier, and
+     * without this the fair opens on a screen of zeroes that then rearrange
+     * themselves.
+     *
+     * Not the same question as [refreshing]. That one is true on every pull and
+     * every resume, when there is already a fair on screen and the right thing
+     * to show is a spinner in the corner rather than a screen of its own.
+     */
+    private val _ready = MutableStateFlow(false)
+    val ready: StateFlow<Boolean> = _ready.asStateFlow()
+
     val booths: StateFlow<List<Booth>> = _booths.asStateFlow()
     val zones: StateFlow<List<Zone>> = _zones.asStateFlow()
     val progress: StateFlow<FairProgress> = _progress.asStateFlow()
@@ -123,6 +143,7 @@ class FairRepository(
     val offline: StateFlow<Boolean> = _offline.asStateFlow()
 
     val hapticsEnabled: Flow<Boolean> = store.hapticsEnabled
+    val language: Flow<String?> = store.language
     val onboardingSeen: Flow<Boolean> = store.onboardingSeen
     val pendingScanCount: Flow<Int> = store.pendingScans.map { it.size }
 
@@ -171,6 +192,11 @@ class FairRepository(
                 _announcements.value = dtos.map { it.toModel() }
             }
         }
+
+        // A cache with booths in it is a fair that can be drawn now, whatever the
+        // network is doing — which is the whole point of having one. An empty
+        // cache waits for the fetch instead.
+        if (_booths.value.isNotEmpty()) _ready.value = true
     }
 
     private inline fun <reified T> decode(raw: String): T? =
@@ -230,6 +256,11 @@ class FairRepository(
                 _offline.value = !reachedServer
             } finally {
                 _refreshing.value = false
+                // Set even when nothing was reached. A student in a hall with no
+                // signal has waited as long as waiting can help; the shell shows
+                // the cache and the offline banner, which is more use than a
+                // loading screen that will never finish.
+                _ready.value = true
             }
         }
     }
@@ -243,8 +274,19 @@ class FairRepository(
 
     // ---- Auth ------------------------------------------------------------
 
-    suspend fun signInWithGoogle(idToken: String): AuthOutcome =
-        completeSignIn(api.signInWithGoogle(idToken))
+    /**
+     * Signs in with Google, keeping the profile that came with the token.
+     *
+     * [account] is stored only once the server has accepted the token, and
+     * before [completeSignIn] writes the cache — that ordering is the whole
+     * trick, since the merge reads it back out of the store. Saving it on a
+     * rejected sign-in would leave a profile for a session that never existed.
+     */
+    suspend fun signInWithGoogle(idToken: String, account: GoogleAccount): AuthOutcome {
+        val result = api.signInWithGoogle(idToken)
+        if (result is ApiResult.Success) store.saveGoogleAccount(account)
+        return completeSignIn(result)
+    }
 
     suspend fun signInWithPassword(phone: String, password: String): AuthOutcome =
         completeSignIn(api.signInWithPassword(phone, password))
@@ -278,8 +320,14 @@ class FairRepository(
         result: ApiResult<com.su.clubfair.data.net.SessionDto>,
     ): AuthOutcome = when (result) {
         is ApiResult.Success -> {
-            val student = Student.from(result.value.user)
-            store.saveSession(result.value.token, student.toCachedUser(result.value.user.role))
+            val user = result.value.user
+            val student = Student.from(user).filledFrom(store.currentGoogleAccount())
+            // Before the session is written, not after. Writing the session is
+            // what flips the gate in `MainActivity`, and a gate that saw
+            // "signed in" while this was still true would draw one frame of the
+            // shell — empty — before the loading screen replaced it.
+            _ready.value = false
+            store.saveSession(result.value.token, student.toCachedUser(user.role))
             // Straight into a refresh, so the shell opens on real data rather than
             // on a frame of empty state followed by a jump.
             refresh()
@@ -304,11 +352,65 @@ class FairRepository(
         _booths.value = _booths.value.map { it.copy(scanned = false) }
     }
 
+    /**
+     * Finishes sign-up for an account Google created.
+     *
+     * Two calls, in this order and not the other: the password first, the rest
+     * second. `profile_complete` is computed from all four fields at once, so
+     * the profile update is the only one of the two whose response can come back
+     * with the flag already true — running them the other way round would cache
+     * a student as still-incomplete and bounce them back to the form they had
+     * just finished.
+     *
+     * Not transactional, and it does not need to be. A password that lands and a
+     * profile update that does not leaves the account exactly where it started:
+     * incomplete, on the same form, with the password box the only thing already
+     * satisfied. Retrying is safe because both calls are writes of the same
+     * values, not increments.
+     */
+    suspend fun completeSignUp(
+        phone: String,
+        school: String,
+        major: String,
+        password: String,
+    ): AuthOutcome {
+        when (val result = api.setPassword(password)) {
+            is ApiResult.Success -> Unit
+            is ApiResult.Offline -> return AuthOutcome.Offline
+            is ApiResult.Failure -> return AuthOutcome.Rejected(result.message)
+        }
+
+        return when (val result = api.updateProfile(UpdateProfileRequest(phone, school, major))) {
+            is ApiResult.Success -> {
+                cacheAccount(result.value)
+                AuthOutcome.Success
+            }
+
+            is ApiResult.Offline -> AuthOutcome.Offline
+            is ApiResult.Failure -> AuthOutcome.Rejected(result.message)
+        }
+    }
+
     suspend fun updateProfile(phone: String?, school: String?, major: String?): Boolean {
         val result = api.updateProfile(UpdateProfileRequest(phone, school, major))
         val user = result.valueOrNull() ?: return false
-        store.saveCachedUser(Student.from(user).toCachedUser(user.role))
+        cacheAccount(user)
         return true
+    }
+
+    /**
+     * Writes a server account to the cache, with Google's copy filling the gaps.
+     *
+     * Every write of [CachedUser] outside sign-in goes through here, and that is
+     * the point rather than tidiness: a site that called `saveCachedUser`
+     * directly would drop whatever Google was covering the next time the student
+     * edited their profile, and the field to notice it on would be the phone.
+     * There is one such path left — sign-in itself, which writes the token in the
+     * same edit and so applies the same merge inline.
+     */
+    private suspend fun cacheAccount(user: UserDto) {
+        val student = Student.from(user).filledFrom(store.currentGoogleAccount())
+        store.saveCachedUser(student.toCachedUser(user.role))
     }
 
     // ---- Scanning --------------------------------------------------------
@@ -413,6 +515,9 @@ class FairRepository(
     // ---- Preferences -----------------------------------------------------
 
     suspend fun setHapticsEnabled(enabled: Boolean) = store.setHapticsEnabled(enabled)
+
+    /** Null means "follow the phone" — see `ClubFairStore.language`. */
+    suspend fun setLanguage(tag: String?) = store.setLanguage(tag)
 
     suspend fun markOnboardingSeen() = store.setOnboardingSeen()
 

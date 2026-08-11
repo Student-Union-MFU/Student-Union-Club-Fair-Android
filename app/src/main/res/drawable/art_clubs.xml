@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+A club's stall: awning, counter, legs.
+
+  Third attempt, and the two failures are worth recording. Tilted club cards
+  collapsed into scribble — two rounded outlines crossing with filled shapes
+  crowded inside the smaller one is far too much line for 76dp. Then a scalloped
+  awning with the nav bar's triangle-circle-square sitting on the counter: the
+  scallops read as a wavy fringe rather than as a shape, and the mark was too
+  small to be anything but three specks.
+
+  What is left is four straight elements and three stripes. A stall is a
+  silhouette, and at this size a silhouette is all that survives.
+
+  White line work, at the two weights the app uses everywhere else: full for
+  the shape, a little over half for secondary detail.
+
+  It was lime — Palette.Accent — which was one step too far in the same
+  direction that put the accent on the countdown figure. The accent is the
+  app's action colour: it belongs on a scanned checkpoint and a filled
+  progress bar, on things that mean something has happened. A drawing on a
+  tile has not happened, and three lime drawings on one screen made a page of
+  white type look like it was decorated rather than laid out.
+
+  The two earlier versions are worth remembering: filled shapes in three
+  palette colours read as clip-art dropped on the screen, because solid colour
+  carries far more weight than the frosted glass around it. An outline weighs
+  what an icon weighs, and white is what the icons are.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96">
+    <path android:pathData="M24.0,20.0 H72.0 L83.0,41.0 H13.0 Z" android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="3.2"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M36.0,20.0 L30.5,41.0" android:fillColor="#00000000"
+        android:strokeColor="#8AFFFFFF" android:strokeWidth="3.2"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M48.0,20.0 L48.0,41.0" android:fillColor="#00000000"
+        android:strokeColor="#8AFFFFFF" android:strokeWidth="3.2"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M60.0,20.0 L65.5,41.0" android:fillColor="#00000000"
+        android:strokeColor="#8AFFFFFF" android:strokeWidth="3.2"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M20,49 H76" android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="3.2"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M26,49 V80" android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="3.2"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M70,49 V80" android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="3.2"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M26,68 H70" android:fillColor="#00000000"
+        android:strokeColor="#8AFFFFFF" android:strokeWidth="3.2"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+</vector>

@@ -1,10 +1,10 @@
 package com.su.clubfair.ui.events
 
 import android.text.format.DateUtils
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -56,9 +57,9 @@ import com.su.clubfair.R
 import com.su.clubfair.ui.components.Hairline
 import com.su.clubfair.ui.components.glassSurface
 import com.su.clubfair.ui.model.Announcement
+import com.su.clubfair.ui.model.PreviewAnnouncements
 import com.su.clubfair.ui.model.Reaction
 import com.su.clubfair.ui.model.ReactionPalette
-import com.su.clubfair.ui.model.PreviewAnnouncements
 import com.su.clubfair.ui.scene.MeshBackground
 import com.su.clubfair.ui.theme.AlanSans
 import com.su.clubfair.ui.theme.Dimens
@@ -250,11 +251,19 @@ private fun AnnouncementRow(
     onReact: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // No avatar and no role badge. Every post in this channel is by the same
-    // author, so a repeated icon down the left margin and a repeated tag beside
-    // the name were both stating the constant four times over — and the avatar
-    // was costing the body a 52dp indent to do it. The name carries it.
-    Column(modifier = modifier.fillMaxWidth()) {
+    // The avatar is back, and the argument against it is worth keeping: every
+    // post here is by the same author, so a repeated mark down the left margin
+    // states a constant once per post and costs the body a 52dp indent to do
+    // it. What that argument missed is that the indent is the point — it is
+    // what makes a run of posts read as a conversation rather than as a list of
+    // paragraphs, which is the shape every messaging app converged on. The mark
+    // is the Student Union's own, so the channel is signed rather than labelled.
+    //
+    // No role badge, though. That one really was the constant said twice.
+    Row(modifier = modifier.fillMaxWidth()) {
+        AuthorAvatar()
+        Spacer(Modifier.size(Dimens.Space))
+        Column(Modifier.weight(1f)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = post.author,
@@ -289,6 +298,49 @@ private fun AnnouncementRow(
             pickerOpen = pickerOpen,
             onTogglePicker = onTogglePicker,
             onReact = onReact,
+        )
+        }
+    }
+}
+
+/**
+ * The Student Union's mark, as the channel's avatar.
+ *
+ * The monogram alone, cut out of `art/su.png` — the full lockup carries
+ * "STUDENT UNION / MAE FAH LUANG UNIVERSITY" under it, which at 40dp is a grey
+ * smear under a shape. The name is already spelled out beside this.
+ *
+ * A rounded square, not a circle, at exactly the geometry `RowIcon` uses for
+ * every icon plate in Settings and Profile — 40dp at [Dimens.RadiusSm]. Three
+ * reasons, in increasing order of how much they matter:
+ *
+ *  - The mark is angular. A circle crops toward a shape it does not have, and
+ *    wastes its corners doing it.
+ *  - This app is built out of rounded rectangles. Circles are spent on the
+ *    profile button, the drag knob and the reaction chips — controls you press.
+ *    An avatar is not one.
+ *  - A circle means a person. Every app that carries both — Slack, Discord,
+ *    Teams — rounds people and squares organisations, and the Student Union is
+ *    an organisation. Messenger is all circles because everything in it is
+ *    somebody.
+ *
+ * Plain fill rather than the app's glass: `glassSurface` brings a hairline with
+ * it, and five outlined plates down the margin is a column of frames where a
+ * column of marks belongs.
+ */
+@Composable
+private fun AuthorAvatar(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .size(40.dp)
+            .clip(RoundedCornerShape(Dimens.RadiusSm))
+            .background(Color.White.copy(alpha = 0.10f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Image(
+            painter = painterResource(R.drawable.logo_su_mark),
+            contentDescription = null,
+            modifier = Modifier.size(21.dp),
         )
     }
 }

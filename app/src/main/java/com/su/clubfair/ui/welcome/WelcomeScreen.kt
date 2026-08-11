@@ -75,6 +75,13 @@ fun WelcomeScreen(
                 .safeDrawingPadding()
                 .padding(horizontal = 24.dp, vertical = 20.dp),
         ) {
+            // Above the fold rather than under the CTA. The logos are whose
+            // event this is, which is the first thing a poster says and the
+            // last thing a footer does — and at the bottom they were competing
+            // with the one control on the screen for the eye that had just
+            // finished reading downwards.
+            LogoRow(Modifier.fillMaxWidth())
+
             // Pushes the copy block down to roughly the lower half of the screen.
             Spacer(Modifier.weight(1f))
 
@@ -145,8 +152,10 @@ fun WelcomeScreen(
             Spacer(Modifier.height(Dimens.SpaceXl))
             DragToContinue(onComplete = onGetStarted)
 
+            // Kept even with nothing under it now: the track would otherwise sit
+            // flush against the gesture bar, and a control that close to the
+            // system inset is one the thumb catches on the way past.
             Spacer(Modifier.weight(0.08f))
-            LogoRow(Modifier.fillMaxWidth())
         }
     }
 }

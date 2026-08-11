@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Deep Ocean: three swells.
+
+  No fish, no shell, no anchor. The other two marks are silhouettes of a
+  thing that stands in the zone; water has no silhouette, and the honest
+  drawing of it is its surface.
+
+  Drawn in white and tinted at the call site with the zone's own ZoneAccent, so
+  one drawable serves whatever colour the floor plan gives an area. A fourth
+  zone next year needs a path, not a palette.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96">
+    <path android:pathData="M14,36 Q26,26 38,36 Q50,46 62,36 Q72,28 82,34" android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="3.4"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M14,56 Q26,46 38,56 Q50,66 62,56 Q72,48 82,54" android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="3.4"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M14,76 Q26,66 38,76 Q50,86 62,76 Q72,68 82,74" android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="3.4"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+</vector>

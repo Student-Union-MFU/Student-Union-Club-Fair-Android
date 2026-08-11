@@ -13,6 +13,12 @@ local.properties
 # Signing material. Never commit a keystore or its passwords; see
 # `app/build.gradle.kts` for how the release config reads them.
 keystore.properties
+
+# Local config: the Google OAuth client id the build reads at configure time.
+# Not secret in the way a client *secret* is — a client id is public by design —
+# but it is per-developer and per-environment, so it has no business in the repo.
+.env
+.env.local
 *.jks
 *.keystore
 

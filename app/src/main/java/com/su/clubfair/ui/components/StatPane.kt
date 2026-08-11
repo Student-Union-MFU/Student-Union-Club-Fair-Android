@@ -56,6 +56,7 @@ fun StatPane(
                     fontSize = 19.sp,
                     lineHeight = 1.1.em,
                     color = Color.White,
+                    maxLines = 1,
                 )
                 Spacer(Modifier.height(Dimens.SpaceXs / 2))
                 Text(
