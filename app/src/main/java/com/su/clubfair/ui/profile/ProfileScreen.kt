@@ -1,9 +1,6 @@
 package com.su.clubfair.ui.profile
 
-import android.content.ActivityNotFoundException
-import android.content.Intent
-import android.net.Uri
-import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -26,11 +23,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -41,7 +41,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.su.clubfair.R
-import com.su.clubfair.data.Links
+import com.su.clubfair.ui.legal.LegalDocument
+import com.su.clubfair.ui.legal.LegalScreen
 import com.su.clubfair.ui.scene.MeshBackground
 import com.su.clubfair.ui.components.ActionRow
 import com.su.clubfair.ui.components.Hairline
@@ -85,6 +86,12 @@ fun ProfileScreen(
     onSignOut: () -> Unit = {},
 ) {
     val scroll = rememberScrollState()
+
+    // Which policy is open over this page, if either. Held here rather than
+    // hoisted to the shell because nothing outside this screen opens one, and a
+    // fifth flag in `AppShell` for a footer link would be state kept a long way
+    // from the only thing that sets it.
+    var reading by remember { mutableStateOf<LegalDocument?>(null) }
 
     Box(modifier = modifier.fillMaxSize()) {
         // No backdrop here: AppShell paints one behind every tab, so a tab that
@@ -150,11 +157,21 @@ fun ProfileScreen(
             LogoRow()
 
             Spacer(Modifier.height(Dimens.Space))
-            LegalLinks()
+            LegalLinks(onOpen = { reading = it })
 
             // A sheet, not a tab: the nav bar is behind this, so the old
             // NavBarClearance would just be dead space at the end of the scroll.
             Spacer(Modifier.height(Dimens.SpaceXl))
+        }
+
+        // Over the page it was opened from, with its own backdrop — the same
+        // arrangement Settings uses for the pair of rows that open these.
+        reading?.let { document ->
+            BackHandler { reading = null }
+            Box(modifier = Modifier.fillMaxSize()) {
+                MeshBackground()
+                LegalScreen(document = document, onBack = { reading = null })
+            }
         }
     }
 }
@@ -424,23 +441,18 @@ private fun SignOutButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
  *
  * These were plain `Text`. Two policy names, styled like links, going nowhere —
  * on a screen whose sign-up counterpart makes a student agree to both by tapping
- * a button. They open now; see [Links] for the pages that have to exist.
+ * a button. Then they became real links to a pair of addresses that had never
+ * been published, which is the same nothing with a browser in front of it. They
+ * open the documents themselves now; see `LegalScreen`.
  *
  * Each is a 48dp target rather than an 11sp line of type, which is what a
  * tappable thing has to be whatever size its label is set at.
  */
 @Composable
-private fun LegalLinks(modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    val noBrowser = stringResource(R.string.settings_no_browser)
-    val open: (String) -> Unit = { url ->
-        try {
-            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-        } catch (_: ActivityNotFoundException) {
-            Toast.makeText(context, noBrowser, Toast.LENGTH_SHORT).show()
-        }
-    }
-
+private fun LegalLinks(
+    onOpen: (LegalDocument) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
@@ -448,7 +460,7 @@ private fun LegalLinks(modifier: Modifier = Modifier) {
     ) {
         LegalLink(
             label = stringResource(R.string.register_legal_terms),
-            onClick = { open(Links.Terms) },
+            onClick = { onOpen(LegalDocument.Terms) },
         )
         Text(
             text = "·",
@@ -458,7 +470,7 @@ private fun LegalLinks(modifier: Modifier = Modifier) {
         )
         LegalLink(
             label = stringResource(R.string.register_legal_privacy),
-            onClick = { open(Links.Privacy) },
+            onClick = { onOpen(LegalDocument.Privacy) },
         )
     }
 }

@@ -9,6 +9,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
@@ -27,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberUpdatedState
@@ -59,11 +61,14 @@ data class NavItem(
 /** The tabs that live inside the bar itself, in display order. */
 val NavItems = listOf(
     NavItem(R.drawable.ic_home, R.string.nav_home),
-    // A triangle, a square and a circle — a variety of things, which is what a
-    // fair of 27 clubs is. It was a group-of-people glyph, which meant the right
-    // thing but sat two tabs away from the single-person Profile icon and read as
-    // the same picture at 22dp.
-    NavItem(R.drawable.ic_shapes, R.string.nav_booths),
+    // The stage mask out of Home's Clubs tile — the one piece of that cluster
+    // that is still legible at 22dp, so the tab and the tile share a hand
+    // without the bar carrying a drawing it cannot render. Before it was a
+    // triangle, a square and a circle, meaning "a variety of things": true, and
+    // three unrelated specks. Before that a group-of-people glyph, which meant
+    // the right thing but sat two tabs from the single-person Profile icon and
+    // read as that same picture.
+    NavItem(R.drawable.ic_booths, R.string.nav_booths),
     // Events took Profile's slot. Profile isn't a place you go back and forth to
     // during a fair — you open it to show your pass and close it again — so it
     // moved to the button in Home's top bar and the announcements channel, which
@@ -102,18 +107,39 @@ fun GlassNavBar(
             modifier = Modifier
                 .weight(1f)
                 .height(Dimens.NavBarHeight)
-                .liquidGlass(backdrop, PillShape),
+                // No shader rim: `Highlight.Default` ramps in brightness around
+                // the outline, and on a shape this wide the ramp reads as a
+                // gradient painted onto the bar rather than as light catching an
+                // edge — brighter along one flank, gone along the other. An even
+                // hairline instead, which is what `Glass.kt` settled on for the
+                // frosted panes for the same reason, and which is also the only
+                // edge an API 24 phone can draw.
+                .liquidGlass(backdrop, PillShape, highlight = null)
+                .border(1.dp, EdgeColor, PillShape),
         ) {
             val slotWidthPx = constraints.maxWidth.toFloat() / NavItems.size
             val slotWidth = maxWidth / NavItems.size
 
-            // Where the indicator actually is, in pixels from the bar's left
-            // edge. An Animatable rather than a plain animated value because the
-            // drag needs to *snap* it to the finger while the release needs to
-            // *spring* it to a slot — one value, two ways of being moved.
+            // Where the indicator rests, in pixels from the bar's left edge. An
+            // Animatable because the release has to *spring* to a slot.
             val indicator = remember { Animatable(0f) }
-            var dragging by remember { mutableStateOf(false) }
-            val scope = rememberCoroutineScope()
+
+            // Where the finger is, while it is down. Null the rest of the time,
+            // and that null is what hands the indicator back to the spring.
+            //
+            // A plain state rather than driving the Animatable through the drag:
+            // `snapTo` is a suspend function, so following the finger with it
+            // meant `scope.launch` per pointer event — a coroutine allocated,
+            // dispatched and immediately superseded a hundred-odd times a second,
+            // which is most of what made the gesture feel like it was catching.
+            // Nothing about following a finger needs an animation loop; the
+            // finger *is* the animation.
+            var dragX by remember { mutableStateOf<Float?>(null) }
+
+            // Where it was let go, so the settle springs from under the finger
+            // instead of jumping back to wherever the indicator sat when the
+            // drag began. Consumed by the effect below on the frame after.
+            var releasedAt by remember { mutableStateOf<Float?>(null) }
 
             // The gesture below is keyed on the slot width, so its coroutine is
             // *not* restarted when the selection changes — which means anything
@@ -128,23 +154,52 @@ fun GlassNavBar(
             val currentSelected by rememberUpdatedState(selected)
             val currentOnSelect by rememberUpdatedState(onSelect)
 
-            // Settles to the selected slot whenever a drag isn't driving it.
-            // Keyed on `dragging` too, so letting go hands control straight back.
-            LaunchedEffect(selected, slotWidthPx, dragging) {
-                if (!dragging) {
-                    indicator.animateTo(
-                        targetValue = selected * slotWidthPx,
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioLowBouncy,
-                            stiffness = Spring.StiffnessMediumLow,
-                        ),
-                    )
+            // Which tab the icons light up for: the one under the finger while
+            // dragging, the real selection otherwise.
+            //
+            // `derivedStateOf` is doing real work here — [dragX] changes every
+            // frame of a drag, and reading it straight would recompose this
+            // whole subtree at pointer rate. The *slot* it lands in changes twice
+            // in a typical gesture, and that is all this notifies on.
+            val highlighted by remember(slotWidthPx) {
+                derivedStateOf {
+                    dragX?.let { slotIndexAt(it, slotWidthPx) } ?: currentSelected
                 }
             }
 
+            // Whether a finger is down, as its own derived state.
+            //
+            // It looks like `dragX != null` written out longhand, and the
+            // difference is where the read happens. Passing `dragX != null`
+            // straight to the effect below evaluates it *during composition*,
+            // which subscribes this whole composable to [dragX] and recomposes
+            // it on every pointer event — the exact cost the drag was rewritten
+            // to avoid, reintroduced by a key. Derived, it notifies twice a
+            // gesture: finger down, finger up.
+            val dragging by remember { derivedStateOf { dragX != null } }
+
+            // Settles to the selected slot whenever a drag isn't driving it.
+            // Keyed on `dragging` too, so letting go hands control straight back.
+            LaunchedEffect(selected, slotWidthPx, dragging) {
+                if (dragging) return@LaunchedEffect
+                releasedAt?.let {
+                    indicator.snapTo(it)
+                    releasedAt = null
+                }
+                indicator.animateTo(
+                    targetValue = selected * slotWidthPx,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioLowBouncy,
+                        stiffness = Spring.StiffnessMediumLow,
+                    ),
+                )
+            }
+
             Box(
+                // Both reads happen inside the lambda, which is layout, not
+                // composition — the indicator tracks the finger for free.
                 modifier = Modifier
-                    .offset { IntOffset(indicator.value.roundToInt(), 0) }
+                    .offset { IntOffset((dragX ?: indicator.value).roundToInt(), 0) }
                     .width(slotWidth)
                     .fillMaxHeight()
                     .padding(IndicatorInset)
@@ -165,23 +220,49 @@ fun GlassNavBar(
                     .fillMaxSize()
                     .pointerInput(slotWidthPx) {
                         detectHorizontalDragGestures(
-                            onDragStart = { dragging = true },
-                            onDragEnd = { dragging = false },
-                            onDragCancel = { dragging = false },
+                            onDragStart = { dragX = indicatorXAt(it.x, slotWidthPx) },
+                            // The page changes here, on release — not slot by
+                            // slot on the way across.
+                            //
+                            // It used to switch live, and that is what made the
+                            // gesture feel like it was dragging something heavy:
+                            // a drag from Home to Events fired two tab changes,
+                            // each starting a 380ms slide the next one
+                            // interrupted, and every frame of those slides
+                            // reuploads the whole screen into the backdrop layer
+                            // the glass above it samples through — so the bar was
+                            // re-running its blur and lens shaders over a
+                            // full-screen source that was never still, while the
+                            // incoming screen was composing for the first time.
+                            // Three tabs' worth of that arrives inside one
+                            // gesture.
+                            //
+                            // Committing once means one transition, uninterrupted,
+                            // and it costs nothing in feedback: the indicator is
+                            // under the finger the whole way and the icons light
+                            // up as it passes them. The pages you skimmed past
+                            // were never places you were going anyway.
+                            onDragEnd = {
+                                val x = dragX ?: return@detectHorizontalDragGestures
+                                releasedAt = x
+                                dragX = null
+                                val index = slotIndexAt(x, slotWidthPx)
+                                if (index != currentSelected) currentOnSelect(index)
+                            },
+                            // Not a choice, so it settles back to where it was
+                            // rather than committing whatever the finger last
+                            // happened to be over.
+                            onDragCancel = {
+                                releasedAt = dragX
+                                dragX = null
+                            },
                         ) { change, _ ->
                             // The indicator follows the finger continuously
                             // rather than hopping slot to slot. Without this the
                             // drag worked but showed nothing until it crossed a
                             // boundary, which reads as the gesture not being
                             // picked up at all.
-                            val travel = slotWidthPx * (NavItems.size - 1)
-                            val x = (change.position.x - slotWidthPx / 2f)
-                                .coerceIn(0f, travel)
-                            scope.launch { indicator.snapTo(x) }
-
-                            val index = (change.position.x / slotWidthPx).toInt()
-                                .coerceIn(0, NavItems.lastIndex)
-                            if (index != currentSelected) currentOnSelect(index)
+                            dragX = indicatorXAt(change.position.x, slotWidthPx)
                         }
                     },
                 verticalAlignment = Alignment.CenterVertically,
@@ -189,7 +270,7 @@ fun GlassNavBar(
                 NavItems.forEachIndexed { index, item ->
                     NavBarItem(
                         item = item,
-                        selected = index == selected,
+                        selected = index == highlighted,
                         onClick = { onSelect(index) },
                         modifier = Modifier
                             .weight(1f)
@@ -208,7 +289,32 @@ fun GlassNavBar(
     }
 }
 
+/**
+ * The indicator's left edge for a finger at [touchX], clamped to the bar.
+ *
+ * Half a slot behind the finger, because the indicator is a slot wide and is
+ * being centred under the touch, and clamped so it stops at the first and last
+ * tabs instead of sliding out from under the glass.
+ */
+private fun indicatorXAt(touchX: Float, slotWidth: Float): Float =
+    (touchX - slotWidth / 2f).coerceIn(0f, slotWidth * (NavItems.size - 1))
+
+/** Which slot an indicator sitting at [x] is nearest to. */
+private fun slotIndexAt(x: Float, slotWidth: Float): Int =
+    ((x + slotWidth / 2f) / slotWidth).toInt().coerceIn(0, NavItems.lastIndex)
+
 private val PillShape = RoundedCornerShape(50)
+
+/**
+ * The hairline round the bar and the Scan button.
+ *
+ * Deliberately dimmer than the 0.22 the frosted cards use. Those sit still on
+ * the mesh; this one floats over content that scrolls underneath it, and an edge
+ * bright enough to read as a drawn outline turns the bar into a box sitting on
+ * the page instead of a pane the page passes behind. This is the alpha where the
+ * shape is defined and you don't notice the line doing it.
+ */
+private val EdgeColor = Color.White.copy(alpha = 0.12f)
 
 /** How far the sliding indicator sits inside the bar, so it reads as within the glass. */
 private val IndicatorInset = 6.dp
@@ -285,13 +391,19 @@ private fun NavBarItem(
             // whatever is behind it up into the pane, so an unselected icon at
             // the old alpha had bright, moving content competing with it from
             // underneath — the frosted version had a flat fill and did not.
-            tint = Color.White.copy(alpha = 0.78f + 0.22f * emphasis),
+            tint = Color.White,
             // graphicsLayer, not a size change: scaling the layer costs no
             // relayout, so the bounce can't shove the neighbouring tabs around
             // while it runs.
+            //
+            // The fade rides in the same layer rather than in the tint, for the
+            // same reason. A tint is a parameter, so animating it recomposes
+            // this icon on every frame of the 220ms ramp; alpha set here is read
+            // in the draw phase and skips composition and layout entirely.
             modifier = Modifier
                 .size(22.dp)
                 .graphicsLayer {
+                    alpha = 0.78f + 0.22f * emphasis
                     scaleX = scale.value
                     scaleY = scale.value
                 },
@@ -325,9 +437,16 @@ private fun ScanButton(
     Box(
         modifier = modifier
             .size(Dimens.NavBarHeight)
-            .liquidGlass(backdrop, CircleShape)
+            // Matched to the bar beside it — two pieces of the same material
+            // sitting a Space apart, edged two different ways, is worse than
+            // either choice made consistently.
+            .liquidGlass(backdrop, CircleShape, highlight = null)
             .clip(CircleShape)
             .background(accent.copy(alpha = 0.22f * emphasis))
+            // After the fill, not before: the selected state washes accent
+            // across the whole face, and a hairline underneath it comes out
+            // tinted on the selected tab and white everywhere else.
+            .border(1.dp, EdgeColor, CircleShape)
             .clickable {
                 scope.launch { scale.bounce() }
                 onClick()

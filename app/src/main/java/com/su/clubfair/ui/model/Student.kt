@@ -202,14 +202,27 @@ val PreviewStudent = Student(
     hasPassword = true,
 )
 
+/**
+ * A stand-in for `@Preview` and for the screen tests.
+ *
+ * The two tiers are the fair's real shape — fifteen booths for the first prize
+ * and all twenty-eight for the second — rather than the three seeded rows this
+ * used to carry. The names are flat on purpose and match the rows on su-server:
+ * a stop on the route is "Prize 1", not a phrase describing how it feels to
+ * reach it. They are still only a stand-in: the running app renders whatever
+ * `clubfair_prize_tier` holds, so moving a threshold is a row on su-server and
+ * not a release. What matching reality buys is that the prize route is designed
+ * and tested against the number of stops it will actually have; three evenly
+ * spaced tiers hid the fact that the second half of this fair's route is one long
+ * unbroken run to the end.
+ */
 val PreviewProgress = FairProgress(
     visited = 7,
     total = PreviewBoothCount,
     visitedBoothIds = setOf(1, 2, 5, 7, 11, 17, 24),
     rank = 42,
     prizes = listOf(
-        PrizeTier(1, 10, "Halfway", "Ten booths visited", reached = false, claimed = false),
-        PrizeTier(2, 20, "Prize draw", null, reached = false, claimed = false),
-        PrizeTier(3, 28, "Full sweep", null, reached = false, claimed = false),
+        PrizeTier(1, 15, "Prize 1", "15 booths visited", reached = false, claimed = false),
+        PrizeTier(2, 28, "Prize 2", "28 booths visited", reached = false, claimed = false),
     ),
 )

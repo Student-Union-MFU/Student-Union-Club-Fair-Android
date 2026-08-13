@@ -7,8 +7,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,17 +20,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
+import androidx.compose.foundation.lazy.staggeredgrid.itemsIndexed
+import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -38,19 +42,19 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
@@ -74,115 +78,130 @@ import com.su.clubfair.ui.theme.Ink
 import com.su.clubfair.ui.theme.Palette
 
 /**
- * The wall's two column widths, in lanes of twelve.
- *
- * A real masonry wall has no rows in it. Every arrangement this screen has had
- * so far did: a staggered grid whose full-width tiles banded it, then a hand-laid
- * plan whose blocks banded it again. Both were tables with uneven cells, because
- * both decided up front which tile went where — and a plan that says where every
- * tile goes will always produce alignments, since something has to line up for
- * the plan to close.
- *
- * So nothing here says where a tile goes. The tiles are measured, and each one is
- * dropped into whichever column is currently shorter. That is the whole algorithm
- * and it is the actual definition of masonry: no tile knows about any other, and
- * the raggedness is what falls out rather than what was drawn.
- *
- * Two columns, **equal**. They were 7 lanes against 5 for one version, on the idea
- * that unequal columns give the wall a width to vary as well as a height. What it
- * actually gave the wall was a permanent bias: the wide one is always the left
- * one, so every tile on the left was big and every tile on the right was small,
- * which is a rule the eye picks up in about a second.
- *
- * That bias is not a tuning mistake, it is what fixed columns *are*. A tile's
- * column is chosen by which side is shorter, but a column's width never changes,
- * so the two facts can't be made to vary together. Genuinely mixed widths need
- * the packer to re-split the wall at a new lane part way down, and it can only do
- * that where both columns happen to land at exactly the same height — which,
- * with heights coming from text, essentially never happens. Forcing it means
- * either a full-width tile to reset on (a band across the wall, which is what
- * made the last two versions read as blocks) or leaving the odd lane unfilled
- * (a notch of background between two cards, which reads as a bug).
- *
- * So the width is even and the *height* does all the varying — see [TileSize].
- * That is how masonry works everywhere it works: Pinterest's columns are all the
- * same width too.
+ * Two columns, equal width, and the club names are what set the number.
  *
  * Three columns would be 96dp each, which leaves 72dp of text, and
  * "International" — the longest unbreakable word in the roster — sets to about
  * 82dp at the name's size. Two is what the club names allow.
  */
-private const val WallLanes = 12
-private val ColumnSpans = intArrayOf(6, 6)
+private const val WallColumns = 2
 
 /**
- * How much of a club a tile shows — and so, how tall it comes out.
+ * Every tile is the same size, and the wall is ragged because the columns are
+ * **offset** rather than because the tiles differ.
  *
- * This exists because the wall had nothing to be ragged *with*. Content decides
- * the heights, and the content is 27 blurbs written to the same length: at one
- * column width they all wrap to the same number of lines, so every tile came out
- * within twenty dp of every other and the wall looked like a table again. Two
- * ragged columns of near-identical tiles is a grid that has been nudged.
+ * This is the third arrangement the wall has had and the first one that is both
+ * ragged and lazy, which turns out to be the same problem twice.
  *
- * So the tiles differ in what they carry. **The blurb is not what differs** — a
- * version of this tried making the short tiles name-only, and a booth with no
- * line about what the club does is the one thing on this wall that has to be on
- * every card: it is the reason to walk over, and a card without it is a card you
- * can't use. Every tile has the mark, the badge, the name and the blurb.
+ * The version before this packed measured tiles into whichever column was
+ * shorter — real masonry, heights coming from the text. It read well and it had
+ * two costs. Content-driven heights cannot be known without measuring, so the
+ * whole wall had to be laid out to place any of it; and the height a tile came
+ * out at was the length of a blurb, which is a fact about the Student Union's
+ * copy rather than about the club, so the raggedness was arbitrary in a way
+ * nobody could act on.
  *
- * What differs is what comes *under* the blurb, and it is additive rather than
- * subtractive — each step adds a line nobody was missing on the tiles that don't
- * have it:
+ * Fixing the size gives up nothing that was being used and buys the thing that
+ * matters: a slot whose position is arithmetic rather than a measurement, which
+ * is what lets the wall be lazy. The stagger below is what keeps it from being a
+ * table — see [rememberColumnStagger].
  *
- * - [Standard] stops at the blurb. About 135dp, 154 with a name that wraps.
- * - [Detail] adds how many members the club has. About 158–177dp.
- * - [Feature] adds when and where it meets on top of that. About 177–196dp.
- *
- * Sixty dp of spread across the wall, which is enough to see, and every card is
- * still a complete card.
+ * [TileChrome] is the part that does not scale with type — the two paddings, the
+ * plate row and the gaps around it. [TileText] is the part that does: [TextLines]
+ * shared between the name and the blurb, plus one of category, at a 1× font
+ * scale. It holds either way the budget is spent — a three-line name over a
+ * two-line blurb is three dp taller than two over three. They are split so
+ * that a student running the system font at 1.6× gets a taller tile rather than a
+ * clipped one, and every tile grows by the same amount so the stagger holds.
  */
-private enum class TileSize { Standard, Detail, Feature }
+private val TileChrome = 80.dp
+private val TileText = 112.dp
+
+/** How far the type is allowed to push the tile before it starts clipping instead. */
+private const val MaxTypeScale = 1.6f
+
+/** One tile's height at the reader's font scale. Every tile on the wall gets this. */
+@Composable
+private fun rememberTileHeight(): Dp {
+    val fontScale = LocalDensity.current.fontScale
+    return TileChrome + TileText * fontScale.coerceIn(1f, MaxTypeScale)
+}
 
 /**
- * Which booth gets which size, by its place in the zone.
+ * How far the second column hangs below the first — the whole of the effect.
  *
- * Nine, so a zone runs the pattern exactly once and no zone repeats a rhythm. It
- * is shuffled rather than cycled — `Standard, Detail, Feature` three times over
- * would put the same shape every third tile, and a repeat at that spacing is
- * visible even when the heights aren't.
+ * Exactly half a tile plus half a gap, so the two columns are as far out of phase
+ * as they can get: every tile's midpoint sits level with the seam between its two
+ * neighbours, and no horizontal line anywhere on the wall touches more than one
+ * tile. Anything less than half reads as a grid that failed to line up; half
+ * reads as brickwork.
  *
- * The packer still decides the sides, so the pattern never lands as a pattern:
- * the same nine sizes come out as a different wall depending on how the tiles
- * above them fell.
+ * It is applied to exactly one tile — the first one to land in the second column —
+ * and then it holds for the whole wall on its own. Uniform heights mean the
+ * packer alternates strictly from that point, so one offset at the top propagates
+ * all the way down without anything else having to know about it.
  */
-private val SizePlan = listOf(
-    TileSize.Standard,
-    TileSize.Feature,
-    TileSize.Standard,
-    TileSize.Detail,
-    TileSize.Standard,
-    TileSize.Feature,
-    TileSize.Detail,
-    TileSize.Feature,
-    TileSize.Detail,
-)
+@Composable
+private fun rememberColumnStagger(): Dp = (rememberTileHeight() + Dimens.Space) / 2
 
 /**
- * The blurb is not clipped at all. Its own note because it used to be.
+ * The blurb is clipped to what the tile holds, which is three lines.
  *
- * The cap was three lines, chosen when every blurb was written to the same
- * fifty characters and so nothing ever reached it. That stopped being true the
- * moment the copy came from the server: `about` is written per club by the
- * Student Union and runs to whatever it runs to, so a fixed cap trailed some
- * clubs off mid-sentence and left others short of it. A wall where one card
- * ends in "…" and the card beside it does not reads as the first one having
- * failed to load, not as it having more to say.
+ * Its own note because this has been both ways. The cap came off when tiles were
+ * content-sized: a wall where one card ends in "…" and the card beside it does
+ * not reads as the first one having failed to load, not as it having more to say,
+ * and with heights coming from the text there was no reason to cap it.
  *
- * Nothing is lost by removing it. Tiles are as tall as what is written on them —
- * that is what the masonry packer is for — and uneven text is a better source of
- * ragged heights than [TileSize] guessing at them, because the raggedness then
- * comes from the content rather than from a pattern laid over it.
+ * A fixed tile brings the cap back by definition — something has to give when the
+ * copy is longer than the card — and the "…" objection goes with it, because now
+ * *every* long blurb ends the same way at the same line. The ragged-vs-uniform
+ * complaint only ever applied to a wall where the cards were different sizes.
+ *
+ * Three lines is what the placeholder copy runs to at this column width; `about`
+ * is empty on all 28 booths today, so nothing in the fair currently reaches it.
  */
+private const val BlurbLines = 3
+
+/**
+ * How many lines the club's name may run to, and what it costs.
+ *
+ * Two was wrong, and "Community Development Volunteer Club" is the proof: it set
+ * as "Community / Development Volu…" and stopped, so the one line on the card
+ * that has to be complete — the name of the thing the tile is *for* — was the one
+ * being cut. A blurb that trails off still tells you what the club does. A name
+ * that trails off is a club you cannot identify, on a card whose entire job is to
+ * be identified from across a hall.
+ *
+ * So the name takes a third line when it needs one. What it does *not* do is make
+ * the tile taller: uniform heights are what the stagger is built on, and one card
+ * growing to fit its title would put a notch in the column and break the phase for
+ * everything under it.
+ *
+ * The room comes out of the blurb instead. [TextLines] is the budget the two of
+ * them share, and it is spent name-first — the name takes what it needs and the
+ * blurb gets the remainder, so a three-line name is paid for by a two-line blurb.
+ * That is the right way round: the blurb is placeholder copy on all 28 booths
+ * today, and losing its last line costs a fragment of a sentence, while gaining a
+ * third name line is the difference between a club being named and not.
+ *
+ * A short name earns no bonus — one line of name still leaves the blurb at
+ * [BlurbLines] rather than stretching it to four. The slack goes to the spacer
+ * above the category, where it is a margin instead of a card that looks
+ * differently laid out from its neighbours.
+ */
+private const val NameLinesTypical = 2
+private const val NameLinesMax = 3
+private const val TextLines = NameLinesTypical + BlurbLines
+
+/**
+ * What the blurb gets once the name has taken its share.
+ *
+ * Never less than one line: a card with a name and nothing under it is the
+ * name-only tile an earlier version tried and the reason the blurb is on every
+ * card in the first place.
+ */
+private fun blurbLinesFor(nameLines: Int): Int =
+    (TextLines - nameLines.coerceAtLeast(NameLinesTypical)).coerceIn(1, BlurbLines)
 
 /**
  * The club's icon, on its plate, at exactly one size on every tile.
@@ -218,10 +237,15 @@ private val GlyphSize = 24.dp
  *
  * No blur, which is the opposite of what the nav bar does and right for the
  * opposite reason. The bar is one pane over *scrolling* content — text and cards
- * pass under it and have to be softened. These are nine panes over a still mesh
- * that is nothing but soft gradients already, so the blur pass had almost
- * nothing to soften while costing the most of any effect here: with it, four
- * flings through a zone missed 7% of their frames; without it, 2%.
+ * pass under it and have to be softened. These are a screenful of panes over a
+ * still mesh that is nothing but soft gradients already, so the blur pass had
+ * almost nothing to soften while costing the most of any effect here: with it,
+ * four flings through a zone missed 7% of their frames; without it, 2%.
+ *
+ * Those numbers were taken on a nine-tile wall laid out all at once, which is
+ * neither the layout nor the zone the app actually has — Savannah is 16. They are
+ * the right order of magnitude and the wrong absolute figures; worth re-taking
+ * against the lazy grid before anything is tuned on them.
  *
  * What replaced it is the rest of the material — vibrancy under the glass, a
  * cast shadow and an inner shadow at the top edge. That is what a pane of glass
@@ -264,7 +288,7 @@ private fun cardInk(accent: Color): Color = lerp(accent, Color.White, 0.22f)
  *
  * Lifted much further than it was (0.55 → 0.82) and at lower alphas, so the pane
  * is essentially white glass that happens to lean the zone's way. The hue is
- * still there when nine of them are together — a rainforest wall and an ocean
+ * still there when a wall of them is together — a rainforest wall and an ocean
  * wall are visibly different rooms — but no single tile announces a colour, which
  * is the whole of what "subtle" means here.
  *
@@ -308,6 +332,21 @@ private const val LiftMillis = 320
 private const val FocusViewportFraction = 0.26f
 
 /**
+ * How much wall is composed below the fold while a booth is open.
+ *
+ * The focus shift slides the wall up as a layer, and a lazy grid has no idea that
+ * happened — it composes for its own bounds, so whatever the slide uncovers at the
+ * bottom of the screen would be empty. This is how much taller the grid is told it
+ * is while a tile is selected, and it is exactly the furthest the shift can travel:
+ * a tile at the very bottom of the window has to climb all but
+ * [FocusViewportFraction] of it.
+ *
+ * Only while one is selected. During a fling — the case that has to hold its frame
+ * budget — it is zero and the grid composes exactly what is on screen.
+ */
+private const val FocusHeadroom = 1f - FocusViewportFraction
+
+/**
  * The booths of one area, as a wall of tiles.
  *
  * This replaced a level track: nine cards zig-zagging down a drawn connector,
@@ -335,13 +374,12 @@ fun ZoneBoothWall(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val scroll = rememberScrollState()
+    val grid = rememberLazyStaggeredGridState()
     var viewportPx by remember { mutableIntStateOf(0) }
-    var mastheadPx by remember { mutableIntStateOf(0) }
-    // Where each tile came to rest, in the wall's own coordinates. Nothing knows
-    // this ahead of time now — the packer decides it from measured heights — so
-    // the tiles report it, and the focus shift below reads it back.
-    val tileCentres = remember { mutableStateMapOf<Int, Float>() }
+
+    val tileHeight = rememberTileHeight()
+    val stagger = rememberColumnStagger()
+    val tileHeightPx = with(LocalDensity.current) { tileHeight.toPx() }
 
     // What the tiles refract. It wraps the mesh and only the mesh: a pane that
     // samples a layer it is drawn inside is sampling itself, so the wall has to
@@ -358,13 +396,19 @@ fun ZoneBoothWall(
     val shift = remember { Animatable(0f) }
     LaunchedEffect(selected) {
         val index = selected?.let(booths::indexOf) ?: -1
-        val tile = tileCentres[index]
+        // The grid reports where it actually put things, already relative to the
+        // window and already net of the scroll — which is the whole of what the
+        // hand-rolled masonry needed a map of reported tile centres to work out.
+        // The masthead is item 0, so a booth's row is one past its place in the list.
+        val tile = grid.layoutInfo.visibleItemsInfo.firstOrNull { it.index == index + 1 }
         val target = if (index < 0 || viewportPx == 0 || tile == null) {
             0f
         } else {
-            // The tile's centre in the window: where it sits in the wall, plus the
-            // masthead above it, less however far the wall has been scrolled.
-            val centre = mastheadPx + tile - scroll.value
+            // Measured from the bottom of the slot rather than the middle of it:
+            // the one staggered tile carries its offset as padding above the
+            // glass, so its slot is taller than the pane inside it and only the
+            // bottom edges of the two coincide.
+            val centre = tile.offset.y + tile.size.height - tileHeightPx / 2f
             // Upwards only — a tile already above the line is not hidden by
             // anything, and pushing it down would just open a gap under the
             // area's name.
@@ -404,35 +448,70 @@ fun ZoneBoothWall(
                     .clipToBounds()
                     .onSizeChanged { viewportPx = it.height },
             ) {
-                // Scrolled by hand rather than lazily, and that is affordable
-                // here in a way it would not be on a list: a zone is nine tiles.
-                // Laying all nine out costs less than the bookkeeping a lazy
-                // component does to avoid laying them out.
-                Column(
+                // Lazy, and it has to be. This was a hand-scrolled Column on the
+                // grounds that "a zone is nine tiles" — which was never true of
+                // the zone that matters. The fair's 28 booths fall 7 / 16 / 5
+                // across the three areas, so Savannah is more than twice the wall
+                // the arithmetic assumed, and every tile on it is a full pane of
+                // liquid glass: a vibrancy pass and a lens pass per tile, over a
+                // backdrop the drifting mesh invalidates every frame. Laying all
+                // of them out was affordable at nine and was most of why the
+                // Savannah wall dropped frames the other two did not.
+                //
+                // The tiles are a fixed size now, so nothing has to be measured to
+                // know where it goes and the grid can place a slot from its index.
+                // That is what makes the laziness available at all.
+                LazyVerticalStaggeredGrid(
+                    columns = StaggeredGridCells.Fixed(WallColumns),
+                    state = grid,
                     modifier = Modifier
                         .fillMaxSize()
-                        .verticalScroll(scroll)
-                        .graphicsLayer { translationY = shift.value }
-                        .padding(horizontal = Dimens.ScreenPadding),
+                        .focusHeadroom(active = selected != null)
+                        .graphicsLayer { translationY = shift.value },
+                    contentPadding = PaddingValues(
+                        start = Dimens.ScreenPadding,
+                        end = Dimens.ScreenPadding,
+                        bottom = Dimens.NavBarClearance,
+                    ),
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.Space),
+                    verticalItemSpacing = Dimens.Space,
                 ) {
-                    ZoneMasthead(
-                        zone = zone,
-                        booths = booths,
-                        scanned = booths.count { it.scanned },
-                        total = booths.size,
-                        modifier = Modifier.onSizeChanged { mastheadPx = it.height },
-                    )
+                    item(span = StaggeredGridItemSpan.FullLine, key = "masthead") {
+                        ZoneMasthead(
+                            zone = zone,
+                            booths = booths,
+                            scanned = booths.count { it.scanned },
+                            total = booths.size,
+                        )
+                    }
 
-                    BoothMasonry(
-                        booths = booths,
-                        accent = zone.accent,
-                        selected = selected,
-                        backdrop = wallpaper,
-                        onSelectBooth = onSelectBooth,
-                        onTileCentre = { index, centre -> tileCentres[index] = centre },
-                    )
-
-                    Spacer(Modifier.height(Dimens.NavBarClearance))
+                    itemsIndexed(booths, key = { _, booth -> booth.id }) { index, booth ->
+                        BoothTile(
+                            booth = booth,
+                            accent = zone.accent,
+                            modifier = Modifier
+                                // The offset that makes the wall a wall. It goes
+                                // on one tile only — the first to land in the
+                                // second column, which with the masthead spanning
+                                // the full line above it is booth number two — and
+                                // uniform heights carry it down the rest on their
+                                // own. See [rememberColumnStagger].
+                                //
+                                // Outside the glass rather than inside it: this
+                                // moves the pane down the wall, it does not pad the
+                                // card's contents away from its own top edge.
+                                .padding(top = if (index == 1) stagger else 0.dp)
+                                .height(tileHeight)
+                                .tileSurface(
+                                    accent = zone.accent,
+                                    scanned = booth.scanned,
+                                    backdrop = wallpaper,
+                                    opened = selected == booth,
+                                    dimmed = selected != null && selected != booth,
+                                    onClick = { onSelectBooth(booth) },
+                                ),
+                        )
+                    }
                 }
             }
         }
@@ -440,93 +519,36 @@ fun ZoneBoothWall(
 }
 
 /**
- * The masonry itself: measure each tile, drop it in the shorter column, repeat.
+ * Tells the grid it is taller than its slot, so the focus shift has something to
+ * slide into.
  *
- * A custom `Layout` because the packing needs the measured heights and nothing
- * else does the job — `LazyVerticalStaggeredGrid` packs this way but only over
- * equal columns, and every other container in the toolkit lays out in rows.
- * Fifteen lines of measure policy buys unequal columns and content-driven heights
- * together.
+ * The shift moves the wall as a graphics layer. That is deliberate — see the note
+ * at its call site for why it is not a scroll — but a lazy component composes for
+ * the bounds it was measured at and knows nothing about a translation applied to
+ * its output. Slide it up 70% of the window and the bottom 70% of the screen is
+ * whatever was already below the fold, which is nothing.
  *
- * The order matters and is the reason this is a `Layout` rather than arithmetic:
- * a tile's column is decided *before* it is measured, because the column is what
- * fixes its width, and its width is what decides how tall its blurb makes it.
- * Measure it against the wrong column and the height that comes back is the
- * height it would have had somewhere else.
+ * So it is measured against a taller window and placed in the real one, with the
+ * parent's `clipToBounds` cutting off the overhang. The grid fills the extra
+ * height with the rows that come next, which are exactly the rows the slide is
+ * about to reveal.
  *
- * Booths keep their roster order down the wall, so the badge numbers still run
- * roughly in sequence — the packer only chooses the side, never the order.
- *
- * The lane arithmetic is the standard grid identity: a tile spanning n lanes also
- * swallows the n−1 gaps inside it. The narrow column is pinned to the wall's right
- * edge rather than measured out from the left, so rounding on the lane width can
- * never leave a sliver of background down the outside.
+ * Only while a booth is open. [FocusHeadroom] worth of extra tiles is real work,
+ * and the moment it is being paid for is the one moment nothing is moving — the
+ * wall has stopped, the other tiles are dimming to [DimmedAlpha], and the panel is
+ * on its way up. A fling gets the plain viewport.
  */
-@Composable
-private fun BoothMasonry(
-    booths: List<Booth>,
-    accent: Color,
-    selected: Booth?,
-    backdrop: Backdrop,
-    onSelectBooth: (Booth) -> Unit,
-    onTileCentre: (index: Int, centre: Float) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Layout(
-        modifier = modifier.fillMaxWidth(),
-        content = {
-            booths.forEachIndexed { index, booth ->
-                BoothTile(
-                    booth = booth,
-                    accent = accent,
-                    size = SizePlan[index % SizePlan.size],
-                    modifier = Modifier
-                        .tileSurface(
-                            accent = accent,
-                            scanned = booth.scanned,
-                            backdrop = backdrop,
-                            opened = selected == booth,
-                            dimmed = selected != null && selected != booth,
-                            onClick = { onSelectBooth(booth) },
-                        )
-                        .onGloballyPositioned {
-                            onTileCentre(index, it.positionInParent().y + it.size.height / 2f)
-                        },
-                )
-            }
-        },
-    ) { measurables, constraints ->
-        val gap = Dimens.Space.roundToPx()
-        val wall = constraints.maxWidth
-        val lane = (wall - gap * (WallLanes - 1)).toFloat() / WallLanes
-        val widths = ColumnSpans.map { (lane * it + gap * (it - 1)).toInt() }
-        val xs = intArrayOf(0, wall - widths[1])
-        // How far down each column has been filled. The whole algorithm is this
-        // array and the `minIndex` below it.
-        val filled = IntArray(ColumnSpans.size)
-
-        val placed = measurables.map { measurable ->
-            val column = filled.indices.minBy { filled[it] }
-            val placeable = measurable.measure(
-                constraints.copy(
-                    minWidth = widths[column],
-                    maxWidth = widths[column],
-                    minHeight = 0,
-                    maxHeight = Constraints.Infinity,
-                ),
-            )
-            val y = filled[column]
-            filled[column] = y + placeable.height + gap
-            Triple(placeable, xs[column], y)
-        }
-
-        // Less one gap: the last tile in each column doesn't need one under it.
-        val height = (filled.max() - gap).coerceAtLeast(0)
-        layout(wall, height) {
-            placed.forEach { (placeable, x, y) -> placeable.place(x, y) }
-        }
+private fun Modifier.focusHeadroom(active: Boolean): Modifier =
+    if (!active) this else layout { measurable, constraints ->
+        val extra = (constraints.maxHeight * FocusHeadroom).roundToInt()
+        val placeable = measurable.measure(
+            constraints.copy(
+                minHeight = constraints.maxHeight + extra,
+                maxHeight = constraints.maxHeight + extra,
+            ),
+        )
+        layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(0, 0) }
     }
-}
 
 /**
  * The pane every tile is cut from.
@@ -535,8 +557,8 @@ private fun BoothMasonry(
  * and the difference is worth the shader here: a wall is a field of panes laid
  * over one still image, which is the one arrangement where refraction reads as
  * material — each tile bends the mesh's arcs a little differently depending on
- * where it sits, so nine tiles are nine pieces of glass rather than nine copies
- * of the same grey rectangle.
+ * where it sits, so a wall of tiles is a wall of pieces of glass rather than one
+ * grey rectangle repeated.
  *
  * The border is not decoration and not a duplicate of the library's highlight.
  * The highlight is a shader, and the shader does not exist below API 33; on
@@ -563,8 +585,8 @@ private fun Modifier.tileSurface(
     )
     val shape = RoundedCornerShape(Dimens.RadiusLg)
 
-    // No size here: the slot on the wall sets it, and a tile that sized itself
-    // would fight the offset it was placed at.
+    // No size here: the caller sets the height, above this in the chain, so that
+    // the staggered tile's offset lands outside the glass rather than inside it.
     return this
         .graphicsLayer {
             this.alpha = alpha
@@ -634,18 +656,16 @@ private fun Modifier.tileSurface(
  * one flat wash — the writing had nothing to contrast with except the mesh
  * behind the glass, which is not a contrast the eye can use at a glance.
  *
- * **The tile is as tall as what is on it, and nothing else.** It used to be given
- * a height and pin its plate to the ceiling and its caption to the floor, which
- * meant every dp the content did not need showed up as a gap through the middle
- * — the thing that made the tall tiles look empty, and the thing the old varying
- * glyph size existed to hide. The `weight(1f)` that pushed the caption down is
- * now a fixed gap, and the column wraps.
+ * **Every tile is the same height**, set by the wall rather than by the tile —
+ * see the note on [TileChrome]. So the card has slack in it, and where the slack
+ * goes is the one thing worth being careful about here.
  *
- * What varies is how much there is to be as tall as — see [TileSize]. Every tile
- * carries the mark, the badge, the name and the blurb; the taller ones add facts
- * under it. Content deciding the height is what masonry actually is, so the
- * content has to be worth differing — and the differing has to happen somewhere
- * that isn't the blurb.
+ * It goes into a single gap above the category line, which is pinned to the
+ * floor. Not spread through the card: an earlier fixed-height version pinned the
+ * plate to the ceiling *and* the caption to the floor and let the middle stretch,
+ * which opened a hole between the blurb and the name on every tile whose copy ran
+ * short. One gap in one place, always the same place, reads as a margin. Two gaps
+ * that grow and shrink read as a layout that has come apart.
  *
  * The type went up a step and a half — 13sp/11sp to 15sp/12sp — which is the
  * change that made the tile look like a card rather than a caption. 13sp bold is
@@ -653,16 +673,15 @@ private fun Modifier.tileSurface(
  * for, and it was smaller here than the same club's name is anywhere else in the
  * app.
  *
- * Nothing on the tile is truncated. The name has two lines, which hold 32
- * characters at 15sp in the wide column and 26 in the narrow one; the longest
- * club in the roster is 27 and breaks after "International", so it fits either
- * way. The blurb has no cap at all — see the note above it.
+ * The name takes up to three lines and the blurb gets what is left of
+ * [TextLines] — see [NameLinesTypical] for why the name is the one that wins the
+ * argument. A line holds about 16 characters at 15sp in a column of this width,
+ * so three lines clear the longest club in the roster with room over.
  */
 @Composable
 private fun BoothTile(
     booth: Booth,
     accent: Color,
-    size: TileSize,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.padding(Dimens.Space)) {
@@ -675,6 +694,10 @@ private fun BoothTile(
             StatusBadge(booth = booth, accent = accent)
         }
 
+        // How many lines the name actually took, once it has been set. The blurb
+        // below reads it back to decide how much room is left — see [TextLines].
+        var nameLines by remember(booth.id) { mutableIntStateOf(NameLinesTypical) }
+
         Spacer(Modifier.height(Dimens.Space))
         Text(
             text = booth.displayName(),
@@ -683,8 +706,9 @@ private fun BoothTile(
             fontSize = 15.sp,
             lineHeight = 19.sp,
             color = Color.White.copy(alpha = InkName),
-            maxLines = 2,
+            maxLines = NameLinesMax,
             overflow = TextOverflow.Ellipsis,
+            onTextLayout = { nameLines = it.lineCount },
         )
 
         // On every tile without exception, again. It is the line that says why
@@ -701,32 +725,37 @@ private fun BoothTile(
             fontSize = 12.sp,
             lineHeight = 16.sp,
             color = Color.White.copy(alpha = InkBlurb),
+            maxLines = blurbLinesFor(nameLines),
+            overflow = TextOverflow.Ellipsis,
         )
 
-        if (size != TileSize.Standard) {
-            Spacer(Modifier.height(Dimens.SpaceSm))
-            // What kind of club it is — the line that makes this tile taller
-            // than a Standard one, so it has to carry something on every card.
-            // It held the club's name in the other language until that turned
-            // out to mean a Thai line on every tile of an English screen.
-            //
-            // A member count and a "meets Wed 17:00 · Main Field" line used to sit
-            // here. Both are gone rather than ported: `members`, `meets` and
-            // `venue` were invented per club when the roster was written, and the
-            // Student Union has never supplied any of the three. There is nothing
-            // to render, and a fabricated figure on a card a student uses to choose
-            // where to walk is worse than a shorter card.
-            booth.categoryName()?.let { category ->
-                Text(
-                    text = category,
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 11.sp,
-                    color = cardInk(accent).copy(alpha = InkGlyph),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+        // The card's slack, all of it, in one place.
+        Spacer(Modifier.weight(1f))
+
+        // What kind of club it is. On every tile now rather than on the taller
+        // two thirds of them — with one height there is no such thing as a tile
+        // that has room for it and one that doesn't, and a line that appears on
+        // some cards and not others reads as missing data on the rest.
+        //
+        // It held the club's name in the other language until that turned out to
+        // mean a Thai line on every tile of an English screen.
+        //
+        // A member count and a "meets Wed 17:00 · Main Field" line used to sit
+        // here. Both are gone rather than ported: `members`, `meets` and `venue`
+        // were invented per club when the roster was written, and the Student
+        // Union has never supplied any of the three. There is nothing to render,
+        // and a fabricated figure on a card a student uses to choose where to walk
+        // is worse than a shorter card.
+        booth.categoryName()?.let { category ->
+            Text(
+                text = category,
+                fontFamily = AlanSans,
+                fontWeight = FontWeight.Medium,
+                fontSize = 11.sp,
+                color = cardInk(accent).copy(alpha = InkGlyph),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
@@ -839,7 +868,7 @@ private fun ZoneTopBar(onBack: () -> Unit, modifier: Modifier = Modifier) {
 /**
  * The area's name at the head of its own wall.
  *
- * It reads as a title for the nine booths below it rather than for the screen,
+ * It reads as a title for the booths below it rather than for the screen,
  * which is what it actually is, and it scrolls away with them.
  *
  * The letter tile is the one off the zone card, unchanged and deliberately so:

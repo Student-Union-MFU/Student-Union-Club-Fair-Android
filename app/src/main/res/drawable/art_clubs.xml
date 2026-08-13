@@ -1,59 +1,101 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-A club's stall: awning, counter, legs.
+What the clubs actually do: a ball, a stage mask, music.
 
-  Third attempt, and the two failures are worth recording. Tilted club cards
-  collapsed into scribble — two rounded outlines crossing with filled shapes
-  crowded inside the smaller one is far too much line for 76dp. Then a scalloped
-  awning with the nav bar's triangle-circle-square sitting on the counter: the
-  scallops read as a wavy fringe rather than as a shape, and the mark was too
-  small to be anything but three specks.
+  The brief was a reference illustration of the "extracurricular activities"
+  kind — basketball, theatre masks, notes scattered around them — without its
+  caption. This is that composition in the app's own material: white line work
+  at the two weights used everywhere else, no fills in palette colours. The
+  reference is flat colour on white; the same drawing filled in orange and
+  yellow over a dark green mesh reads as clip-art pasted onto glass, which is
+  the mistake the first version of these tiles made and the reason the note
+  about it below has survived four rewrites.
 
-  What is left is four straight elements and three stripes. A stall is a
-  silhouette, and at this size a silhouette is all that survives.
+  Two weights are load-bearing here rather than decorative. The ball outline,
+  the mask and the near note are the drawing; the seams, the face and the far
+  note are at 54% so the cluster has a front and a back. Everything at full
+  weight and four objects in one tile flattens into a tangle.
 
-  White line work, at the two weights the app uses everywhere else: full for
-  the shape, a little over half for secondary detail.
+  The nav bar's `ic_booths.xml` is NOT this drawing — it is the mask alone. Four
+  objects with interior detail is a smudge at 22dp; that is not a guess, it was
+  rendered at true size and looked at. The mask is the piece that survives, so
+  the two share a subject and a hand rather than an outline. Change the style
+  here and the mask there has to follow.
 
-  It was lime — Palette.Accent — which was one step too far in the same
-  direction that put the accent on the countdown figure. The accent is the
-  app's action colour: it belongs on a scanned checkpoint and a filled
-  progress bar, on things that mean something has happened. A drawing on a
-  tile has not happened, and three lime drawings on one screen made a page of
-  white type look like it was decorated rather than laid out.
+  It replaces a staggered wall of tiles, and before that a market stall. Both
+  drew the *screen* rather than the thing — accurate, and nothing a student
+  wants to look at on a tile that says "Clubs".
 
-  The two earlier versions are worth remembering: filled shapes in three
-  palette colours read as clip-art dropped on the screen, because solid colour
-  carries far more weight than the frosted glass around it. An outline weighs
-  what an icon weighs, and white is what the icons are.
+  The accent stays off it. Lime is the app's action colour: a scanned
+  checkpoint, a filled progress bar, things that mean something has happened. A
+  drawing on a tile has not happened, and three lime drawings on one screen made
+  a page of white type look decorated rather than laid out.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="96dp"
     android:height="96dp"
     android:viewportWidth="96"
     android:viewportHeight="96">
-    <path android:pathData="M24.0,20.0 H72.0 L83.0,41.0 H13.0 Z" android:fillColor="#00000000"
+
+    <!-- Ball -->
+    <path android:pathData="M17,34 A15,15 0 1 1 47,34 A15,15 0 1 1 17,34 Z"
+        android:fillColor="#00000000"
         android:strokeColor="#FFFFFFFF" android:strokeWidth="3.2"
         android:strokeLineCap="round" android:strokeLineJoin="round" />
-    <path android:pathData="M36.0,20.0 L30.5,41.0" android:fillColor="#00000000"
+    <path android:pathData="M32,19 V49"
+        android:fillColor="#00000000"
         android:strokeColor="#8AFFFFFF" android:strokeWidth="3.2"
         android:strokeLineCap="round" android:strokeLineJoin="round" />
-    <path android:pathData="M48.0,20.0 L48.0,41.0" android:fillColor="#00000000"
+    <path android:pathData="M21.5,23.5 Q27,34 21.5,44.5"
+        android:fillColor="#00000000"
         android:strokeColor="#8AFFFFFF" android:strokeWidth="3.2"
         android:strokeLineCap="round" android:strokeLineJoin="round" />
-    <path android:pathData="M60.0,20.0 L65.5,41.0" android:fillColor="#00000000"
+    <path android:pathData="M42.5,23.5 Q37,34 42.5,44.5"
+        android:fillColor="#00000000"
         android:strokeColor="#8AFFFFFF" android:strokeWidth="3.2"
         android:strokeLineCap="round" android:strokeLineJoin="round" />
-    <path android:pathData="M20,49 H76" android:fillColor="#00000000"
+
+    <!-- Stage mask -->
+    <path android:pathData="M48,52 A4,4 0 0 1 52,48 H78 A4,4 0 0 1 82,52 V58 C82,72 74,80 65,80 C56,80 48,72 48,58 Z"
+        android:fillColor="#00000000"
         android:strokeColor="#FFFFFFFF" android:strokeWidth="3.2"
         android:strokeLineCap="round" android:strokeLineJoin="round" />
-    <path android:pathData="M26,49 V80" android:fillColor="#00000000"
+    <path android:pathData="M55,59 Q59,55 63,59"
+        android:fillColor="#00000000"
+        android:strokeColor="#8AFFFFFF" android:strokeWidth="3.2"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M67,59 Q71,55 75,59"
+        android:fillColor="#00000000"
+        android:strokeColor="#8AFFFFFF" android:strokeWidth="3.2"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M57,67 Q65,74 73,67"
+        android:fillColor="#00000000"
+        android:strokeColor="#8AFFFFFF" android:strokeWidth="3.2"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+
+    <!-- Near note. Filled head, because a hollow one reads as a bubble on a
+         stick at any size below the tile's own. -->
+    <path android:pathData="M63,32 A5,5 0 1 1 73,32 A5,5 0 1 1 63,32 Z"
+        android:fillColor="#FFFFFFFF" />
+    <path android:pathData="M73,32 V14"
+        android:fillColor="#00000000"
         android:strokeColor="#FFFFFFFF" android:strokeWidth="3.2"
         android:strokeLineCap="round" android:strokeLineJoin="round" />
-    <path android:pathData="M70,49 V80" android:fillColor="#00000000"
+    <path android:pathData="M73,14 C79,16 81,21 79,25"
+        android:fillColor="#00000000"
         android:strokeColor="#FFFFFFFF" android:strokeWidth="3.2"
         android:strokeLineCap="round" android:strokeLineJoin="round" />
-    <path android:pathData="M26,68 H70" android:fillColor="#00000000"
+
+    <!-- Far note, at the secondary weight — the echo that keeps the cluster
+         from sitting on one diagonal. -->
+    <path android:pathData="M17.5,70 A3.5,3.5 0 1 1 24.5,70 A3.5,3.5 0 1 1 17.5,70 Z"
+        android:fillColor="#8AFFFFFF" />
+    <path android:pathData="M24.5,70 V56"
+        android:fillColor="#00000000"
+        android:strokeColor="#8AFFFFFF" android:strokeWidth="3.2"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M24.5,56 C29,57.5 30.5,61 29,64"
+        android:fillColor="#00000000"
         android:strokeColor="#8AFFFFFF" android:strokeWidth="3.2"
         android:strokeLineCap="round" android:strokeLineJoin="round" />
 </vector>

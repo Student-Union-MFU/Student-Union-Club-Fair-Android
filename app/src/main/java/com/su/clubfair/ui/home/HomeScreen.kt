@@ -25,8 +25,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.pullToRefresh
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
@@ -92,6 +96,10 @@ private const val GridColumns = 14
 
 
 
+// Pull-to-refresh is still behind an opt-in in Material 3. Annotated at the one
+// screen that uses it rather than switched on for the module, so the day it
+// changes shape there is a single call site to fix.
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
@@ -106,6 +114,9 @@ fun HomeScreen(
     progress: FairProgress = PreviewProgress,
     /** The last refresh could not reach the server; what is shown may be stale. */
     offline: Boolean = false,
+    /** A refresh is in flight — the pull indicator stays out while it is. */
+    refreshing: Boolean = false,
+    onRefresh: () -> Unit = {},
     onOpenClubs: () -> Unit = {},
     onOpenPrizes: () -> Unit = {},
     onOpenProfile: () -> Unit = {},
@@ -124,9 +135,24 @@ fun HomeScreen(
     //
     // The profile button is not in here — it is pinned to the top of the box
     // below, so only the body travels to the bottom.
+    // The gesture goes on the box that is already here rather than wrapping the
+    // screen in a `PullToRefreshBox`, which is the same thing plus a Box and would
+    // have re-indented the entire screen to add one modifier. The indicator is a
+    // child of it, below.
+    //
+    // Before `safeDrawingPadding`, so the pull is caught anywhere on the screen
+    // including the inset strip under the status bar, where a downward drag
+    // starting at the top edge naturally begins.
+    val pullState = rememberPullToRefreshState()
+
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
+            .pullToRefresh(
+                isRefreshing = refreshing,
+                state = pullState,
+                onRefresh = onRefresh,
+            )
             .safeDrawingPadding(),
     ) {
         Column(
@@ -227,6 +253,17 @@ fun HomeScreen(
                 onClick = onOpenProfile,
             )
         }
+
+        // Last child, so it draws over the header rather than under it. Painted
+        // in the app's own panel and accent instead of Material's surface
+        // colours, which on this backdrop arrive as a light grey disc.
+        PullToRefreshDefaults.Indicator(
+            state = pullState,
+            isRefreshing = refreshing,
+            modifier = Modifier.align(Alignment.TopCenter),
+            containerColor = Palette.Panel,
+            color = LocalAccent.current,
+        )
     }
 }
 

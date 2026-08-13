@@ -33,9 +33,20 @@ sealed interface ApiResult<out T> {
 /** The value, or null for either kind of failure. */
 fun <T> ApiResult<T>.valueOrNull(): T? = (this as? ApiResult.Success)?.value
 
-/** True when the server rejected the caller's token and a re-login is needed. */
+/**
+ * True when the server rejected the caller's token and a re-login is needed.
+ *
+ * Only ever the server's answer. A call made with no token at all never reaches
+ * the network and comes back as [isMissingToken] instead — see `ClubFairApi`,
+ * where the difference is the reason `FairRepository` can end a session on this
+ * without ending one on every authenticated call made from the sign-in screen.
+ */
 val ApiResult<*>.isUnauthorized: Boolean
     get() = this is ApiResult.Failure && status == 401
+
+/** True when the call needed a token and the device had none — nothing was sent. */
+val ApiResult<*>.isMissingToken: Boolean
+    get() = this is ApiResult.Failure && status == ClubFairApi.MissingToken
 
 inline fun <T, R> ApiResult<T>.map(transform: (T) -> R): ApiResult<R> = when (this) {
     is ApiResult.Success -> ApiResult.Success(transform(value))

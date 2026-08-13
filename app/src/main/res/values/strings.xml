@@ -53,6 +53,11 @@
     <string name="register_working">Creating your account…</string>
     <string name="register_have_account">Already have an account? Log in</string>
     <string name="register_legal">By tapping Create Account, you agree to our Terms of Service and acknowledge our Privacy Policy</string>
+    <!-- The same consent, on the screen where the button says "Continue with
+         Google" instead. Both names have to appear verbatim in the sentence —
+         they are found in it by search, and a translation that renames one of
+         them leaves that half untappable. -->
+    <string name="register_legal_continue">By continuing, you agree to our Terms of Service and acknowledge our Privacy Policy</string>
     <string name="register_legal_terms">Terms of Service</string>
     <string name="register_legal_privacy">Privacy Policy</string>
 
@@ -125,9 +130,26 @@
     <string name="prizes_title">Prizes</string>
     <string name="prizes_earned_of">of %1$d prizes earned</string>
     <string name="prizes_booths_progress">%1$d of %2$d booths collected</string>
-    <string name="prizes_tiers_section">How to earn them</string>
+    <string name="prizes_route_section">Your route</string>
+    <!-- Deliberately names no thresholds: the stops come from the server, and a
+         sentence that says "at 15 and 28" is wrong the day the Student Union
+         moves one. -->
+    <string name="prizes_route_hint">The lit road is how far you have walked. The gifts are where the prizes are.</string>
+    <string name="prizes_here">You\'re here</string>
+    <string name="prizes_start">Start</string>
+    <!-- The whole stop, read as one thing under TalkBack: name, where it falls on
+         the route, and how far off it is. -->
+    <plurals name="prizes_tier_desc">
+        <item quantity="one">%1$s, at %2$d booth. %3$s</item>
+        <item quantity="other">%1$s, at %2$d booths. %3$s</item>
+    </plurals>
     <string name="prizes_placeholder_notice">The prize list isn\'t final yet — these tiers are placeholders while the Student Union confirms what\'s on offer. The booth targets are real.</string>
-    <string name="prizes_remaining">%1$d more booths to go</string>
+    <!-- One booth to go is the state a student is most likely to be looking at
+         this line in, and "1 more booths" is what it used to say. -->
+    <plurals name="prizes_remaining">
+        <item quantity="one">%1$d more booth to go</item>
+        <item quantity="other">%1$d more booths to go</item>
+    </plurals>
     <string name="prizes_ready">Earned — claim it at the Student Union desk</string>
     <string name="prizes_claimed">Claimed</string>
 
@@ -293,8 +315,84 @@
     <string name="settings_version">Version</string>
     <string name="settings_terms">Terms of Service</string>
     <string name="settings_privacy">Privacy Policy</string>
-    <string name="settings_open_external">Opens in your browser</string>
-    <string name="settings_no_browser">No app on this phone can open a web link.</string>
+    <string name="settings_sync">Sync now</string>
+    <string name="settings_sync_hint">Send anything waiting and fetch the latest</string>
+    <string name="settings_sync_working">Syncing…</string>
+
+    <!--
+      The two policy documents, carried in the app rather than linked out to a
+      web page. See `LegalScreen` for why, and for what still has to be true of
+      the wording before release: this is an honest description of what the app
+      does, written to be read by a student, and it is not a lawyer's work.
+      The Student Union has to approve both before they ship.
+
+      Kept as one string per section rather than one giant blob so a translator
+      works a paragraph at a time and a section can be added without rewriting
+      the document around it.
+    -->
+    <string name="legal_updated">Last updated 12 August 2026</string>
+    <!-- ⚠ Replace with the Student Union's official address before release. -->
+    <string name="legal_contact_body">Student Union, Mae Fah Luang University\n333 Moo 1, Thasud, Muang, Chiang Rai 57100\nstudentunion.developer@gmail.com</string>
+
+    <string name="legal_terms_intro">These terms cover the Student Union Club Fair app. Using the app means agreeing to them.</string>
+
+    <string name="legal_terms_what">What this app is</string>
+    <string name="legal_terms_what_body">The Club Fair app is run by the Student Union of Mae Fah Luang University. It lists the clubs with a booth at the fair, records the booths you visit when you scan the QR code on their sign, and shows how close you are to a prize.</string>
+
+    <string name="legal_terms_who">Who can use it</string>
+    <string name="legal_terms_who_body">You need a working MFU student account — the one ending in @lamduan.mfu.ac.th — from an intake the Student Union has opened this fair to. Your student ID comes from that address, so it is never something you type in and cannot be mistyped.</string>
+
+    <string name="legal_terms_account">Your account is yours</string>
+    <string name="legal_terms_account_body">Sign in with your own account and keep your password to yourself. Anything collected under your account counts as collected by you. If you think someone else has been using it, change your password and tell the Student Union.</string>
+
+    <string name="legal_terms_fair">Collecting stamps fairly</string>
+    <string name="legal_terms_fair_body">A stamp means you were at the booth. Photographing a code to scan later, sharing one with a friend who is somewhere else, or generating codes is cheating, and the Student Union may remove those stamps or the account that collected them. This is also why booth codes change through the day: a code you saved an hour ago will not work.</string>
+
+    <string name="legal_terms_prizes">Prizes</string>
+    <string name="legal_terms_prizes_body">The Student Union sets the prize levels and may change them while the fair is running; the app always shows the current ones. Prizes are collected in person at the Student Union desk during the fair, are limited to what is in stock, and cannot be exchanged for cash.</string>
+
+    <string name="legal_terms_content">What you read in the app</string>
+    <string name="legal_terms_content_body">Announcements are posted by the Student Union. Club descriptions, meeting times and contact details are supplied by the clubs themselves, and are neither checked nor guaranteed by the Student Union.</string>
+
+    <string name="legal_terms_availability">When it does not work</string>
+    <string name="legal_terms_availability_body">The app is provided as it is, for the fair. It needs a network to reach the server, and in a hall with poor signal it shows you the last thing it knew. Your stamps are held on the server rather than only on your phone, so a lost or reset phone does not lose them. A stamp taken with no signal waits on your phone and goes up as soon as the app reaches the server again.</string>
+
+    <string name="legal_terms_ending">Ending your access</string>
+    <string name="legal_terms_ending_body">The Student Union may suspend an account that breaks these terms. You can sign out, or erase everything on this phone from Settings, whenever you like — and you can ask the Student Union to delete your account entirely.</string>
+
+    <string name="legal_terms_changes">Changes to these terms</string>
+    <string name="legal_terms_changes_body">If these terms change, the version in the app changes with them, and the date at the top tells you when. Carrying on using the app after that means accepting the new terms.</string>
+
+    <string name="legal_privacy_intro">This explains what the app knows about you, why, and what you can do about it.</string>
+
+    <string name="legal_privacy_who">Who holds your data</string>
+    <string name="legal_privacy_who_body">The Student Union of Mae Fah Luang University. The app talks to one server, run by the Student Union for this fair, and to nobody else.</string>
+
+    <string name="legal_privacy_what">What is collected</string>
+    <string name="legal_privacy_what_body">Your name, your MFU email address and the student ID it contains. Your phone number, school and major, which you give when you sign up. Your Google profile photo, if you signed in with Google. Which booths you checked in at and when. Which announcements you reacted to. Your language and vibration settings.</string>
+
+    <string name="legal_privacy_why">Why</string>
+    <string name="legal_privacy_why_body">To keep your stamps attached to you rather than to a phone, to count your progress and your ranking, and to give you the right prize at the desk. Your phone number is how the Student Union reaches you about a prize.</string>
+
+    <string name="legal_privacy_google">Signing in with Google</string>
+    <string name="legal_privacy_google_body">Google gives the app your name, your MFU address, your profile photo and a signed token. The token goes to the Student Union server, which checks that Google issued it, that the address is verified and that it belongs to MFU. Your Google password is never seen by this app.</string>
+
+    <string name="legal_privacy_device">What stays on this phone</string>
+    <string name="legal_privacy_device_body">A sign-in token, a copy of your profile and progress so the app still works with no signal, and any stamps waiting to be sent. All of it sits in the app\'s private storage and none of it goes into a cloud backup. Settings → Erase everything on this phone removes the lot.</string>
+
+    <string name="legal_privacy_shared">Who else sees it</string>
+    <string name="legal_privacy_shared_body">Student Union staff running the fair. A club can see that you checked in at its booth. Nothing here is sold, and nothing is sent to advertisers.</string>
+
+    <string name="legal_privacy_camera">The camera</string>
+    <string name="legal_privacy_camera_body">The Scan tab uses the camera for one thing: reading the QR code on a booth sign. Frames are read on the phone as they arrive and are never stored or uploaded. The app takes no photographs.</string>
+
+    <string name="legal_privacy_retention">How long it is kept</string>
+    <string name="legal_privacy_retention_body">Your account and your check-ins are kept for the fair and the prize handout that follows it, then deleted or reduced to anonymous totals within 90 days of the fair ending.</string>
+
+    <string name="legal_privacy_rights">Your rights</string>
+    <string name="legal_privacy_rights_body">Under Thailand\'s Personal Data Protection Act you may ask to see what is held about you, to have it corrected, or to have it deleted. Signing out and erasing this phone are in Settings and need nobody\'s permission; for anything held on the server, contact the Student Union.</string>
+
+    <string name="legal_contact">Getting in touch</string>
 
     <string name="qr_title">Club Fair 2026</string>
     <string name="qr_subtitle">Student pass</string>
@@ -302,6 +400,8 @@
     <string name="qr_admit">Admit one</string>
     <string name="qr_event_dates">26–27 Jul</string>
     <string name="qr_code_desc">QR code for student %1$s</string>
+
+    <string name="auth_error_session_expired">You were signed out because your session expired. Please sign in again — your stamps are safe on the server.</string>
 
     <string name="auth_phone_hint">683XXXXXXX</string>
     <string name="auth_password_hint">Password</string>

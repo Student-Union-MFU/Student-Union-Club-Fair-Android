@@ -158,17 +158,39 @@ android {
             // instead, and su-server bound wider to accept it:
             //   -PclubfairApiBase=http://192.168.1.x:8080
             // Passed on the command line rather than edited here, so a personal
-            // address is never committed.
+            // address is never committed. Set CLUBFAIR_API_BASE_DEBUG in `.env`
+            // instead if that address is where every debug build should go.
             //
             // Cleartext is permitted for this variant only; see
             // src/debug/res/xml/network_security_config.xml.
+            //
+            // ---------------------------------------------------------------
+            // This deliberately does NOT read `CLUBFAIR_API_BASE`, which is the
+            // release target and is set to production in `.env`.
+            //
+            // It used to, and the whole point of the localhost default was lost:
+            // `.env` is read ahead of the default, so every debug build silently
+            // pointed at api.studentunion.social. A prize threshold was changed
+            // in the local database, and the app kept showing the old one through
+            // a clean, a reinstall and a pull-to-refresh — because it had never
+            // once asked that database. The two build types now read two
+            // different keys, so nothing set for production can be inherited by
+            // a debug build by accident.
+            //
+            // Switching a debug build between servers signs you out, and that is
+            // correct rather than a bug: a session token from one server is not
+            // valid at the other, the first refresh gets a 401, and the app ends
+            // the session. Expect to log in again after changing this.
             buildConfigField(
                 "String",
                 "API_BASE_URL",
-                "\"${localConfig("clubfairApiBase", "CLUBFAIR_API_BASE", "http://localhost:8080")}\"",
+                "\"${localConfig("clubfairApiBase", "CLUBFAIR_API_BASE_DEBUG", "http://localhost:8080")}\"",
             )
         }
         release {
+            // Production, from `CLUBFAIR_API_BASE` in `.env` — the key the debug
+            // build above pointedly does not read.
+            //
             // No default. A release build pointed at someone's laptop would be
             // worse than one that fails to configure, so this must be supplied:
             //   ./gradlew assembleRelease -PclubfairApiBase=https://api.example.ac.th

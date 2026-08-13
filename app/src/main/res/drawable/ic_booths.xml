@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+The stage mask from Home's Clubs tile, alone.
+
+  `art_clubs.xml` is a cluster — ball, mask, two notes — and this tab is the
+  same destination, so the honest thing would be the same drawing shrunk. It
+  does not survive: rendered at a true 24px, four objects with seams, a face and
+  two note flags come out as a smudge with a bright spot in it. So the tile
+  keeps the cluster and the bar keeps its loudest piece, in the same hand and at
+  the nav bar's weight.
+
+  The face is what makes it a mask rather than a shield, so the eyes and smile
+  are drawn slightly thinner than the outline instead of being dropped. At this
+  size they are three short arcs holding about four pixels each — thinner than
+  that and they close up into dots, at the outline's full weight they merge with
+  each other.
+
+  It replaces a staggered wall of tiles, and before that a triangle, a square
+  and a circle.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:pathData="M3.5,6 A2,2 0 0 1 5.5,4 H18.5 A2,2 0 0 1 20.5,6 V9.5 C20.5,16.5 16.7,20.5 12,20.5 C7.3,20.5 3.5,16.5 3.5,9.5 Z"
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2.0"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M7,10 Q9,8 11,10"
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M13,10 Q15,8 17,10"
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M8,14.5 Q12,18 16,14.5"
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

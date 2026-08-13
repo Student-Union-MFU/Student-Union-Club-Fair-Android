@@ -229,12 +229,22 @@ private fun CompleteSignUpFlow(student: Student, onSignOut: () -> Unit) {
 private fun SignedOutFlow() {
     val auth: AuthViewModel = viewModel(factory = AuthViewModel.Factory)
     val loginForm by auth.login.collectAsStateWithLifecycle()
+    val sessionExpired by auth.sessionExpired.collectAsStateWithLifecycle()
 
     // Credential Manager shows UI, so it needs the Activity rather than the
     // application context.
     val activity = LocalActivity.current
 
     var step by rememberSaveable { mutableStateOf(AuthStep.Welcome) }
+
+    // A student whose token expired is not a new arrival. Welcome exists to
+    // introduce the fair to someone who has never seen it; showing it to someone
+    // who was signed in an hour ago makes them find the way back in for
+    // themselves, past a screen that tells them nothing they don't know. The
+    // login form carries the reason — see `FormError.SessionExpired`.
+    LaunchedEffect(sessionExpired) {
+        if (sessionExpired) step = AuthStep.Login
+    }
 
     // Back rewinds the sign-in steps. It no longer needs to exclude onboarding —
     // that is not in this flow any more.

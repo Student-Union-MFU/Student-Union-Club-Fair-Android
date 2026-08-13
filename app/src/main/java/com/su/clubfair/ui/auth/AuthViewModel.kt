@@ -19,8 +19,10 @@ import com.su.clubfair.data.net.GoogleAccount
 import com.su.clubfair.data.net.GoogleSignIn
 import com.su.clubfair.ui.model.Student
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -74,6 +76,16 @@ sealed interface FormError {
 
     /** No Google account on the device that Google would offer. */
     data object GoogleNoAccount : FormError
+
+    /**
+     * The session ended on its own, and the student is here because of it.
+     *
+     * Not a submit failure at all — nothing has been submitted yet — and that is
+     * exactly why it needs its own case. It arrives before the form is touched,
+     * and it is the only thing that explains why someone who was signed in this
+     * morning is looking at a login screen this afternoon.
+     */
+    data object SessionExpired : FormError
 }
 
 data class LoginForm(
@@ -277,6 +289,31 @@ class AuthViewModel(private val repository: FairRepository) : ViewModel() {
 
     private val _completeProfile = MutableStateFlow(CompleteProfileForm())
     val completeProfile: StateFlow<CompleteProfileForm> = _completeProfile.asStateFlow()
+
+    /**
+     * Whether this screen is being shown because a session expired.
+     *
+     * Read by the gate in `MainActivity` to open on the login form rather than on
+     * Welcome: a student who was signed in a moment ago does not need introducing
+     * to the app, they need the box they type their password into.
+     */
+    val sessionExpired: StateFlow<Boolean> = repository.sessionExpired.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = false,
+    )
+
+    init {
+        // Says why, on the form itself. The flag is already true by the time this
+        // ViewModel exists — the session ended before the signed-out flow was
+        // composed — so the first collected value is the one that matters, and
+        // `collect` delivers it.
+        viewModelScope.launch {
+            repository.sessionExpired.collect { expired ->
+                if (expired) _login.update { it.copy(formError = FormError.SessionExpired) }
+            }
+        }
+    }
 
     fun onLoginPhone(value: String) =
         _login.update { it.copy(phone = value, formError = null) }

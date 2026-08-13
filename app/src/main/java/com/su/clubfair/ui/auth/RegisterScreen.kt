@@ -19,14 +19,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -34,6 +30,8 @@ import androidx.compose.ui.unit.sp
 import com.su.clubfair.R
 import com.su.clubfair.data.Campus
 import com.su.clubfair.ui.components.PillButton
+import com.su.clubfair.ui.legal.LegalConsentNotice
+import com.su.clubfair.ui.legal.LegalDocument
 import com.su.clubfair.ui.theme.AlanSans
 import com.su.clubfair.ui.theme.Dimens
 import com.su.clubfair.ui.theme.Ink
@@ -65,6 +63,12 @@ fun RegisterScreen(
     onChange: (RegisterForm.() -> RegisterForm) -> Unit = {},
     onCreateAccount: () -> Unit = {},
     onLogin: () -> Unit = {},
+    /**
+     * Opens a policy. A parameter rather than state held here, unlike the Google
+     * sign-up screen: this one is unreferenced — see the note on `AuthStep` — so
+     * the honest thing is to leave the decision to whoever revives it.
+     */
+    onOpenLegal: (LegalDocument) -> Unit = {},
 ) {
     AuthBackground(modifier = modifier) {
         Column(
@@ -228,15 +232,11 @@ fun RegisterScreen(
             )
 
             Spacer(Modifier.height(Dimens.SpaceSm))
-            Text(
-                text = legalNotice(),
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Normal,
-                fontSize = 11.sp,
-                lineHeight = 1.45.em,
-                color = Color.White,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
+            // Shared with the Google sign-up screen, which is the one a student
+            // actually reaches. Both policy names open the document in the app.
+            LegalConsentNotice(
+                onOpen = onOpenLegal,
+                notice = R.string.register_legal,
             )
 
             Spacer(Modifier.height(4.dp))
@@ -250,31 +250,6 @@ fun RegisterScreen(
                     fontWeight = FontWeight.Medium,
                     fontSize = 13.sp,
                     color = Color.White,
-                )
-            }
-        }
-    }
-}
-
-/** Underlines the two policy names inside the consent sentence. */
-@Composable
-private fun legalNotice(): AnnotatedString {
-    val notice = stringResource(R.string.register_legal)
-    val terms = stringResource(R.string.register_legal_terms)
-    val privacy = stringResource(R.string.register_legal_privacy)
-
-    return buildAnnotatedString {
-        append(notice)
-        listOf(terms, privacy).forEach { phrase ->
-            val start = notice.indexOf(phrase)
-            if (start >= 0) {
-                addStyle(
-                    SpanStyle(
-                        fontWeight = FontWeight.Medium,
-                        textDecoration = TextDecoration.Underline,
-                    ),
-                    start,
-                    start + phrase.length,
                 )
             }
         }

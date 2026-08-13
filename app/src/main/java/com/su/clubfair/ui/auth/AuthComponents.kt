@@ -110,6 +110,16 @@ private fun rememberFocusRamp(focused: Boolean): Float {
 @Composable
 fun AuthBackground(
     modifier: Modifier = Modifier,
+    /**
+     * A page over this screen, outside the padding [content] sits in.
+     *
+     * Its own slot because putting one in [content] silently insets it: the box
+     * below carries a screen gutter and the safe-area padding, which is right for
+     * a form and wrong for a page that is supposed to be full-bleed. A policy
+     * opened from the sign-up screen arrived as a card floating in the middle of
+     * the mesh, double-padded on both edges, which is how this came to exist.
+     */
+    overlay: (@Composable BoxScope.() -> Unit)? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
@@ -122,6 +132,7 @@ fun AuthBackground(
                 .padding(horizontal = ScreenPadding),
             content = content,
         )
+        overlay?.invoke(this)
     }
 }
 
@@ -310,6 +321,7 @@ fun AuthFormError(error: FormError, modifier: Modifier = Modifier) {
         FormError.Offline -> stringResource(R.string.auth_error_offline)
         FormError.GoogleUnavailable -> stringResource(R.string.auth_error_google_failed)
         FormError.GoogleNoAccount -> stringResource(R.string.auth_error_google_no_account)
+        FormError.SessionExpired -> stringResource(R.string.auth_error_session_expired)
     }
 
     Row(

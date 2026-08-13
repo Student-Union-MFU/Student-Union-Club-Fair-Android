@@ -1,9 +1,7 @@
 package com.su.clubfair.ui.settings
 
-import android.content.ActivityNotFoundException
-import android.content.Intent
-import android.net.Uri
-import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -42,7 +40,6 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.su.clubfair.BuildConfig
 import com.su.clubfair.R
-import com.su.clubfair.data.Links
 import com.su.clubfair.ui.AppLanguage
 import com.su.clubfair.ui.components.ActionRow
 import com.su.clubfair.ui.components.Hairline
@@ -51,6 +48,8 @@ import com.su.clubfair.ui.components.SectionLabel
 import com.su.clubfair.ui.components.SheetHeader
 import com.su.clubfair.ui.components.ToggleRow
 import com.su.clubfair.ui.components.glassSurface
+import com.su.clubfair.ui.legal.LegalDocument
+import com.su.clubfair.ui.legal.LegalScreen
 import com.su.clubfair.ui.scene.MeshBackground
 import com.su.clubfair.ui.theme.AlanSans
 import com.su.clubfair.ui.theme.Dimens
@@ -82,25 +81,19 @@ fun SettingsScreen(
     /** Scans taken offline that the server has not accepted yet. */
     pendingScans: Int = 0,
     offline: Boolean = false,
+    /** A refresh is in flight, started here or anywhere else. */
+    refreshing: Boolean = false,
+    onSyncNow: () -> Unit = {},
     onHapticsChange: (Boolean) -> Unit = {},
     onLanguageChange: (AppLanguage) -> Unit = {},
     onEraseDevice: () -> Unit = {},
     onBack: () -> Unit = {},
 ) {
-    val context = LocalContext.current
     var confirmingErase by remember { mutableStateOf(false) }
     var pickingLanguage by remember { mutableStateOf(false) }
 
-    val noBrowser = stringResource(R.string.settings_no_browser)
-    val openLink: (String) -> Unit = { url ->
-        try {
-            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-        } catch (_: ActivityNotFoundException) {
-            // A phone with no browser is rare and not the app's problem to solve,
-            // but a tap that does nothing at all is indistinguishable from a bug.
-            Toast.makeText(context, noBrowser, Toast.LENGTH_SHORT).show()
-        }
-    }
+    // Which policy is open over this screen, if either.
+    var reading by remember { mutableStateOf<LegalDocument?>(null) }
 
     Column(
         modifier = modifier
@@ -186,6 +179,29 @@ fun SettingsScreen(
                 )
             }
             Hairline()
+            // The row the amber line above was crying out for.
+            //
+            // "3 scans waiting to be sent" was the whole of what this card could
+            // say, and there was nothing on the screen — or anywhere in the app —
+            // that would send them: the queue drains inside a refresh, and the
+            // only refresh in the process happened at launch. The honest reading
+            // of that card was "force-close the app and open it again", which is
+            // not something a student should have to work out while standing at a
+            // booth.
+            ActionRow(
+                icon = R.drawable.ic_refresh,
+                title = stringResource(R.string.settings_sync),
+                subtitle = stringResource(
+                    if (refreshing) R.string.settings_sync_working
+                    else R.string.settings_sync_hint,
+                ),
+                // Taps while one is running are dropped by the repository's mutex
+                // anyway; refusing them here is what makes that visible rather
+                // than making the row feel dead.
+                enabled = !refreshing,
+                onClick = onSyncNow,
+            )
+            Hairline()
             ActionRow(
                 icon = R.drawable.ic_trash,
                 title = stringResource(R.string.settings_erase),
@@ -205,22 +221,35 @@ fun SettingsScreen(
                 value = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
             )
             Hairline()
+            // Pages of this app now, not addresses out of it — so the chevron is
+            // the same one every other row has, and reading them needs neither a
+            // browser nor a signal. See `LegalScreen`.
             ActionRow(
                 icon = R.drawable.ic_layers,
                 title = stringResource(R.string.settings_terms),
-                external = true,
-                onClick = { openLink(Links.Terms) },
+                onClick = { reading = LegalDocument.Terms },
             )
             Hairline()
             ActionRow(
                 icon = R.drawable.ic_lock,
                 title = stringResource(R.string.settings_privacy),
-                external = true,
-                onClick = { openLink(Links.Privacy) },
+                onClick = { reading = LegalDocument.Privacy },
             )
         }
 
         Spacer(Modifier.height(Dimens.SpaceXl))
+    }
+
+    // Over the whole sheet rather than beside it in the shell's stack: Settings
+    // is already a page over the shell, and a policy opened from here belongs
+    // above the thing that opened it. Back closes it and leaves Settings where
+    // it was.
+    reading?.let { document ->
+        BackHandler { reading = null }
+        Box(modifier = Modifier.fillMaxSize()) {
+            MeshBackground()
+            LegalScreen(document = document, onBack = { reading = null })
+        }
     }
 
     if (confirmingErase) {

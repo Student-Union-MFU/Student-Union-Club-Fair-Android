@@ -11,6 +11,8 @@ import com.su.clubfair.data.net.RegisterRequest
 import com.su.clubfair.data.net.UpdateProfileRequest
 import com.su.clubfair.data.net.UserDto
 import com.su.clubfair.data.net.ZoneDto
+import com.su.clubfair.data.net.isMissingToken
+import com.su.clubfair.data.net.isUnauthorized
 import com.su.clubfair.data.net.valueOrNull
 import com.su.clubfair.ui.model.Announcement
 import com.su.clubfair.ui.model.Booth
@@ -135,6 +137,25 @@ class FairRepository(
     private val _ready = MutableStateFlow(false)
     val ready: StateFlow<Boolean> = _ready.asStateFlow()
 
+    /**
+     * True when the session ended because the server stopped accepting the token.
+     *
+     * Distinct from plain signed-out, and it has to be. A token lasts 30 days and
+     * then simply stops working; without this the app kept the student "signed
+     * in" against a token every authenticated call was rejecting, which is the
+     * worst of the three possible states — the booth list and the zones are
+     * public, so they kept arriving, `offline` stayed false, and the app looked
+     * healthy while progress, announcements and every scan failed silently. There
+     * was no way out but to find Sign out and use it.
+     *
+     * Set by [endExpiredSession] and cleared by a sign-in or a deliberate
+     * [signOut], so it stays true for exactly the window in which the sign-in
+     * screen has something to explain. See `AuthViewModel`, which turns it into
+     * the notice on the login form.
+     */
+    private val _sessionExpired = MutableStateFlow(false)
+    val sessionExpired: StateFlow<Boolean> = _sessionExpired.asStateFlow()
+
     val booths: StateFlow<List<Booth>> = _booths.asStateFlow()
     val zones: StateFlow<List<Zone>> = _zones.asStateFlow()
     val progress: StateFlow<FairProgress> = _progress.asStateFlow()
@@ -209,9 +230,11 @@ class FairRepository(
     /**
      * Pulls everything the signed-in shell shows.
      *
-     * Serialised behind a mutex: the shell refreshes on launch, on resume and on a
-     * pull, and three overlapping refreshes would race to write the same flows —
-     * with the slowest response winning regardless of which was newest.
+     * Serialised behind a mutex: the shell refreshes on launch, on resume, on a
+     * pull and from Settings, and overlapping refreshes would race to write the
+     * same flows — with the slowest response winning regardless of which was
+     * newest. A call that arrives while one is running returns immediately rather
+     * than queueing, because the one in flight is already fetching what it wants.
      *
      * The queue is drained first. A scan taken offline should be counted before
      * progress is read, or the student watches their own scan appear one refresh
@@ -241,13 +264,13 @@ class FairRepository(
                     _zones.value = dtos.map(Zone::from)
                 }
 
-                api.progress().valueOrNull()?.let { dto ->
+                api.progress().orEndSession().valueOrNull()?.let { dto ->
                     reachedServer = true
                     store.cacheProgress(json.encodeToString(dto))
                     applyProgress(dto)
                 }
 
-                api.announcements().valueOrNull()?.let { dtos ->
+                api.announcements().orEndSession().valueOrNull()?.let { dtos ->
                     reachedServer = true
                     store.cacheAnnouncements(json.encodeToString(dtos))
                     _announcements.value = dtos.map { it.toModel() }
@@ -263,6 +286,25 @@ class FairRepository(
                 _ready.value = true
             }
         }
+    }
+
+    /**
+     * Ends the session if this is the server refusing the token we sent.
+     *
+     * Wrapped around every authenticated call rather than checked at one chosen
+     * place, because there is no such place: a token expires between two requests,
+     * not at a moment the app picks, so whichever call happens to be next is the
+     * one that finds out. The result is returned unchanged, so a call site reads
+     * as it did before and the ordinary failure paths still run.
+     *
+     * The token is re-read before acting on it. A 401 can land after a deliberate
+     * sign-out — the request was in flight while the session was being cleared —
+     * and treating that as an expiry would tell a student who had just signed out
+     * that they had been logged out.
+     */
+    private suspend fun <T> ApiResult<T>.orEndSession(): ApiResult<T> {
+        if (isUnauthorized && store.currentToken() != null) endExpiredSession()
+        return this
     }
 
     /** Progress and the booth ticks are two views of one fact; they move together. */
@@ -327,6 +369,8 @@ class FairRepository(
             // "signed in" while this was still true would draw one frame of the
             // shell — empty — before the loading screen replaced it.
             _ready.value = false
+            // Whatever the old token's fate, it has been answered.
+            _sessionExpired.value = false
             store.saveSession(result.value.token, student.toCachedUser(user.role))
             // Straight into a refresh, so the shell opens on real data rather than
             // on a frame of empty state followed by a jump.
@@ -339,13 +383,40 @@ class FairRepository(
     }
 
     /**
-     * Ends the session locally.
+     * Ends the session locally, because the student asked.
      *
      * There is no server call: the token is stateless and expires on its own, so
      * "sign out" means forgetting it. A revocation endpoint would be worth having
      * if a token were ever long-lived enough for it to matter.
      */
     suspend fun signOut() {
+        forgetSession()
+        // Nothing expired. This is the student closing the door behind them, and
+        // the sign-in screen has nothing to explain.
+        _sessionExpired.value = false
+    }
+
+    /**
+     * Ends the session because the server stopped accepting the token.
+     *
+     * The same clearing as [signOut] and a different flag, which is the whole
+     * difference between the two: one of them owes the student an explanation on
+     * the way out. See [sessionExpired].
+     *
+     * The queued scans go with it, as they do on any sign-out. That is a real
+     * loss — those scans were taken and are now unsendable — and it is still the
+     * right call for the reason `ClubFairStore.clearSession` gives: nothing here
+     * knows that the next student to sign in on this phone is the one who took
+     * them, and crediting the wrong person is worse than losing a stamp that can
+     * be re-scanned by walking back to the booth.
+     */
+    private suspend fun endExpiredSession() {
+        forgetSession()
+        _sessionExpired.value = true
+    }
+
+    /** What both ways out of a session have in common. */
+    private suspend fun forgetSession() {
         store.clearSession()
         _progress.value = FairProgress()
         _announcements.value = emptyList()
@@ -374,13 +445,16 @@ class FairRepository(
         major: String,
         password: String,
     ): AuthOutcome {
-        when (val result = api.setPassword(password)) {
+        when (val result = api.setPassword(password).orEndSession()) {
             is ApiResult.Success -> Unit
             is ApiResult.Offline -> return AuthOutcome.Offline
             is ApiResult.Failure -> return AuthOutcome.Rejected(result.message)
         }
 
-        return when (val result = api.updateProfile(UpdateProfileRequest(phone, school, major))) {
+        return when (
+            val result = api.updateProfile(UpdateProfileRequest(phone, school, major))
+                .orEndSession()
+        ) {
             is ApiResult.Success -> {
                 cacheAccount(result.value)
                 AuthOutcome.Success
@@ -392,7 +466,7 @@ class FairRepository(
     }
 
     suspend fun updateProfile(phone: String?, school: String?, major: String?): Boolean {
-        val result = api.updateProfile(UpdateProfileRequest(phone, school, major))
+        val result = api.updateProfile(UpdateProfileRequest(phone, school, major)).orEndSession()
         val user = result.valueOrNull() ?: return false
         cacheAccount(user)
         return true
@@ -428,13 +502,21 @@ class FairRepository(
         val deviceTime = Instant.ofEpochMilli(clock()).toString()
         val request = CheckInRequest(payload, clientId, deviceTime)
 
-        return when (val result = api.recordCheckIn(request)) {
+        return when (val result = api.recordCheckIn(request).orEndSession()) {
             is ApiResult.Success -> {
                 val boothId = result.value.checkIn?.boothId
+                // A scan that reached the server is the best evidence there is
+                // that the queue behind it can go up too, and this is the moment
+                // it matters: a student who scanned three booths in a dead corner
+                // and then found signal is standing at the fourth. Waiting for the
+                // next refresh to notice would leave those three sitting in the
+                // queue while the app cheerfully records the one in front of them.
+                flushPendingScans()
                 // Re-read rather than adjusting the local count: the server is the
                 // authority on how many booths this student has, and guessing would
-                // let the two drift on any outcome the client mispredicted.
-                api.progress().valueOrNull()?.let { applyProgress(it) }
+                // let the two drift on any outcome the client mispredicted. Read
+                // after the flush, so it counts what was just sent.
+                api.progress().orEndSession().valueOrNull()?.let { applyProgress(it) }
 
                 val booth = boothId?.let { id -> _booths.value.firstOrNull { it.id == id } }
                 when (result.value.outcome) {
@@ -470,16 +552,39 @@ class FairRepository(
      * refresh — the honest outcome is that the scan is lost and the student must
      * re-scan, which is the cost of rotating codes stated in the server's own
      * comments.
+     *
+     * With one exception: a scan the server would not even look at because of who
+     * sent it. A 401 says nothing about the code — it will be perfectly good to
+     * the next session, if the queue survived — so dequeuing on it would throw
+     * away every waiting scan for a reason that has nothing to do with any of
+     * them. It ends the session instead and stops, exactly as the offline case
+     * does, for the same reason: the rest of the queue would fail identically.
+     *
+     * Not serialised against itself, and does not need to be. [refresh] calls
+     * this under its mutex and [recordScan] calls it outside one, so a scan taken
+     * while a refresh is running can start a second drain over the same queue.
+     * What that costs is a duplicate request: `client_id` is minted once per scan
+     * and never changes, so the server answers the second copy `duplicate_request`
+     * rather than counting it twice, and [dequeueScan] is a filter rather than a
+     * decrement. A lock here would buy nothing and would make a scan wait on a
+     * refresh, which is the wrong way round — the scan is the thing the student is
+     * standing there doing.
      */
     private suspend fun flushPendingScans() {
         val queued = store.pendingScans.first()
         for (scan in queued) {
-            when (api.recordCheckIn(CheckInRequest(scan.payload, scan.clientId, scan.deviceTime))) {
-                is ApiResult.Success -> store.dequeueScan(scan.clientId)
-                is ApiResult.Failure -> store.dequeueScan(scan.clientId)
+            val result = api.recordCheckIn(
+                CheckInRequest(scan.payload, scan.clientId, scan.deviceTime),
+            ).orEndSession()
+            when {
+                result is ApiResult.Success -> store.dequeueScan(scan.clientId)
                 // Still no network. Stop: the rest will fail the same way, and
                 // hammering a dead connection costs battery for nothing.
-                is ApiResult.Offline -> return
+                result is ApiResult.Offline -> return
+                // Not signed in, or no longer signed in. `orEndSession` has
+                // already cleared the session in the second case.
+                result.isUnauthorized || result.isMissingToken -> return
+                else -> store.dequeueScan(scan.clientId)
             }
         }
     }
@@ -499,14 +604,14 @@ class FairRepository(
             if (post.id == postId) post.toggling(emoji) else post
         }
 
-        val result = api.toggleReaction(postId, emoji)
+        val result = api.toggleReaction(postId, emoji).orEndSession()
         if (result.valueOrNull() == null) {
             _announcements.value = before
             return
         }
         // Re-read the channel so the counts are everyone's, not this device's
         // guess at everyone's.
-        api.announcements().valueOrNull()?.let { dtos ->
+        api.announcements().orEndSession().valueOrNull()?.let { dtos ->
             store.cacheAnnouncements(json.encodeToString(dtos))
             _announcements.value = dtos.map { it.toModel() }
         }
@@ -524,6 +629,8 @@ class FairRepository(
     /** Settings' "erase everything on this phone". */
     suspend fun eraseDevice() {
         store.clearAll()
+        // As deliberate an exit as [signOut], and owed no explanation either.
+        _sessionExpired.value = false
         _progress.value = FairProgress()
         _announcements.value = emptyList()
         _booths.value = emptyList()

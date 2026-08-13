@@ -19,6 +19,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
@@ -119,6 +120,15 @@ private fun RowIcon(
  * `heightIn(min = 56.dp)` rather than padding alone, so a row whose text happens
  * to be one short line is still a 56dp target — comfortably over the 48dp
  * minimum, and the same height whatever it contains.
+ *
+ * The `external` flag this used to carry is gone with the two rows that set it:
+ * the policies are pages of this app now rather than addresses out of it, so
+ * every row here goes somewhere in the app and the chevron can say so without a
+ * qualifier. See `LegalScreen`.
+ *
+ * [enabled] dims the row and stops it answering, rather than the row being
+ * removed while it cannot be used. Sync is the case it exists for — a control
+ * that vanishes for the two seconds it is working reads as a mis-tap.
  */
 @Composable
 fun ActionRow(
@@ -128,13 +138,18 @@ fun ActionRow(
     modifier: Modifier = Modifier,
     subtitle: String? = null,
     tint: Color = LocalAccent.current,
-    external: Boolean = false,
+    enabled: Boolean = true,
 ) {
+    // One value, applied to the row as a whole rather than to each colour, so an
+    // unavailable row dims evenly instead of by however many shades it contains.
+    val alpha = if (enabled) 1f else 0.45f
+
     Row(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 56.dp)
-            .clickable(onClick = onClick, role = Role.Button)
+            .clickable(onClick = onClick, role = Role.Button, enabled = enabled)
+            .alpha(alpha)
             .padding(vertical = Dimens.Space),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -160,16 +175,8 @@ fun ActionRow(
             }
         }
         Icon(
-            painter = painterResource(
-                // An outward arrow where the row leaves the app entirely, so
-                // "Privacy Policy" is visibly not another page of this one.
-                if (external) R.drawable.ic_external_link else R.drawable.ic_chevron_right,
-            ),
-            contentDescription = if (external) {
-                stringResource(R.string.settings_open_external)
-            } else {
-                null
-            },
+            painter = painterResource(R.drawable.ic_chevron_right),
+            contentDescription = null,
             tint = Ink.Faint,
             modifier = Modifier.size(18.dp),
         )

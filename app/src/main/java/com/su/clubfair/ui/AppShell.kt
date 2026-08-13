@@ -26,6 +26,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.IntOffset
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kyant.backdrop.backdrops.layerBackdrop
@@ -101,6 +103,24 @@ fun AppShell(
     // on the next read, so it holds until the gate above swaps it out.
     val student = (session as? SessionState.SignedIn)?.student ?: return
 
+    // The one thing that made the rest of this app's caching honest and was
+    // missing: something that fetches again.
+    //
+    // Every fetch used to happen in `FairViewModel`'s `init`, which runs once per
+    // process. A student who put the phone in their pocket between two booths came
+    // back to the numbers they had when they opened it — announcements posted
+    // during the fair never arrived, a prize tier moved by the Student Union never
+    // showed, and a scan taken with no signal sat in the queue until the app was
+    // killed and reopened, since draining that queue is something only a refresh
+    // does.
+    //
+    // On resume rather than on a timer: the question is only interesting when
+    // someone is looking at the screen, and a poll would spend battery in a pocket
+    // to answer it for nobody. Overlapping calls are the repository's problem and
+    // it already solves them — the mutex in `refresh` drops this one if the
+    // launch fetch is still running.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { fair.refresh() }
+
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var passOpen by rememberSaveable { mutableStateOf(false) }
     var profileOpen by rememberSaveable { mutableStateOf(false) }
@@ -143,6 +163,15 @@ fun AppShell(
                         student = student,
                         progress = state.progress,
                         offline = state.offline,
+                        // Home is where the pull lives, and only Home. It is the
+                        // page whose numbers a student doubts — the count, the
+                        // rank, the stale-data line — so it is the page they will
+                        // tug at. Events reads bottom-up like a chat and a pull
+                        // from its top would be asking for older posts; Booths is
+                        // a directory that changes once a fair. Both are covered
+                        // by the resume above.
+                        refreshing = state.refreshing,
+                        onRefresh = fair::refresh,
                         onOpenClubs = { tab = 1 },
                         onOpenPrizes = { prizesOpen = true },
                         onOpenProfile = { profileOpen = true },
@@ -211,6 +240,8 @@ fun AppShell(
                 language = AppLanguage.ofTag(language),
                 pendingScans = state.pendingScans,
                 offline = state.offline,
+                refreshing = state.refreshing,
+                onSyncNow = fair::refresh,
                 onHapticsChange = fair::setHapticsEnabled,
                 onLanguageChange = { fair.setLanguage(it.tag) },
                 onEraseDevice = fair::eraseDevice,

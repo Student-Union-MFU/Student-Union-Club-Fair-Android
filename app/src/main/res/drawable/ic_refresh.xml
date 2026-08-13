@@ -1,3 +1,8 @@
+<!--
+  Two arrows chasing each other round a circle, in the same Feather weight as
+  every other glyph in this set: 24dp on a 24 viewport, 2.0 stroke, round caps
+  and joins.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
@@ -8,17 +13,23 @@
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
         android:strokeWidth="2.0"
-        android:pathData="M11.4,3.5L15.9,10.5H6.9Z" />
+        android:pathData="M3,12 a9,9 0 0 1 9,-9 a9.75,9.75 0 0 1 6.74,2.74 L21,8" />
     <path
         android:strokeColor="#FFFFFFFF"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
         android:strokeWidth="2.0"
-        android:pathData="M4,13.5h5a1,1 0 0,1 1,1v5a1,1 0 0,1 -1,1H4a1,1 0 0,1 -1,-1v-5a1,1 0 0,1 1,-1Z" />
+        android:pathData="M21,3 L21,8 L16,8" />
     <path
         android:strokeColor="#FFFFFFFF"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
         android:strokeWidth="2.0"
-        android:pathData="M21,17A3.5,3.5 0 0,1 17.5,20.5A3.5,3.5 0 0,1 14,17A3.5,3.5 0 0,1 21,17Z" />
+        android:pathData="M21,12 a9,9 0 0 1 -9,9 a9.75,9.75 0 0 1 -6.74,-2.74 L3,16" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="2.0"
+        android:pathData="M8,16 L3,16 L3,21" />
 </vector>

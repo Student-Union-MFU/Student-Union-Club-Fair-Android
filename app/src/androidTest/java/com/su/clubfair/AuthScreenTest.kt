@@ -1,9 +1,12 @@
 package com.su.clubfair
 
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.su.clubfair.ui.auth.FormError
 import com.su.clubfair.ui.auth.LoginForm
@@ -58,9 +61,7 @@ class AuthScreenTest {
         composeTestRule.setContent {
             LoginScreen(state = LoginForm(phone = "12", password = ""))
         }
-        composeTestRule
-            .onNodeWithText("Enter a Thai mobile number, e.g. 0683150329")
-            .assertDoesNotExist()
+        composeTestRule.onNode(hasFieldError(BadPhoneMessage)).assertDoesNotExist()
     }
 
     @Test
@@ -69,10 +70,8 @@ class AuthScreenTest {
             LoginScreen(state = LoginForm(phone = "12", password = "", showErrors = true))
         }
 
-        composeTestRule
-            .onNodeWithText("Enter a Thai mobile number, e.g. 0683150329")
-            .assertIsDisplayed()
-        composeTestRule.onNodeWithText("Required").assertIsDisplayed()
+        composeTestRule.onNode(hasFieldError(BadPhoneMessage)).assertIsDisplayed()
+        composeTestRule.onNode(hasFieldError("Required")).assertIsDisplayed()
     }
 
     @Test
@@ -129,7 +128,10 @@ class AuthScreenTest {
             RegisterScreen(state = RegisterForm(email = "yion@gmail.com", showErrors = true))
         }
 
-        composeTestRule.onNodeWithText("Use your @lamduan.mfu.ac.th address").assertIsDisplayed()
+        composeTestRule
+            .onNode(hasFieldError("Use your @lamduan.mfu.ac.th address"))
+            .performScrollTo()
+            .assertIsDisplayed()
     }
 
     @Test
@@ -167,3 +169,24 @@ class AuthScreenTest {
             .assertIsDisplayed()
     }
 }
+
+/**
+ * The message a field is complaining about, as the field publishes it.
+ *
+ * Not `onNodeWithText`, and this is the correction: these two assertions looked
+ * for the red line under the field as text, and there is no such text in the
+ * semantics tree. `AuthTextField` puts the message on the field itself with
+ * `semantics { error(…) }` and then marks the visible label
+ * `clearAndSetSemantics {}`, deliberately — the message is announced once, by the
+ * field it belongs to, rather than twice by a field and a loose line of type
+ * underneath it.
+ *
+ * So the old assertions were asking for a representation the app is designed not
+ * to produce, and would have failed whatever the screen did. Reading the `error`
+ * property instead tests the thing that actually has to be true: the field is
+ * marked invalid, and carries this message for anyone who cannot see the colour.
+ */
+private fun hasFieldError(message: String): SemanticsMatcher =
+    SemanticsMatcher.expectValue(SemanticsProperties.Error, message)
+
+private const val BadPhoneMessage = "Enter a Thai mobile number, e.g. 0683150329"

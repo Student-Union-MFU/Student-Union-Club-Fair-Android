@@ -1,30 +1,59 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-Savannah: an acacia under a low sun.
+Savannah: an acacia, flat-crowned, on a low horizon.
 
-  Flat and wide, which is the whole difference between this and the
-  rainforest's dome — the two sit next to each other on the picker, so the
-  silhouettes have to separate at a glance. The sun is clear of the canopy;
-  overlapping them turned two readable shapes into one unreadable one.
+  Three versions of this were a beach umbrella and the reasons are worth
+  keeping, because each fix on its own was not enough:
 
-  Drawn in white and tinted at the call site with the zone's own ZoneAccent, so
-  one drawable serves whatever colour the floor plan gives an area.
+    * a smooth closed curve over a stem is an umbrella however flat you draw
+      it — the crown here is a ragged mass, and a lumpy silhouette cannot be a
+      manufactured object;
+    * the horizontal ground line under it was the umbrella's base, so the
+      horizon does the grounding instead;
+    * a centre branch running up the middle was the pole. Two side branches
+      fork below the crown, where an acacia's actually do, and nothing runs up
+      the axis.
+
+  The sun is low, right, and cut by the horizon. A whole disc in the sky read as
+  a balloon, and on the left it read as a hill sitting where the branches are.
+
+  Drawn in white and tinted at the call site with the zone's own ZoneAccent.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="96dp"
     android:height="96dp"
     android:viewportWidth="96"
     android:viewportHeight="96">
-    <path android:pathData="M70,20 A10,10 0 1 1 70,19.98" android:fillColor="#00000000"
+    <path android:pathData="M4,38 C5,28 15,22 26,24 C32,16 46,15 53,22 C63,16 77,20 82,28 C90,30 93,35 90,40 C82,44 73,39 64,42 C56,44.5 49,39 40,42 C31,45 20,40 12,43 C7,44 3,42 4,38 Z"
+        android:fillColor="#00000000"
         android:strokeColor="#FFFFFFFF" android:strokeWidth="3.4"
         android:strokeLineCap="round" android:strokeLineJoin="round" />
-    <path android:pathData="M12,58 Q46,30 80,58 Q46,47 12,58 Z" android:fillColor="#00000000"
+    <path android:pathData="M38,88 C44,74 40,66 45,58"
+        android:fillColor="#00000000"
         android:strokeColor="#FFFFFFFF" android:strokeWidth="3.4"
         android:strokeLineCap="round" android:strokeLineJoin="round" />
-    <path android:pathData="M46,58 V84" android:fillColor="#00000000"
+    <path android:pathData="M45,58 C38,54 31,50 25,45"
+        android:fillColor="#00000000"
         android:strokeColor="#FFFFFFFF" android:strokeWidth="3.4"
         android:strokeLineCap="round" android:strokeLineJoin="round" />
-    <path android:pathData="M31,84 H61" android:fillColor="#00000000"
+    <path android:pathData="M45,58 C54,53 61,49 67,45"
+        android:fillColor="#00000000"
         android:strokeColor="#FFFFFFFF" android:strokeWidth="3.4"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M33,50 C30,47 27,45 25,44"
+        android:fillColor="#00000000"
+        android:strokeColor="#8AFFFFFF" android:strokeWidth="2.6"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M56,51 C59,48 62,46 64,45"
+        android:fillColor="#00000000"
+        android:strokeColor="#8AFFFFFF" android:strokeWidth="2.6"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M2,76 C18,71 34,74 50,77 C64,80 78,78 94,74"
+        android:fillColor="#00000000"
+        android:strokeColor="#8AFFFFFF" android:strokeWidth="3.4"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M64,76 A12,12 0 0 1 88,76"
+        android:fillColor="#00000000"
+        android:strokeColor="#8AFFFFFF" android:strokeWidth="3.4"
         android:strokeLineCap="round" android:strokeLineJoin="round" />
 </vector>

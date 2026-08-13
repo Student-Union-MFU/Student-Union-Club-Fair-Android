@@ -127,10 +127,17 @@ class ClubFairApi(
     ): ApiResult<T> = withContext(Dispatchers.IO) {
         if (authenticated) {
             val token = tokenProvider()
-                // No token at all is a 401 without a round trip. Sending the
-                // request anyway would work, but this keeps "signed out" a single
-                // condition the caller handles one way.
-                ?: return@withContext ApiResult.Failure(401, null)
+                // No token at all, answered without a round trip.
+                //
+                // This used to be a 401, on the argument that "signed out" is then
+                // a single condition the caller handles one way. It cannot be one
+                // any more: a 401 now means *the server rejected the token we
+                // sent*, and `FairRepository` ends the session when it sees one.
+                // Reusing it here would make every authenticated call made while
+                // signed out — the refresh on launch makes several — look like an
+                // expired session, and the sign-in screen would accuse a student
+                // who had simply never signed in of having been logged out.
+                ?: return@withContext ApiResult.Failure(MissingToken, null)
             builder.header("Authorization", "Bearer $token")
         }
 
@@ -178,5 +185,15 @@ class ClubFairApi(
          * Not a real HTTP code, and negative so it can never collide with one.
          */
         const val UnreadableResponse = -1
+
+        /**
+         * The status for "this call needs a token and there isn't one".
+         *
+         * Negative for the same reason [UnreadableResponse] is, and distinct from
+         * 401 for the reason spelled out in [request]: only the server can decide
+         * that a token is no longer good, and only that decision may end a
+         * session.
+         */
+        const val MissingToken = -2
     }
 }
