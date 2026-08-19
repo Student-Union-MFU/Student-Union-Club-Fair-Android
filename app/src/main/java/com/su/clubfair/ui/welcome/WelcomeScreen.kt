@@ -77,7 +77,6 @@ fun WelcomeScreen(
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         MeshBackground()
-        HalftoneArt()
 
         // A glow under the mark, not behind the whole screen.
         //
@@ -322,56 +321,6 @@ private val TrackInset = 5.dp
 private const val COMMIT_FRACTION = 0.55f
 
 /**
- * The dithered cherry pieces from the su-clubfair website, behind everything.
- *
- * Same drawings, same generator: `lib/halftone.ts` over there resolves a
- * botanical field through an ordered dither into a grid of marks, and the vector
- * drawables here are its output rather than a redrawing of it. That matters more
- * than it sounds — the wordmark on this screen *is* a dot matrix, and until now
- * it was the only dot-matrix object in the app, which made it read as a font
- * someone picked rather than as the product's own language. Now the art agrees
- * with it.
- *
- * The bough bleeds off the top-right corner because that is the one piece drawn
- * to start outside its frame; the blossom sits bottom-left, well clear of the
- * drag track, where it fills the corner the composition leaves empty.
- *
- * Alpha lives here rather than in the drawables. Tone in a dither is carried by
- * the density of marks — every mark is fully present or fully absent — so the
- * opacity of the whole layer is a placement decision, not part of the drawing.
- */
-@Composable
-private fun HalftoneArt(modifier: Modifier = Modifier) {
-    Box(modifier = modifier.fillMaxSize()) {
-        // One piece, large, in the top-right corner. Nothing else.
-        //
-        // There were four — a bough here, a mirrored spray down the left side and
-        // a blossom in each bottom corner — and four is a pattern rather than a
-        // picture: the eye stops reading any of them and starts reading texture,
-        // which is exactly what the wordmark is already made of. One drawing at
-        // size keeps it an image, and leaves the lower half of the screen for the
-        // mark, the logos and the control that actually live there.
-        //
-        // The bough is the right one to keep. It is the only piece drawn with its
-        // trunk outside its own frame, so it can arrive from off the corner
-        // instead of sitting inside the page like something that was placed.
-        Image(
-            painter = painterResource(R.drawable.art_halftone_bough),
-            contentDescription = null,
-            contentScale = ContentScale.Fit,
-            alpha = 0.34f,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                // Wider than the screen and pushed off both edges it touches.
-                // Cropping by the frame rather than by a `clip`, so the branch
-                // is cut where the phone ends and not where a box does.
-                .fillMaxWidth(1.45f)
-                .offset(x = 130.dp, y = (-150).dp),
-        )
-    }
-}
-
-/**
  * Where and when, under the logos.
  *
  * The dates lead in white at the size of a statement; the hall sits under them in
@@ -381,26 +330,72 @@ private fun HalftoneArt(modifier: Modifier = Modifier) {
  */
 @Composable
 private fun FairDetails(modifier: Modifier = Modifier) {
+    val when_ = stringResource(R.string.welcome_when, fairDateRange(), fairTimeRange())
+
     Column(modifier = modifier) {
         Text(
-            text = stringResource(R.string.welcome_when, fairDateRange(), fairTimeRange()),
-            fontFamily = AppSans,
+            text = when_,
+            // The wordmark's own face, when it can render the line.
+            //
+            // A date and a time set in a dot matrix read as a departure board,
+            // which is the right register for "the doors open at four" and ties
+            // the one live fact on this screen to the mark above it — same
+            // lattice, same idea, two sizes.
+            //
+            // **Bitcount has no Thai.** 396 codepoints and not one in
+            // U+0E00–U+0E7F, which is exactly the trap Alan Sans set before it:
+            // a Thai month would silently fall back to whatever the phone ships
+            // and land a system font in the middle of this line. So the face is
+            // chosen by what the string turns out to be rather than by locale —
+            // `formatDateRange` decides the words, and this asks whether they are
+            // renderable. A Thai reader gets Anuphan, which is the app's face
+            // anyway and looks deliberate rather than broken.
+            fontFamily = if (when_.isLatin()) Bitcount else AppSans,
             fontWeight = AppTextWeight,
             fontSize = 18.sp,
-            letterSpacing = 0.3.sp,
+            // Dots need air between them; at the wordmark's own tracking this
+            // would set as a solid bar at 18sp.
+            letterSpacing = if (when_.isLatin()) 1.sp else 0.3.sp,
             color = Color.White,
         )
-        Spacer(Modifier.height(2.dp))
+        Spacer(Modifier.height(Dimens.SpaceXs))
         Text(
             text = fairVenue(),
+            // Anuphan, always: the hall's name is Thai on a Thai phone and no
+            // display face in this app can set it.
             fontFamily = AppSans,
             fontWeight = AppTextWeight,
             fontSize = 13.sp,
             lineHeight = 1.35.em,
+            // Tracked out a little. Under a line of dot-matrix type a tight
+            // sans reads as cramped; the extra space is what makes the pair look
+            // like two lines of one block rather than two unrelated settings.
+            letterSpacing = 0.5.sp,
             color = Ink.Muted,
         )
     }
 }
+
+/**
+ * Punctuation above Latin-1 that [Bitcount] does carry.
+ *
+ * `DateUtils` reaches past ASCII for its ranges: the separator in "4:00 – 9:30"
+ * is a **U+2013 en dash**, not a hyphen. A first version of this check drew the
+ * line at U+0250 and therefore rejected every date the formatter produces —
+ * which looked exactly like the font not being applied at all.
+ */
+private const val BitcountPunctuation = "–—‘’“”…\u00A0\u2009\u202F"
+
+/**
+ * Whether every character here is one [Bitcount] actually carries.
+ *
+ * The face has 396 codepoints and no Thai at all, so a Thai month would put a
+ * system fallback in the middle of the line. Checked against the string rather
+ * than against the locale, because the formatter decides the words and this only
+ * needs to know whether they are renderable.
+ */
+private fun String.isLatin(): Boolean =
+    all { it.code < 0x0250 || it in BitcountPunctuation }
 
 /**
  * The hall, preferring whatever su-server has been told.

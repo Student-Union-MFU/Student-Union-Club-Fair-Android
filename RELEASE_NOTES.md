@@ -4,7 +4,39 @@ The **Student Union Club Fair** app for Android — walk the club booths, scan t
 
 ---
 
-## มีอะไรใหม่ในเวอร์ชัน 0.2.1 / What's new in 0.2.1
+## มีอะไรใหม่ในเวอร์ชัน 0.2.2 / What's new in 0.2.2
+
+- **วันและเวลาจริงของงาน** เสาร์ที่ 22 สิงหาคม 2569 เวลา 16:00 – 21:30 ที่อาคารกีฬาในร่ม มหาวิทยาลัยแม่ฟ้าหลวง หน้าแรกและบัตรนักศึกษาแสดงวันที่จริงแล้ว ไม่ใช่วันที่ตัวอย่างอีกต่อไป
+  *The real date, time and venue* — 22 August 2026, 16:00 – 21:30, Indoor
+  Stadium, Mae Fah Luang University. The welcome screen and the student pass now
+  print it; the pass had been carrying a placeholder "26–27 Jul" since before the
+  fair moved.
+- **กำหนดการมาจากเซิร์ฟเวอร์** ถ้าเวลางานเปลี่ยน แอปจะรู้เองโดยไม่ต้องอัปเดตแอป
+  *The schedule comes from the server*, so a change to the fair's hours or venue
+  reaches every phone without a new release.
+- **MFU333 คืออะไร** เพิ่มคำอธิบายในหน้าของรางวัล บอกครบสามขั้น — สแกน เก็บให้ครบ แล้วนำรหัสไปแลก
+  *"What is MFU333?"* — the prizes screen now explains itself in three steps:
+  scan at each booth, collect your checkpoints, show the unlocked code at the
+  Student Union desk.
+- **ชื่อยาวไม่ถูกตัดอีกต่อไป** คำทักทายบนหน้าแรกจะย่อขนาดตัวอักษรแทนการตัดชื่อทิ้ง
+  *A long name is no longer truncated.* The greeting on Home shrinks its type
+  instead of ending a student's own name in an ellipsis.
+- **หน้าแรกก่อนเข้าสู่ระบบ** จัดวางใหม่ให้วันเวลาและสถานที่อ่านง่ายขึ้น
+  *A cleaner welcome screen*, with the date, time and venue set to read at a
+  glance.
+
+### สำหรับเจ้าหน้าที่และผู้ดูแล / For staff and organisers
+
+- **แท็บ "รหัส QR"** สำหรับผู้ดูแล เปิดดู QR ของทุกบูธได้จากเครื่องเดียว รหัสเปลี่ยนทุก 30 วินาทีเหมือนที่บูธ
+  *A "Codes" tab for admin accounts* — every booth's live QR from one device,
+  rotating every 30 seconds just as it does at the booth.
+- **สแกนบัตรนักศึกษา** บัญชีผู้ดูแลสแกนบัตรของนักศึกษาเพื่อดูจำนวนบูธที่เก็บได้และสถานะบัญชี
+  *Admin accounts scan a student's pass* rather than a booth code, and see how
+  many booths that student has collected.
+
+---
+
+## เวอร์ชัน 0.2.1 / In 0.2.1
 
 - **หน้าจอบูธสำหรับเจ้าของบูธ** บัญชีเจ้าของบูธจะเห็น QR ของบูธตัวเองบนหน้าแรก อัปเดตอัตโนมัติและหน้าจอไม่ดับ
   *A booth display for booth accounts* — the booth's own rotating QR on the home
@@ -18,27 +50,13 @@ The **Student Union Club Fair** app for Android — walk the club booths, scan t
   *Two fewer permissions.* The fingerprint permissions that Google's sign-in
   library declared on the app's behalf are gone; nothing here ever used them.
 
----
-
-## เวอร์ชัน 0.2.0 / In 0.2.0
-
-- **เข้าสู่ระบบด้วยรหัสนักศึกษา** ไม่ต้องใช้เบอร์โทรอีกต่อไป บัญชีเดิมใช้ได้ตามปกติ แค่กรอกรหัสนักศึกษาแทนเบอร์โทร
-  *Sign in with your student ID.* The form no longer asks for a phone number.
-  Existing accounts are unaffected — type your student ID where the phone number
-  used to go.
-- **หน้ากำหนดการ** ดูว่าอะไรกำลังเกิดขึ้นและอะไรเป็นรายการถัดไป เข้าได้จากหน้าแรก
-  *A programme screen* — what's on now and what's next, from the home screen.
-- **ฟอนต์ภาษาไทย** แอปใช้ฟอนต์ Anuphan ทั้งภาษาไทยและอังกฤษ เดิมภาษาไทยใช้ฟอนต์ของเครื่อง
-  *Thai typography.* The app is now set in Anuphan for both languages; Thai
-  previously fell back to whatever font the phone happened to ship.
-- **เปิดให้รหัสรุ่น 66** เดิมเปิดเฉพาะ 67–69
-  *Intake 66 is now eligible*, alongside 67–69.
-- **ประกาศอัปเดตทันที** ดึงหน้าจอลงเพื่อรีเฟรชในหน้าประกาศ
-  *Announcements refresh on pull*, so a new post arrives without restarting the app.
-
 ## ดาวน์โหลด / Download
 
-**[su-clubfair.apk](https://github.com/Student-Union-MFU/Student-Union-Club-Fair-Android/releases/latest/download/su-clubfair.apk)** · 3.5 MB · Android 7.0 ขึ้นไป / Android 7.0 or newer
+**[su-clubfair.apk](https://github.com/Student-Union-MFU/Student-Union-Club-Fair-Android/releases/latest/download/su-clubfair.apk)** · 3.6 MB · Android 7.0 ขึ้นไป / Android 7.0 or newer
+
+ถ้าเคยติดตั้งเวอร์ชันก่อนหน้าไว้ ติดตั้งทับได้เลย ไม่ต้องถอนออกก่อน และแต้มที่เก็บไว้ยังอยู่ครบ
+*Installing over an earlier version works — no need to uninstall first, and your
+checkpoints are safe on the server either way.*
 
 ---
 
@@ -56,7 +74,7 @@ The **Student Union Club Fair** app for Android — walk the club booths, scan t
 
 ### การเข้าสู่ระบบ
 
-ใช้อีเมล **@lamduan.mfu.ac.th** ของมหาวิทยาลัย (เข้าด้วย Google ได้เลย) หรือสมัครด้วยเบอร์โทรศัพท์และรหัสผ่าน เปิดให้เฉพาะรหัสรุ่น 66–69
+ใช้อีเมล **@lamduan.mfu.ac.th** ของมหาวิทยาลัย (เข้าด้วย Google ได้เลย) หรือสมัครด้วยรหัสนักศึกษาและรหัสผ่าน เปิดให้เฉพาะรหัสรุ่น 66–69
 
 ### สิ่งที่ต้องอนุญาต
 
@@ -84,7 +102,8 @@ warnings along the way — **this is expected**. Here's the whole path:
 ### Signing in
 
 Use your university **@lamduan.mfu.ac.th** address — Google sign-in works
-directly — or register with a phone number and password. Open to intakes 66–69.
+directly — or register with your student ID and a password. Open to intakes
+66–69.
 
 ### Permissions
 
@@ -106,7 +125,7 @@ directly — or register with a phone number and password. Open to intakes 66–
 ## ตรวจสอบไฟล์ / Verify the download
 
 ```
-SHA-256  2368864f6b5bd6fcdf527371a531279d7df26c37c904ab52f5317b8bb1f5cfd0
+SHA-256  493709d6894af85eceea2e6c7e8d793f9f6375fdb22365ff7eadce758cfdcb1b
 ```
 
 ```bash
