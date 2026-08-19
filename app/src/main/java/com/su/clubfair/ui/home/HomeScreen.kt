@@ -3,6 +3,8 @@ package com.su.clubfair.ui.home
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
+import android.app.Activity
+import android.view.WindowManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -65,11 +67,20 @@ import com.su.clubfair.ui.model.FairProgress
 import com.su.clubfair.ui.model.PreviewProgress
 import com.su.clubfair.ui.model.PreviewStudent
 import com.su.clubfair.ui.model.Student
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.style.TextAlign
+import com.su.clubfair.ui.BoothDisplay
+import com.su.clubfair.ui.model.AccountRole
 import com.su.clubfair.ui.model.ProgramEntry
+import com.su.clubfair.ui.model.ProgramStatus
+import com.su.clubfair.ui.model.ProgramStep
 import com.su.clubfair.ui.model.stepsAt
 import com.su.clubfair.ui.model.running
 import com.su.clubfair.ui.model.upNext
 import com.su.clubfair.ui.model.displayTitle
+import com.su.clubfair.ui.qr.StyledQr
+import com.su.clubfair.ui.model.displayName
 import com.su.clubfair.ui.program.timeRange
 import com.su.clubfair.ui.program.whereLine
 import com.su.clubfair.ui.scene.MeshBackground
@@ -128,6 +139,8 @@ fun HomeScreen(
     onOpenPrizes: () -> Unit = {},
     onOpenProgram: () -> Unit = {},
     program: List<ProgramEntry> = emptyList(),
+    /** Only read for a booth account; null everywhere else. */
+    boothDisplay: BoothDisplay? = null,
     onOpenProfile: () -> Unit = {},
 ) {
     val scroll = rememberScrollState()
@@ -213,7 +226,22 @@ fun HomeScreen(
             // holds it because it is the only card on the page about *this
             // student*. The countdown is the same on two thousand phones.
             Spacer(Modifier.height(Dimens.SpaceLg))
-            CheckpointsCard(progress = progress)
+            when {
+                // A booth account's phone is the booth's display. This is the
+                // one card on Home that other people read, from a queue, so it
+                // takes the lead slot the checkpoint count holds for a student.
+                student.account == AccountRole.BoothOwner ->
+                    BoothCodeCard(display = boothDisplay ?: BoothDisplay())
+
+                student.collectsCheckpoints -> CheckpointsCard(progress = progress)
+
+                // Not hidden. A staff phone that simply had no card where every
+                // student's phone has one reads as a page that failed to load
+                // half of itself, and the first thing anyone does about that is
+                // ask whether the app is broken. Saying whose card it is answers
+                // that in one line.
+                else -> CheckpointsLockedCard()
+            }
 
             Spacer(Modifier.height(Dimens.Space))
             Row(horizontalArrangement = Arrangement.spacedBy(Dimens.Space)) {
@@ -613,6 +641,192 @@ private fun HomeHeader(name: String, modifier: Modifier = Modifier) {
     )
 }
 
+/**
+ * The booth's own check-in code, big enough to be scanned off this phone.
+ *
+ * su-server's notes describe a booth display as a separate thing that was never
+ * built; this is that display, living on the phone of whoever runs the stall.
+ * The requirements come from the same place and are not decoration: the code
+ * rotates every thirty seconds, so it is polled; it has to be read across a
+ * metre of crowded hall, so it is as wide as the card and sits on paper white;
+ * and it has to **fail visibly**, because a stale code that no longer scans
+ * looks exactly like a working one to the person holding the phone.
+ *
+ * The screen is held awake while this is on it. A booth owner props the phone
+ * against something and walks away, and a display that locks after thirty
+ * seconds is not a display. The flag is cleared on the way out, so it lasts
+ * exactly as long as the card is composed — leaving Home, or opening any other
+ * tab, gives the phone its normal timeout back.
+ */
+@Composable
+private fun BoothCodeCard(display: BoothDisplay, modifier: Modifier = Modifier) {
+    val view = LocalView.current
+    DisposableEffect(view) {
+        val window = (view.context as? Activity)?.window
+        window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        onDispose { window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .glassSurface(cornerRadius = CardRadius)
+            .padding(Dimens.CardPadding),
+    ) {
+        Text(
+            text = stringResource(R.string.home_booth_code),
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
+            fontSize = 15.sp,
+            color = Ink.Label,
+        )
+
+        val booth = display.booth
+        Spacer(Modifier.height(Dimens.SpaceXs))
+        Text(
+            // The booth's own name, so a stall holding up someone else's code is
+            // obvious to the person holding the phone rather than only to the
+            // student whose scan is refused.
+            text = booth?.displayName() ?: stringResource(R.string.home_booth_unknown),
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
+            fontSize = 20.sp,
+            lineHeight = 1.2.em,
+            color = Color.White,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        booth?.code?.let { code ->
+            Spacer(Modifier.height(Dimens.SpaceXs))
+            Text(
+                text = code,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
+                fontSize = 13.sp,
+                color = Ink.Muted,
+            )
+        }
+
+        Spacer(Modifier.height(Dimens.Space))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1f)
+                .clip(RoundedCornerShape(Dimens.RadiusMd))
+                // Paper, and the same dark-on-light polarity the student pass
+                // uses. ZXing will not read an inverted code and plenty of booth
+                // scanners are built on it — see `StyledQr`.
+                .background(Palette.Paper)
+                .padding(Dimens.Space),
+            contentAlignment = Alignment.Center,
+        ) {
+            val payload = display.payload
+            if (payload != null) {
+                StyledQr(content = payload, modifier = Modifier.fillMaxSize())
+            } else {
+                // No code to show: either the first poll has not landed or one
+                // has aged past what the server will still accept. Either way an
+                // empty white square would read as a rendering fault, so it says
+                // which.
+                Text(
+                    text = stringResource(
+                        if (booth == null) R.string.home_booth_none
+                        else R.string.home_booth_waiting,
+                    ),
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
+                    fontSize = 14.sp,
+                    lineHeight = 1.4.em,
+                    color = QrPlaceholderInk,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+
+        // Only when it is true, and never as a colour on the code itself: tinting
+        // the QR to signal trouble would change the thing a camera is reading.
+        if (display.failing) {
+            Spacer(Modifier.height(Dimens.SpaceSm))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_alert_circle),
+                    contentDescription = null,
+                    tint = Palette.Alert,
+                    modifier = Modifier.size(14.dp),
+                )
+                Spacer(Modifier.size(Dimens.SpaceXs))
+                Text(
+                    text = stringResource(R.string.home_booth_offline),
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
+                    fontSize = 12.sp,
+                    lineHeight = 1.35.em,
+                    color = Palette.Alert,
+                )
+            }
+        }
+    }
+}
+
+/** Ink for the placeholder inside the paper square, which is not on the app's dark ground. */
+private val QrPlaceholderInk = Color(0xFF5A6470)
+
+/**
+ * What stands where the checkpoint count would be, for an account not playing.
+ *
+ * Staff, admins and booth owners are running the fair, not walking it. The card
+ * they get says so rather than showing them a zero out of twenty-eight that will
+ * never move — a stuck counter invites someone to try to unstick it, and there
+ * is nothing to fix.
+ *
+ * A lock rather than a cross: the point is that this belongs to someone else,
+ * not that anything went wrong.
+ */
+@Composable
+private fun CheckpointsLockedCard(modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .glassSurface(cornerRadius = CardRadius)
+            .padding(Dimens.CardPadding),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.10f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_lock),
+                contentDescription = null,
+                tint = Ink.Muted,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+        Spacer(Modifier.size(Dimens.Space))
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.home_checkpoints_locked),
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
+                fontSize = 16.sp,
+                color = Color.White,
+            )
+            Spacer(Modifier.height(Dimens.SpaceXs))
+            Text(
+                text = stringResource(R.string.home_checkpoints_locked_hint),
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
+                fontSize = 13.sp,
+                lineHeight = 1.45.em,
+                color = Ink.Muted,
+            )
+        }
+    }
+}
+
 @Composable
 private fun CheckpointsCard(
     progress: FairProgress,
@@ -827,11 +1041,16 @@ private fun ShortcutTile(
  * between them and the answer. So the card answers it, and opening the page is
  * for the rest of the running order.
  *
- * Three states, and they are the same three [ProgramScreen] shows, resolved by
- * the same [stepsAt] against the same clock — the two must never disagree about
- * what is on. Something is running; or nothing is and something is next; or the
- * Student Union has not published a running order, in which case this falls back
- * to being the door it used to be rather than showing an empty card.
+ * Four states, resolved by the same [stepsAt] against the same clock
+ * [ProgramScreen] uses — the two must never disagree about what is on. Something
+ * is running; or nothing is and something is next; or the day's entries have all
+ * finished; or the Student Union has not published a running order at all.
+ *
+ * The last two look alike and are not. **Nothing published** means the card has
+ * no information yet, so it falls back to being the door it used to be. **Nothing
+ * left** means it has the information and the answer is that the running order
+ * is done — a student checking at nine in the evening is owed that plainly, not a
+ * tagline that reads as though the card failed to load.
  *
  * The tick is half a minute, not the countdown's second: nothing here changes
  * more finely than an entry starting.
@@ -879,16 +1098,28 @@ private fun ProgramCard(
         }
 
         if (step == null) {
-            // Nothing published, or the fair's running order has finished. The
-            // old hint line, which is still true and is all there is to say.
             Spacer(Modifier.height(Dimens.SpaceXs))
             Text(
-                text = stringResource(R.string.home_program_hint),
+                text = stringResource(
+                    // `steps`, not `program`: they have the same emptiness, and
+                    // this is the list the states above were read from, so the
+                    // card cannot end up saying "nothing upcoming" about a
+                    // running order it never looked at.
+                    if (steps.isEmpty()) R.string.home_program_hint
+                    else R.string.home_program_done,
+                ),
                 fontFamily = AppSans,
                 fontWeight = AppTextWeight,
                 fontSize = 15.sp,
                 color = Color.White,
             )
+            // Still worth drawing when nothing is ahead: a strip of spent
+            // segments is the picture of a day that has finished, and it is the
+            // difference between "it is over" and "this card knows nothing".
+            if (steps.isNotEmpty()) {
+                Spacer(Modifier.height(Dimens.Space))
+                ProgramStrip(steps)
+            }
             return@Column
         }
 
@@ -946,6 +1177,57 @@ private fun ProgramCard(
                 color = Ink.Muted,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+            )
+        }
+
+        Spacer(Modifier.height(Dimens.Space))
+        ProgramStrip(steps)
+    }
+}
+
+/**
+ * The whole running order as one line of segments — the day at a glance.
+ *
+ * The card said what is on and gave no sense of *where in the day that is*. One
+ * entry named out of an unknown number could be the first of eight or the last
+ * of two, and a student deciding whether to walk over now is asking exactly that.
+ * A segment per entry answers it without a second line of prose.
+ *
+ * The colours are the route's on `ProgramScreen`, deliberately: a walked step is
+ * accent there and spent accent here, the one running is lit in both, and what is
+ * ahead is faint in both. Opening the card should look like a bigger version of
+ * the strip that was tapped, not like a different diagram of the same day.
+ *
+ * Equal widths rather than durations. A ten-minute opening and a two-hour walk
+ * around the booths are one entry each to a reader counting what is left, and
+ * proportional segments would render the opening as a sliver too thin to carry
+ * the lit state at the moment it is the thing happening.
+ */
+@Composable
+private fun ProgramStrip(steps: List<ProgramStep>, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        // Tight. The gap is a join between parts of one line, not a margin
+        // between separate marks — at anything wider the strip reads as a row of
+        // dashes rather than as a day.
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        steps.forEach { step ->
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(4.dp)
+                    .clip(CircleShape)
+                    .background(
+                        when (step.status) {
+                            ProgramStatus.Running -> Palette.Accent
+                            // Spent, not gone. Full accent would make a finished
+                            // day the loudest thing on the card; Ink.Faint would
+                            // make it indistinguishable from a day not started.
+                            ProgramStatus.Done -> Palette.Accent.copy(alpha = 0.4f)
+                            ProgramStatus.Upcoming -> Ink.Faint
+                        },
+                    ),
             )
         }
     }

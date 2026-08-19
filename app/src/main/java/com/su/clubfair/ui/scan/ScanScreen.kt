@@ -156,6 +156,13 @@ private val HeaderDrop = Dimens.ScreenPadding * 2
 @Composable
 fun ScanScreen(
     modifier: Modifier = Modifier,
+    /**
+     * False for an account that does not collect checkpoints — see
+     * `Student.canScan`. The camera is never bound and the permission is never
+     * asked for: a staff phone should not be made to refuse a camera prompt for
+     * a game it is not playing.
+     */
+    canScan: Boolean = true,
     outcome: ScanOutcome? = null,
     hapticsEnabled: Boolean = true,
     onScanned: (String) -> Unit = {},
@@ -179,8 +186,8 @@ fun ScanScreen(
     // A scanner with the camera switched off is not a screen anyone wants to look
     // at, so ask on arrival rather than behind a button. The explainer below is
     // what a refusal lands on.
-    LaunchedEffect(hasCamera) {
-        if (hasCamera && !granted) permissionLauncher.launch(Manifest.permission.CAMERA)
+    LaunchedEffect(hasCamera, canScan) {
+        if (canScan && hasCamera && !granted) permissionLauncher.launch(Manifest.permission.CAMERA)
     }
 
     var torchOn by remember { mutableStateOf(false) }
@@ -228,7 +235,7 @@ fun ScanScreen(
             // flashing black on the way in, and it's the abyss either way.
             MeshBackground()
 
-            if (granted && hasCamera) {
+            if (canScan && granted && hasCamera) {
                 CameraFeed(
                     attempt = attempt,
                     torchOn = torchOn,
@@ -239,7 +246,11 @@ fun ScanScreen(
                 )
             }
 
-            Reticle(active = outcome == null && granted && hasCamera)
+            // No reticle at all when the scanner is locked. Dimmed, it is a
+            // window waiting for a camera that is never going to arrive, which
+            // reads as a feed that failed rather than as a screen that is not
+            // for this account.
+            if (canScan) Reticle(active = outcome == null && granted && hasCamera)
         }
 
         Column(
@@ -291,6 +302,11 @@ fun ScanScreen(
                     fontSize = 20.sp,
                     color = Color.White,
                 )
+                // The hint tells a student where to point a camera, and there
+                // is no camera here. The explainer below says what this screen
+                // is instead, so a second line under the title would be an
+                // instruction contradicting it.
+                if (canScan) {
                 Spacer(Modifier.height(Dimens.SpaceXs))
                 Text(
                     text = stringResource(R.string.scan_hint),
@@ -300,12 +316,13 @@ fun ScanScreen(
                     color = Ink.Muted,
                     textAlign = TextAlign.Center,
                 )
+                }
             }
 
             // The torch sits beside the window it lights, not down with the
             // result card: it is a control for the act of aiming, and it has to
             // be reachable while the phone is already held up at a sign.
-            if (granted && hasCamera && hasTorch && outcome == null) {
+            if (canScan && granted && hasCamera && hasTorch && outcome == null) {
                 Spacer(Modifier.height(Dimens.SpaceLg))
                 TorchButton(enabled = torchOn, onToggle = { torchOn = it })
             }
@@ -313,6 +330,14 @@ fun ScanScreen(
             Spacer(Modifier.weight(1f))
 
             when {
+                // First, and above the outcome: a locked scanner has no outcome
+                // to show, and if one is left over from a previous account the
+                // explanation is the more useful thing on screen.
+                !canScan -> Explainer(
+                    title = stringResource(R.string.scan_locked_title),
+                    body = stringResource(R.string.scan_locked_body),
+                )
+
                 outcome != null -> ResultCard(
                     outcome = outcome,
                     onAgain = {

@@ -47,6 +47,7 @@ class GoogleAccountTest {
         major = null,
         avatarUrl = null,
         isStaff = false,
+        role = "student",
         hasPassword = false,
         profileComplete = false,
     )

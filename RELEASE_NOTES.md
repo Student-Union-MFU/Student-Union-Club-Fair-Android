@@ -4,7 +4,23 @@ The **Student Union Club Fair** app for Android — walk the club booths, scan t
 
 ---
 
-## มีอะไรใหม่ในเวอร์ชัน 0.2.0 / What's new in 0.2.0
+## มีอะไรใหม่ในเวอร์ชัน 0.2.1 / What's new in 0.2.1
+
+- **หน้าจอบูธสำหรับเจ้าของบูธ** บัญชีเจ้าของบูธจะเห็น QR ของบูธตัวเองบนหน้าแรก อัปเดตอัตโนมัติและหน้าจอไม่ดับ
+  *A booth display for booth accounts* — the booth's own rotating QR on the home
+  screen, refreshed automatically with the screen kept awake.
+- **บัญชีเจ้าหน้าที่** ซ่อนการสะสมแต้มและการสแกน เพราะเป็นของผู้เข้าร่วมงาน
+  *Staff accounts* no longer see checkpoints or the scanner; both belong to
+  participants.
+- **แสดงบทบาทของบัญชี** ในหน้าโปรไฟล์
+  *Your account role* is shown on the profile page.
+- **ขอสิทธิ์น้อยลง** เอาสิทธิ์ลายนิ้วมือที่ไลบรารีของ Google ใส่มาออก แอปไม่เคยใช้
+  *Two fewer permissions.* The fingerprint permissions that Google's sign-in
+  library declared on the app's behalf are gone; nothing here ever used them.
+
+---
+
+## เวอร์ชัน 0.2.0 / In 0.2.0
 
 - **เข้าสู่ระบบด้วยรหัสนักศึกษา** ไม่ต้องใช้เบอร์โทรอีกต่อไป บัญชีเดิมใช้ได้ตามปกติ แค่กรอกรหัสนักศึกษาแทนเบอร์โทร
   *Sign in with your student ID.* The form no longer asks for a phone number.
@@ -90,7 +106,7 @@ directly — or register with a phone number and password. Open to intakes 66–
 ## ตรวจสอบไฟล์ / Verify the download
 
 ```
-SHA-256  9919a11222103dc22528fd2c29a9aec57f535b216968d0f422087b2af6a2a46c
+SHA-256  2368864f6b5bd6fcdf527371a531279d7df26c37c904ab52f5317b8bb1f5cfd0
 ```
 
 ```bash

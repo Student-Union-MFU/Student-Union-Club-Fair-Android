@@ -17,7 +17,9 @@ import com.su.clubfair.ui.model.FairProgress
 import com.su.clubfair.ui.model.ProgramEntry
 import com.su.clubfair.ui.model.Student
 import com.su.clubfair.ui.model.Zone
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -64,6 +66,38 @@ data class FairUiState(
  * ViewModel holds no fair data of its own — the repository outlives it, so a
  * rotation does not re-fetch and a tab change does not lose a scan.
  */
+/** How often the booth display asks for a fresh code — see [FairViewModel.boothDisplay]. */
+private const val BoothPollMillis = 10_000L
+
+/** The back-off when the account's booth could not be looked up at all. */
+private const val BoothLookupRetryMillis = 30_000L
+
+/**
+ * How long su-server keeps accepting a code — `CheckInMaxAge`, three minutes.
+ *
+ * Mirrored here for one decision only: when a display that has lost the server
+ * should stop showing the last code it got. It is deliberately the *accepted*
+ * age and not the thirty-second rotation, because a code one minute old still
+ * scans and blanking it would close a working booth.
+ */
+private const val CodeAcceptedMillis = 3 * 60 * 1000L
+
+/**
+ * What the booth owner's phone is showing.
+ *
+ * [payload] is null before the first poll lands and again once a code has aged
+ * out with no replacement; [failing] says the last poll did not arrive, which is
+ * true whether or not there is still a usable code on screen. The card needs both
+ * — "here is a code, and it is no longer being refreshed" is a real state and the
+ * one a booth owner has to be able to see at a glance.
+ */
+data class BoothDisplay(
+    val booth: Booth? = null,
+    val payload: String? = null,
+    val fetchedAtMillis: Long = 0L,
+    val failing: Boolean = false,
+)
+
 class FairViewModel(private val repository: FairRepository) : ViewModel() {
 
     init {
@@ -176,6 +210,64 @@ class FairViewModel(private val repository: FairRepository) : ViewModel() {
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = FairUiState(),
         )
+
+    /**
+     * The booth display, for an account that runs a booth.
+     *
+     * A cold flow behind `WhileSubscribed`, which is the whole lifecycle: it
+     * starts polling when the card that shows it is composed and stops when the
+     * booth owner leaves Home. Nothing has to remember to switch it off, and a
+     * student's phone never runs it at all because no screen ever collects it.
+     *
+     * The poll is ten seconds against a code that rotates every thirty. That
+     * looks wasteful and is the interval su-server's own notes prescribe: the
+     * refresh has to land inside the rotation with room for a slow request, and
+     * three tries per window is what makes a single failed poll invisible.
+     *
+     * The booth is looked up once and kept. It is a row in `clubfair_booth_owner`
+     * that changes when someone reassigns a stall, not something to re-ask about
+     * every ten seconds; if the lookup fails there is nothing to poll, so that
+     * case backs off to half a minute instead of hammering a server that is
+     * evidently unwell.
+     */
+    val boothDisplay: StateFlow<BoothDisplay> = flow {
+        var state = BoothDisplay()
+        while (true) {
+            if (state.booth == null) {
+                state = state.copy(booth = repository.myBooth())
+            }
+            val booth = state.booth
+            if (booth == null) {
+                emit(state)
+                delay(BoothLookupRetryMillis)
+                continue
+            }
+
+            val payload = repository.boothCode(booth.id)
+            state = if (payload != null) {
+                state.copy(
+                    payload = payload,
+                    fetchedAtMillis = System.currentTimeMillis(),
+                    failing = false,
+                )
+            } else {
+                // Hold the last code up while it can still be scanned, and say
+                // out loud that it is not being refreshed. Dropping it on the
+                // first failed poll would blank a working booth over one dropped
+                // request; holding it past `accepted_until` would leave students
+                // scanning something the server has stopped taking, which is the
+                // worse of the two because it looks like it is working.
+                val dead = System.currentTimeMillis() - state.fetchedAtMillis > CodeAcceptedMillis
+                state.copy(failing = true, payload = if (dead) null else state.payload)
+            }
+            emit(state)
+            delay(BoothPollMillis)
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(2_000),
+        initialValue = BoothDisplay(),
+    )
 
     /**
      * The most recent scan result, for the card at the foot of the Scan tab.

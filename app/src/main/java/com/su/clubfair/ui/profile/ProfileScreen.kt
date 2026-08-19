@@ -49,7 +49,9 @@ import com.su.clubfair.ui.components.SheetHeader
 import com.su.clubfair.ui.components.StudentAvatar
 import com.su.clubfair.ui.components.glassSurface
 import com.su.clubfair.ui.model.PreviewStudent
+import com.su.clubfair.ui.model.AccountRole
 import com.su.clubfair.ui.model.Student
+import com.su.clubfair.ui.model.accountRoleOf
 import com.su.clubfair.ui.theme.AppSans
 import com.su.clubfair.ui.theme.AppTextWeight
 import com.su.clubfair.ui.theme.Dimens
@@ -58,6 +60,17 @@ import com.su.clubfair.ui.theme.LocalAccent
 import com.su.clubfair.ui.theme.SUClubFairTheme
 
 private val CardRadius = Dimens.RadiusLg
+
+/**
+ * The corner on the two chips under the name.
+ *
+ * Not `Dimens.RadiusPill`, which is what they were: a chip is about 26dp tall,
+ * so a pill radius clamps to 13 and the ends come out fully round. Not
+ * `RadiusSm` either — at 12dp against that height the difference from a pill is
+ * a dp, which reads as a pill someone got slightly wrong rather than as a
+ * deliberate rectangle. 8dp is the largest corner that still says corner.
+ */
+private val ChipRadius = 8.dp
 
 /**
  * The Profile tab: who's signed in, what they've done at the fair, and the
@@ -206,8 +219,54 @@ private fun IdentityCard(student: Student, modifier: Modifier = Modifier) {
                 color = Ink.Muted,
             )
             Spacer(Modifier.height(Dimens.SpaceSm))
-            VerifiedChip()
+            // Two chips, and only one of them is accent. The pass is the thing
+            // the fair acts on — it is why the Pass tab exists — so it keeps the
+            // colour; the role is a fact about the account and sits in neutral
+            // ink beside it. Both in the accent would leave the row with no
+            // subject.
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                VerifiedChip()
+                Spacer(Modifier.size(Dimens.SpaceXs))
+                RoleChip(role = student.role)
+            }
         }
+    }
+}
+
+/**
+ * What kind of account this is, next to the pass.
+ *
+ * Named from the server's role string rather than from [Student.isStaff], which
+ * is a yes/no and would have to answer "staff" for an admin and for a booth
+ * account alike. An unknown role is printed as it arrived rather than falling
+ * back to "Participant": a privileged account mislabelled as a student is the
+ * one wrong answer here that nobody would think to check, and a role su-server
+ * gains tomorrow would produce exactly that.
+ */
+@Composable
+private fun RoleChip(role: String, modifier: Modifier = Modifier) {
+    val label = when (accountRoleOf(role)) {
+        AccountRole.Participant -> stringResource(R.string.profile_role_student)
+        AccountRole.Staff -> stringResource(R.string.profile_role_staff)
+        AccountRole.Admin -> stringResource(R.string.profile_role_admin)
+        AccountRole.BoothOwner -> stringResource(R.string.profile_role_booth)
+        AccountRole.Unknown -> role.replaceFirstChar { it.uppercase() }
+    }
+
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(ChipRadius))
+            .background(Color.White.copy(alpha = 0.10f))
+            .padding(horizontal = Dimens.SpaceSm, vertical = Dimens.SpaceXs),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
+            fontSize = 11.sp,
+            color = Ink.Label,
+        )
     }
 }
 
@@ -216,7 +275,7 @@ private fun IdentityCard(student: Student, modifier: Modifier = Modifier) {
 private fun VerifiedChip(modifier: Modifier = Modifier) {
     Row(
         modifier = modifier
-            .clip(RoundedCornerShape(Dimens.RadiusPill))
+            .clip(RoundedCornerShape(ChipRadius))
             .background(LocalAccent.current.copy(alpha = 0.16f))
             .padding(horizontal = Dimens.SpaceSm, vertical = Dimens.SpaceXs),
         verticalAlignment = Alignment.CenterVertically,

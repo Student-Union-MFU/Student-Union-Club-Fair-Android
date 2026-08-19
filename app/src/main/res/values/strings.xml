@@ -32,7 +32,7 @@
     <string name="login_error_credentials">Wrong student ID or password</string>
     <!-- The one failure the student can act on by moving. -->
     <string name="auth_error_offline">Can\'t reach the server. Check your connection and try again.</string>
-    <string name="auth_google_unavailable">Google sign-in isn\'t set up yet — use your phone number and password.</string>
+    <string name="auth_google_unavailable">Google sign-in isn\'t set up yet — use your student ID and password.</string>
     <!-- The same build problem, on the screen with no fallback to point at:
          sign-up is Google-only, so there is nothing else to suggest. -->
     <string name="auth_google_unavailable_signup">Google sign-in isn\'t set up in this build, so new accounts can\'t be created yet.</string>
@@ -69,7 +69,7 @@
     <string name="complete_student_id">Student ID %1$s</string>
     <string name="complete_school_derived">Filled in from your student ID — change it if it\'s wrong.</string>
     <string name="complete_password_hint">Create a password</string>
-    <string name="complete_password_why">Lets you sign in with your phone number if Google isn\'t available.</string>
+    <string name="complete_password_why">Lets you sign in with your student ID if Google isn\'t available.</string>
     <string name="complete_cta">Finish Sign-up</string>
     <string name="complete_working">Saving…</string>
     <string name="complete_wrong_account">Wrong account? Sign out</string>
@@ -92,8 +92,8 @@
     <string name="auth_error_password_short">At least %1$d characters</string>
     <string name="auth_error_password_letter">Add at least one letter</string>
     <string name="auth_error_password_digit">Add at least one number</string>
-    <string name="auth_error_google_failed">Google sign-in couldn\'t start. Use your phone number and password instead.</string>
-    <string name="auth_error_google_no_account">No Google account on this phone. Add one in Settings, or use your phone number and password.</string>
+    <string name="auth_error_google_failed">Google sign-in couldn\'t start. Use your student ID and password instead.</string>
+    <string name="auth_error_google_no_account">No Google account on this phone. Add one in Settings, or use your student ID and password.</string>
     <string name="auth_show_password">Show password</string>
     <string name="auth_hide_password">Hide password</string>
 
@@ -163,6 +163,15 @@
     <string name="prizes_claimed">Claimed</string>
 
     <string name="home_checkpoints">Checkpoints</string>
+    <!-- Home, for an account that is running the fair rather than walking it. -->
+    <!-- Home, for a booth account: the phone is the booth's display. -->
+    <string name="home_booth_code">Your booth code</string>
+    <string name="home_booth_unknown">Booth</string>
+    <string name="home_booth_none">No booth is assigned to this account yet</string>
+    <string name="home_booth_waiting">Getting your code…</string>
+    <string name="home_booth_offline">Not refreshing — this code stops working within three minutes</string>
+    <string name="home_checkpoints_locked">Checkpoints are for participants</string>
+    <string name="home_checkpoints_locked_hint">Your account helps run the fair, so there are no booth stamps to collect.</string>
     <string name="home_checkpoints_count">%1$d</string>
     <plurals name="home_checkpoints_total">
         <item quantity="one">/ %1$d booth</item>
@@ -185,12 +194,20 @@
     <!-- "09:00 – 10:30". An en dash with spaces, not a hyphen. -->
     <string name="program_time_range">%1$s – %2$s</string>
     <string name="program_zone">Zone %1$s</string>
-    <string name="program_all_done">That\'s the whole running order — nothing left on the schedule.</string>
+    <!-- The programme page, once every published entry has finished. It said
+         "that's the whole running order", which is a full stop; this leaves the
+         door open, because the Student Union can still add to the table. -->
+    <string name="program_all_done">No upcoming events</string>
+    <string name="program_all_done_body">Stay tuned — the Student Union can still add to the running order.</string>
     <!-- Not an error. clubfair_program is empty until the Student Union fills it. -->
     <string name="program_empty_title">No programme yet</string>
     <string name="program_empty_body">The Student Union hasn\'t published the running order. It\'ll appear here as soon as they do.</string>
     <string name="home_program">Programme</string>
     <string name="home_program_hint">What\'s on, and when</string>
+    <!-- Shown on the home card once every published entry has finished. Distinct
+         from home_program_hint, which is for a running order nobody has posted
+         yet: this one means the card looked and there is nothing ahead. -->
+    <string name="home_program_done">No upcoming events</string>
     <string name="home_prizes">MFU333</string>
 
     <!--
@@ -262,6 +279,9 @@
     <string name="scan_permission_cta">Allow camera</string>
     <string name="scan_permission_settings">Open settings</string>
     <string name="scan_permission_denied_body">Camera access was turned down. Booth codes change every few seconds, so the camera is the only way to collect one — you can allow it in Settings.</string>
+    <!-- The scanner, for the same accounts. -->
+    <string name="scan_locked_title">Scanning is for participants</string>
+    <string name="scan_locked_body">Your account helps run the fair, so there is nothing here to scan. Students scan the QR at each booth to collect their checkpoints.</string>
     <string name="scan_unavailable_title">No camera available</string>
     <string name="scan_unavailable_body">This device has no camera the app can use. Ask staff at a booth to record your visit.</string>
     <string name="scan_result_booth">Booth %1$02d</string>
@@ -318,6 +338,12 @@
     <string name="booths_search_empty_body">Try a shorter word, or the name of what the club does — “football”, “art”, “code”.</string>
 
     <string name="profile_title">Profile</string>
+    <!-- The role chip beside the pass. An unrecognised role prints as the
+         server sent it, so these are names for the roles we know today. -->
+    <string name="profile_role_student">Participant</string>
+    <string name="profile_role_staff">Staff</string>
+    <string name="profile_role_admin">Admin</string>
+    <string name="profile_role_booth">Booth Owner</string>
     <string name="profile_pass_active">Pass active</string>
     <string name="profile_back">Back</string>
     <string name="profile_email">Email</string>

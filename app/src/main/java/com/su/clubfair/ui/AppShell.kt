@@ -37,6 +37,7 @@ import com.su.clubfair.ui.components.GlassNavBar
 import com.su.clubfair.ui.events.EventsScreen
 import com.su.clubfair.ui.home.HomeScreen
 import com.su.clubfair.ui.prizes.PrizesScreen
+import com.su.clubfair.ui.model.AccountRole
 import com.su.clubfair.ui.program.ProgramScreen
 import com.su.clubfair.ui.profile.ProfileScreen
 import com.su.clubfair.ui.qr.QrTicketScreen
@@ -132,6 +133,16 @@ fun AppShell(
     var prizesOpen by rememberSaveable { mutableStateOf(false) }
     var programOpen by rememberSaveable { mutableStateOf(false) }
 
+    // Collected only for the accounts that have one. The flow behind this polls
+    // for as long as it has a subscriber, so an unconditional `collect` here
+    // would have every student's phone asking every ten seconds for a booth code
+    // it is never going to be given — and getting a 403 each time.
+    val boothDisplay = if (student.account == AccountRole.BoothOwner) {
+        fair.boothDisplay.collectAsStateWithLifecycle().value
+    } else {
+        null
+    }
+
     // What the nav bar's liquid glass refracts. The backdrop is captured into a
     // graphics layer by `layerBackdrop` below and sampled by `drawBackdrop` in
     // the bar — so the layer has to wrap everything the bar should see through
@@ -185,6 +196,7 @@ fun AppShell(
                         onOpenPrizes = { prizesOpen = true },
                         onOpenProgram = { programOpen = true },
                         program = state.program,
+                        boothDisplay = boothDisplay,
                         onOpenProfile = { profileOpen = true },
                     )
 
@@ -208,6 +220,7 @@ fun AppShell(
                     )
 
                     else -> ScanScreen(
+                        canScan = student.canScan,
                         outcome = lastScan,
                         hapticsEnabled = state.hapticsEnabled,
                         onScanned = fair::onScanned,

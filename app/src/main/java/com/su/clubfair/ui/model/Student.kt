@@ -17,6 +17,39 @@ import com.su.clubfair.data.net.UserDto
  * they change when a booth is scanned while the identity does not — and folding
  * them together meant every scan produced a "new student" and rebuilt the shell.
  */
+/**
+ * What kind of account this is, from su-server's role string.
+ *
+ * One mapping, in one place, because the answer now decides more than a label:
+ * whether Home offers checkpoints, whether the scanner turns its camera on, and
+ * — once su-server can say which booth an account belongs to — whether Home
+ * shows a booth's own code instead.
+ *
+ * [Unknown] is not a failure state. su-server can gain a role tomorrow, and the
+ * app has to do something sensible with a value it has never seen. It is treated
+ * as a participant everywhere a decision has to be made: the server enforces
+ * every one of these rules again on the route, so the worst case is a student
+ * offered a screen that answers 403, where the other default locks a real
+ * participant out of the fair over a string the app did not recognise.
+ */
+enum class AccountRole { Participant, Staff, BoothOwner, Admin, Unknown }
+
+/**
+ * su-server's four spellings, lowercased.
+ *
+ * The list is not a guess: `clubfair_users.role` carries a check constraint
+ * allowing exactly `student`, `staff`, `admin` and `booth_owner`, so a fifth
+ * value cannot arrive without a migration — and [AccountRole.Unknown] is what
+ * happens on the day one does.
+ */
+fun accountRoleOf(role: String): AccountRole = when (role.lowercase().trim()) {
+    "student" -> AccountRole.Participant
+    "staff" -> AccountRole.Staff
+    "admin" -> AccountRole.Admin
+    "booth_owner" -> AccountRole.BoothOwner
+    else -> AccountRole.Unknown
+}
+
 data class Student(
     val id: Int,
     val firstName: String,
@@ -33,6 +66,18 @@ data class Student(
      * route, so a tampered client gains nothing.
      */
     val isStaff: Boolean,
+    /**
+     * The server's own role string — `student`, `staff`, `admin`, and whatever
+     * su-server calls a booth account.
+     *
+     * Kept beside [isStaff] rather than replacing it. [isStaff] answers "may this
+     * account do staff things", which is a question with two answers and is what
+     * the composer and the claim gate gate on; this answers "what is this
+     * account", which the profile prints and which will keep gaining values as
+     * su-server does. Collapsing them would mean every new role had to be
+     * classified before it could be named.
+     */
+    val role: String,
     /** Whether a password is set, so a Google-only account can be offered one. */
     val hasPassword: Boolean,
     /**
@@ -42,6 +87,24 @@ data class Student(
      */
     val profileComplete: Boolean = true,
 ) {
+    /** What this account is — see [AccountRole]. */
+    val account: AccountRole get() = accountRoleOf(role)
+
+    /**
+     * Whether the fair's game is this account's to play.
+     *
+     * Staff, admins and booth accounts are *running* the fair rather than
+     * walking it: a booth owner standing at their own booth all day has no
+     * checkpoints to collect and no reason to be offered a card counting them.
+     * This is presentation, not security — su-server decides what a token may
+     * actually do, and this only decides what is worth putting on screen.
+     */
+    val collectsCheckpoints: Boolean
+        get() = account == AccountRole.Participant || account == AccountRole.Unknown
+
+    /** The scanner is the checkpoint game's instrument, so it follows it exactly. */
+    val canScan: Boolean get() = collectsCheckpoints
+
     /** Both names, for anywhere that just wants to print the person. */
     val name: String get() = "$firstName $surname"
 
@@ -63,6 +126,7 @@ data class Student(
             major = dto.major,
             avatarUrl = dto.avatarUrl,
             isStaff = isStaffRole(dto.role),
+            role = dto.role,
             hasPassword = dto.hasPassword,
             profileComplete = dto.profileComplete,
         )
@@ -78,6 +142,7 @@ data class Student(
             major = cached.major,
             avatarUrl = cached.avatarUrl,
             isStaff = isStaffRole(cached.role),
+            role = cached.role,
             hasPassword = cached.hasPassword,
             profileComplete = cached.profileComplete,
         )
@@ -223,6 +288,7 @@ val PreviewStudent = Student(
     major = "Software Engineering",
     avatarUrl = null,
     isStaff = false,
+    role = "student",
     hasPassword = true,
 )
 

@@ -140,6 +140,32 @@ data class ReactionDto(
     val mine: Boolean = false,
 )
 
+/**
+ * A booth's current check-in code, from `GET /clubfair/booths/{id}/checkin-code`.
+ *
+ * [payload] is the only field the display needs and the only one it may touch:
+ * it is what a student's scanner posts back **verbatim**, and the app cannot
+ * build or validate it because only the server holds the booth secret. The parts
+ * beside it — [code], [window] — are what the payload is made of and are carried
+ * for a human reading a bug report, not to be reassembled.
+ *
+ * The two times are different questions and both matter. [expiresAt] is when a
+ * *new* code appears, thirty seconds after this one; [acceptedUntil] is how long
+ * the server will still take this one, three minutes out. The gap absorbs scan
+ * latency and clock skew, so a display that refreshes on `expires_at` is doing
+ * the right thing and one that stops scanning at `expires_at` has misread which
+ * deadline is which.
+ */
+@Serializable
+data class CheckinCodeDto(
+    @SerialName("booth_id") val boothId: Int,
+    val window: Long,
+    val code: String,
+    val payload: String,
+    @SerialName("expires_at") val expiresAt: String,
+    @SerialName("accepted_until") val acceptedUntil: String,
+)
+
 // ---- Requests ------------------------------------------------------------
 
 @Serializable

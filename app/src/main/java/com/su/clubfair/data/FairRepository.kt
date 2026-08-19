@@ -459,6 +459,32 @@ class FairRepository(
     }
 
     /**
+     * The booth this account runs, or null for an account that runs none.
+     *
+     * The first of `GET /clubfair/me/booths` when there are several. One phone is
+     * one display and can only show one code at a time; picking the first is a
+     * placeholder for a chooser, and the day a club is given two booths it is a
+     * chooser this needs rather than a different rule for which one wins.
+     *
+     * Null on a failed call as well as on an empty list. The display treats the
+     * two alike — it has no booth to show either way — and the difference is one
+     * the next poll resolves without anyone being told about it.
+     */
+    suspend fun myBooth(): Booth? = api.myBooths().valueOrNull()
+        ?.firstOrNull()
+        ?.let { boothFrom(it, scanned = false) }
+
+    /**
+     * The booth's current QR payload, or null if this poll did not get one.
+     *
+     * Returns the string and nothing else on purpose: it is rendered as a QR and
+     * posted back verbatim by whoever scans it, and no part of the app has any
+     * business parsing it — only su-server holds the secret it is signed with.
+     */
+    suspend fun boothCode(boothId: Int): String? =
+        api.checkinCode(boothId).valueOrNull()?.payload
+
+    /**
      * Ends the session locally, because the student asked.
      *
      * There is no server call: the token is stateless and expires on its own, so
