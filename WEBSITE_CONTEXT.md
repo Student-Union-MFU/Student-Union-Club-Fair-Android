@@ -19,7 +19,10 @@ Mae Fah Luang University Student Union's **Club Fair**: a two-day event where
 students walk a hall of **28 club booths**, scan a QR at each one, and collect
 stamps toward prizes.
 
-- **Dates:** 22 Aug 2026 09:00 → 23 Aug 2026 17:00, `Asia/Bangkok`.
+- **Dates:** one evening — 22 Aug 2026, 16:00 → 21:30, `Asia/Bangkok`. Earlier
+  drafts of this file said 26–27 July and then 22–23 August, both two full days
+  from 09:00; both were placeholders that reached real screens. This is the
+  Student Union's confirmed window.
   (`FairSchedule` in the app; the website should not hardcode these separately
   if it can avoid it.)
 - **Audience:** MFU students, intakes 66–69, signing in with a

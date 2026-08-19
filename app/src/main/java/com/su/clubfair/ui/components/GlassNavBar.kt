@@ -58,7 +58,13 @@ data class NavItem(
     @StringRes val label: Int,
 )
 
-/** The tabs that live inside the bar itself, in display order. */
+/**
+ * The tabs that live inside the bar itself, in display order.
+ *
+ * What every account sees. An admin gets one more — see [adminNavItems] — and
+ * the bar takes its items as a parameter rather than reading this list directly,
+ * so the two cannot drift into disagreeing about how many slots there are.
+ */
 val NavItems = listOf(
     NavItem(R.drawable.ic_home, R.string.nav_home),
     // The stage mask out of Home's Clubs tile — the one piece of that cluster
@@ -76,8 +82,25 @@ val NavItems = listOf(
     NavItem(R.drawable.ic_bell, R.string.nav_events),
 )
 
-/** Scan's index. It sits past the end of [NavItems] because it isn't in the bar. */
-const val ScanTab = 3
+/**
+ * The bar an admin gets: the same three, plus the wall of booth codes.
+ *
+ * A fourth *destination*, not a fourth action. Every booth's live QR is a place
+ * an admin goes and looks — at the desk, when a booth's own phone has died — so
+ * it belongs beside the other places rather than out on the round button, which
+ * says "this does something".
+ */
+val adminNavItems = NavItems + NavItem(R.drawable.ic_layers, R.string.nav_codes)
+
+/**
+ * Scan's index: one past the last tab in the bar, because it isn't in the bar.
+ *
+ * A function of the list rather than a constant. It was 3, which was right while
+ * there was one bar; an admin's bar has four slots and a hardcoded 3 would have
+ * put the scanner and the code wall on the same index — the scanner winning,
+ * silently, on the one account that needs both.
+ */
+fun scanTabFor(items: List<NavItem>): Int = items.size
 
 /**
  * The one surface with a real backdrop blur, and the only one that earns it.
@@ -98,6 +121,7 @@ fun GlassNavBar(
     onSelect: (Int) -> Unit,
     backdrop: Backdrop,
     modifier: Modifier = Modifier,
+    items: List<NavItem> = NavItems,
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -117,8 +141,8 @@ fun GlassNavBar(
                 .liquidGlass(backdrop, PillShape, highlight = null)
                 .border(1.dp, EdgeColor, PillShape),
         ) {
-            val slotWidthPx = constraints.maxWidth.toFloat() / NavItems.size
-            val slotWidth = maxWidth / NavItems.size
+            val slotWidthPx = constraints.maxWidth.toFloat() / items.size
+            val slotWidth = maxWidth / items.size
 
             // Where the indicator rests, in pixels from the bar's left edge. An
             // Animatable because the release has to *spring* to a slot.
@@ -163,7 +187,7 @@ fun GlassNavBar(
             // in a typical gesture, and that is all this notifies on.
             val highlighted by remember(slotWidthPx) {
                 derivedStateOf {
-                    dragX?.let { slotIndexAt(it, slotWidthPx) } ?: currentSelected
+                    dragX?.let { slotIndexAt(it, slotWidthPx, items.size) } ?: currentSelected
                 }
             }
 
@@ -220,7 +244,7 @@ fun GlassNavBar(
                     .fillMaxSize()
                     .pointerInput(slotWidthPx) {
                         detectHorizontalDragGestures(
-                            onDragStart = { dragX = indicatorXAt(it.x, slotWidthPx) },
+                            onDragStart = { dragX = indicatorXAt(it.x, slotWidthPx, items.size) },
                             // The page changes here, on release — not slot by
                             // slot on the way across.
                             //
@@ -246,7 +270,7 @@ fun GlassNavBar(
                                 val x = dragX ?: return@detectHorizontalDragGestures
                                 releasedAt = x
                                 dragX = null
-                                val index = slotIndexAt(x, slotWidthPx)
+                                val index = slotIndexAt(x, slotWidthPx, items.size)
                                 if (index != currentSelected) currentOnSelect(index)
                             },
                             // Not a choice, so it settles back to where it was
@@ -262,12 +286,12 @@ fun GlassNavBar(
                             // drag worked but showed nothing until it crossed a
                             // boundary, which reads as the gesture not being
                             // picked up at all.
-                            dragX = indicatorXAt(change.position.x, slotWidthPx)
+                            dragX = indicatorXAt(change.position.x, slotWidthPx, items.size)
                         }
                     },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                NavItems.forEachIndexed { index, item ->
+                items.forEachIndexed { index, item ->
                     NavBarItem(
                         item = item,
                         selected = index == highlighted,
@@ -281,9 +305,10 @@ fun GlassNavBar(
         }
 
         Spacer()
+        val scanTab = scanTabFor(items)
         ScanButton(
-            selected = selected == ScanTab,
-            onClick = { onSelect(ScanTab) },
+            selected = selected == scanTab,
+            onClick = { onSelect(scanTab) },
             backdrop = backdrop,
         )
     }
@@ -296,12 +321,12 @@ fun GlassNavBar(
  * being centred under the touch, and clamped so it stops at the first and last
  * tabs instead of sliding out from under the glass.
  */
-private fun indicatorXAt(touchX: Float, slotWidth: Float): Float =
-    (touchX - slotWidth / 2f).coerceIn(0f, slotWidth * (NavItems.size - 1))
+private fun indicatorXAt(touchX: Float, slotWidth: Float, slots: Int): Float =
+    (touchX - slotWidth / 2f).coerceIn(0f, slotWidth * (slots - 1))
 
 /** Which slot an indicator sitting at [x] is nearest to. */
-private fun slotIndexAt(x: Float, slotWidth: Float): Int =
-    ((x + slotWidth / 2f) / slotWidth).toInt().coerceIn(0, NavItems.lastIndex)
+private fun slotIndexAt(x: Float, slotWidth: Float, slots: Int): Int =
+    ((x + slotWidth / 2f) / slotWidth).toInt().coerceIn(0, slots - 1)
 
 private val PillShape = RoundedCornerShape(50)
 

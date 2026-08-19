@@ -100,10 +100,29 @@ data class Student(
      * actually do, and this only decides what is worth putting on screen.
      */
     val collectsCheckpoints: Boolean
-        get() = account == AccountRole.Participant || account == AccountRole.Unknown
+        get() = account != AccountRole.Staff && account != AccountRole.BoothOwner
 
-    /** The scanner is the checkpoint game's instrument, so it follows it exactly. */
+    /**
+     * Whether the Scan tab does anything for this account.
+     *
+     * Follows [collectsCheckpoints] because the two are the same permission for
+     * a student — the scanner is the checkpoint game's instrument. An admin has
+     * it for a different reason: the camera reads a *student's* pass rather than
+     * a booth's code, and what comes back is a person rather than a stamp. See
+     * `ScanScreen`, which branches on the role rather than on this flag.
+     */
     val canScan: Boolean get() = collectsCheckpoints
+
+    /**
+     * Whether this account administers the fair.
+     *
+     * Distinct from [isStaff], which is true for an admin as well: staff may
+     * post an announcement and read a booth's code, where this gates the roster
+     * — every participant's name, school and phone number — and the wall of every
+     * booth's live QR. su-server draws the same line, with `requireClubFairAdmin`
+     * sitting inside the staff-level block rather than beside it.
+     */
+    val isAdmin: Boolean get() = account == AccountRole.Admin
 
     /** Both names, for anywhere that just wants to print the person. */
     val name: String get() = "$firstName $surname"

@@ -76,7 +76,7 @@ android {
         applicationId = "com.su.clubfair"
         minSdk = 24
         targetSdk = 37
-        versionCode = 3
+        versionCode = 4
         versionName = "0.2.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

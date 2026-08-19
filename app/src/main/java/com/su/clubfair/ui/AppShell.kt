@@ -38,6 +38,9 @@ import com.su.clubfair.ui.events.EventsScreen
 import com.su.clubfair.ui.home.HomeScreen
 import com.su.clubfair.ui.prizes.PrizesScreen
 import com.su.clubfair.ui.model.AccountRole
+import com.su.clubfair.ui.admin.AdminCodesScreen
+import com.su.clubfair.ui.components.NavItems
+import com.su.clubfair.ui.components.adminNavItems
 import com.su.clubfair.ui.program.ProgramScreen
 import com.su.clubfair.ui.profile.ProfileScreen
 import com.su.clubfair.ui.qr.QrTicketScreen
@@ -137,6 +140,9 @@ fun AppShell(
     // for as long as it has a subscriber, so an unconditional `collect` here
     // would have every student's phone asking every ten seconds for a booth code
     // it is never going to be given — and getting a 403 each time.
+    // An admin's bar carries a fourth destination; everyone else's carries three.
+    val navItems = if (student.isAdmin) adminNavItems else NavItems
+
     val boothDisplay = if (student.account == AccountRole.BoothOwner) {
         fair.boothDisplay.collectAsStateWithLifecycle().value
     } else {
@@ -219,8 +225,32 @@ fun AppShell(
                         onClearPostOutcome = fair::clearPostOutcome,
                     )
 
+                    // The admin's fourth tab. Guarded on the role as well as
+                    // the index, so a tab position remembered from an admin
+                    // session cannot open the code wall on the account that
+                    // inherits it after a sign-out.
+                    3 -> if (student.isAdmin) {
+                        AdminCodesScreen(
+                            booths = state.booths,
+                            zones = state.zones,
+                            onCode = fair::boothCode,
+                        )
+                    } else {
+                        ScanScreen(
+                            canScan = student.canScan,
+                            outcome = lastScan,
+                            hapticsEnabled = state.hapticsEnabled,
+                            onScanned = fair::onScanned,
+                            onClearScan = fair::clearScan,
+                        )
+                    }
+
                     else -> ScanScreen(
                         canScan = student.canScan,
+                        // An admin's camera reads a student's pass; everyone
+                        // else's reads a booth. Passing the lookup is what
+                        // switches the screen — see `ScanScreen`.
+                        lookup = if (student.isAdmin) fair::findParticipant else null,
                         outcome = lastScan,
                         hapticsEnabled = state.hapticsEnabled,
                         onScanned = fair::onScanned,
@@ -233,6 +263,7 @@ fun AppShell(
         GlassNavBar(
             selected = tab,
             onSelect = { tab = it },
+            items = navItems,
             backdrop = backdrop,
             modifier = Modifier
                 .align(Alignment.BottomCenter)

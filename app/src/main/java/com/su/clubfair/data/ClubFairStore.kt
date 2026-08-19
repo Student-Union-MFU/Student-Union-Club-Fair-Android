@@ -201,6 +201,7 @@ class ClubFairStore(context: Context) {
     val cachedProgress: Flow<String?> = preferences.map { it[Keys.CachedProgress] }
     val cachedAnnouncements: Flow<String?> = preferences.map { it[Keys.CachedAnnouncements] }
     val cachedProgram: Flow<String?> = preferences.map { it[Keys.CachedProgram] }
+    val cachedFairInfo: Flow<String?> = preferences.map { it[Keys.CachedFairInfo] }
 
     suspend fun cacheBooths(raw: String) = store.edit { it[Keys.CachedBooths] = raw }
     suspend fun cacheZones(raw: String) = store.edit { it[Keys.CachedZones] = raw }
@@ -208,6 +209,13 @@ class ClubFairStore(context: Context) {
     suspend fun cacheAnnouncements(raw: String) =
         store.edit { it[Keys.CachedAnnouncements] = raw }
     suspend fun cacheProgram(raw: String) = store.edit { it[Keys.CachedProgram] = raw }
+
+    /**
+     * Cached because the welcome screen prints the date before any request has
+     * had time to land, and a first frame that shows one window and then swaps to
+     * another is worse than showing the older one steadily.
+     */
+    suspend fun cacheFairInfo(raw: String) = store.edit { it[Keys.CachedFairInfo] = raw }
 
     // ---- Outbound queue --------------------------------------------------
 
@@ -294,6 +302,7 @@ class ClubFairStore(context: Context) {
         val CachedProgress = stringPreferencesKey("cached_progress")
         val CachedAnnouncements = stringPreferencesKey("cached_announcements")
         val CachedProgram = stringPreferencesKey("cached_program")
+        val CachedFairInfo = stringPreferencesKey("cached_fair_info")
         val PendingScans = stringSetPreferencesKey("pending_scans")
         val Haptics = booleanPreferencesKey("haptics")
         val Language = stringPreferencesKey("language")

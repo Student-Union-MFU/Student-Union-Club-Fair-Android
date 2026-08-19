@@ -49,6 +49,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,6 +61,7 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
@@ -76,6 +78,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -88,6 +92,7 @@ import com.su.clubfair.ui.components.PillButton
 import com.su.clubfair.ui.scene.MeshBackground
 import com.su.clubfair.ui.components.glassSurface
 import com.su.clubfair.ui.components.liquidGlass
+import com.su.clubfair.ui.model.Participant
 import com.su.clubfair.ui.theme.AppSans
 import com.su.clubfair.ui.theme.AppTextWeight
 import com.su.clubfair.ui.theme.Dimens
@@ -99,34 +104,31 @@ import java.util.concurrent.Executors
 
 
 /** The clear window, as a fraction of the shorter screen edge. */
-private const val ReticleFraction = 0.68f
+private const val ReticleFraction = 0.72f
 
 /**
  * The window's frame, in two weights.
  *
- * Four corner brackets on their own were the problem — they say "this corner"
- * four times and never say "this region", so the frame reads as one that has not
- * finished drawing itself. A bare square fixed that and lost everything else: a
- * plain rectangle on a camera feed is a rectangle on a camera feed.
+ * **One stroke, one weight, the whole way round.** This has been through both
+ * of the obvious alternatives. Four corner brackets alone say "this corner" four
+ * times and never "this region", so the window reads as a frame that has not
+ * finished drawing itself. Brackets thickened on top of a border read worse
+ * again: at 4.5dp over a 2dp line the join is a visible step in the stroke, and
+ * the window becomes a rectangle with something stuck to each corner rather than
+ * a single shape.
  *
- * Both, then. [FrameStroke] closes the shape all the way round at low alpha, so
- * there is nothing left dangling; [CornerStroke] rides over it at full accent for
- * [CornerLength] out of each corner, which is where the eye actually aims. It is
- * one frame with emphasis in it rather than two ideas fighting.
- *
- * The radius comes back with them, on the app's own scale. It went to zero on the
- * argument that a QR code is hard-cornered, which is true and beside the point:
- * this is not a picture of the code, it is a card cut out of the scrim, and every
- * other card in the app has [Dimens.RadiusLg] on it.
+ * The radius stays, on the app's own scale. It went to zero once on the argument
+ * that a QR code is hard-cornered, which is true and beside the point: this is
+ * not a picture of the code, it is a card cut out of the scrim, and every other
+ * card in the app is rounded.
  */
-private val ReticleRadius = Dimens.RadiusLg
-private val FrameStroke = 1.5.dp
-private val FrameAlpha = 0.4f
-private val CornerStroke = 3.dp
-private val CornerLength = 40.dp
+private val ReticleRadius = 28.dp
+/** One weight for the whole window; there is nothing else drawn on it. */
+private val FrameStroke = 2.5.dp
+private val FrameAlpha = 0.8f
 
 /** One pass of the sweep line, top to bottom. */
-private const val SweepMillis = 2200
+private const val SweepMillis = 2800
 
 /**
  * How far under the status bar the header sits.
@@ -163,6 +165,16 @@ fun ScanScreen(
      * a game it is not playing.
      */
     canScan: Boolean = true,
+    /**
+     * An admin's scanner reads a *student's pass* rather than a booth's code.
+     *
+     * Present only for an admin, and its presence is what switches the screen's
+     * job: with it, a decode is a lookup and nothing is ever posted as a
+     * check-in. That distinction has to be structural rather than a flag checked
+     * later — an admin whose scan silently recorded a stamp against their own
+     * account would be a quiet, unexplainable corruption of the leaderboard.
+     */
+    lookup: (suspend (String) -> Participant?)? = null,
     outcome: ScanOutcome? = null,
     hapticsEnabled: Boolean = true,
     onScanned: (String) -> Unit = {},
@@ -189,6 +201,16 @@ fun ScanScreen(
     LaunchedEffect(hasCamera, canScan) {
         if (canScan && hasCamera && !granted) permissionLauncher.launch(Manifest.permission.CAMERA)
     }
+
+    val scope = rememberCoroutineScope()
+
+    // The admin scanner's three states: nobody looked up yet, a person, or a
+    // pass that matched nothing. `missed` is its own flag rather than a null
+    // `found`, because "no such student" is an answer worth putting on screen
+    // and an idle scanner is not.
+    var found by remember { mutableStateOf<Participant?>(null) }
+    var missed by remember { mutableStateOf(false) }
+    var looking by remember { mutableStateOf(false) }
 
     var torchOn by remember { mutableStateOf(false) }
     var hasTorch by remember { mutableStateOf(false) }
@@ -241,7 +263,23 @@ fun ScanScreen(
                     torchOn = torchOn,
                     // The analyzer fires per frame; the ViewModel drops repeats
                     // while a result is on screen, so this stays a plain hand-up.
-                    onDecoded = onScanned,
+                    onDecoded = { payload ->
+                        if (lookup == null) {
+                            onScanned(payload)
+                        } else if (!looking && found == null && !missed) {
+                            // The analyzer keeps firing while a pass is held in
+                            // front of the lens, so the guard is here rather than
+                            // in a ViewModel: this path has no shared state to
+                            // drop repeats against.
+                            looking = true
+                            scope.launch {
+                                val person = lookup(payload.trim())
+                                found = person
+                                missed = person == null
+                                looking = false
+                            }
+                        }
+                    },
                     onTorchAvailable = { hasTorch = it },
                 )
             }
@@ -296,7 +334,14 @@ fun ScanScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    text = stringResource(R.string.scan_title),
+                    // The header names what this camera is for, and for an admin
+                    // that is a person rather than a stall. Same screen, same
+                    // camera, opposite subject — telling an admin to point at a
+                    // booth sign would send them to scan the very code their own
+                    // Codes tab hands out.
+                    text = stringResource(
+                        if (lookup == null) R.string.scan_title else R.string.scan_title_pass,
+                    ),
                     fontFamily = AppSans,
                     fontWeight = AppTextWeight,
                     fontSize = 20.sp,
@@ -309,7 +354,9 @@ fun ScanScreen(
                 if (canScan) {
                 Spacer(Modifier.height(Dimens.SpaceXs))
                 Text(
-                    text = stringResource(R.string.scan_hint),
+                    text = stringResource(
+                        if (lookup == null) R.string.scan_hint else R.string.scan_hint_pass,
+                    ),
                     fontFamily = AppSans,
                     fontWeight = AppTextWeight,
                     fontSize = 13.sp,
@@ -336,6 +383,23 @@ fun ScanScreen(
                 !canScan -> Explainer(
                     title = stringResource(R.string.scan_locked_title),
                     body = stringResource(R.string.scan_locked_body),
+                )
+
+                found != null -> ParticipantCard(
+                    participant = found!!,
+                    onAgain = { found = null; missed = false; attempt++ },
+                )
+
+                missed -> Explainer(
+                    title = stringResource(R.string.scan_no_student_title),
+                    body = stringResource(R.string.scan_no_student_body),
+                    cta = stringResource(R.string.scan_again),
+                    onCta = { missed = false; attempt++ },
+                )
+
+                looking -> Explainer(
+                    title = stringResource(R.string.scan_looking_title),
+                    body = stringResource(R.string.scan_looking_body),
                 )
 
                 outcome != null -> ResultCard(
@@ -521,7 +585,10 @@ private fun Reticle(active: Boolean, modifier: Modifier = Modifier) {
 
         if (!active) return@Canvas
 
-        // The quiet line, all the way round, so nothing is left dangling.
+        // A real border, the whole way round, with the window's own corner
+        // radius. Brackets alone left the window as four marks the eye had to
+        // join up; a continuous rounded rectangle *is* the target, and it is what
+        // a student is being asked to fit a code inside.
         drawRoundRect(
             color = accent.copy(alpha = FrameAlpha),
             topLeft = topLeft,
@@ -530,36 +597,20 @@ private fun Reticle(active: Boolean, modifier: Modifier = Modifier) {
             style = Stroke(width = FrameStroke.toPx()),
         )
 
-        // The loud corners, over the top of it. Each is the whole outline drawn
-        // again and clipped to one corner square — cheaper to read than four
-        // hand-built L-paths, and the curve matches the window exactly because it
-        // *is* the window's curve.
-        val corner = CornerLength.toPx()
-        listOf(
-            Offset(topLeft.x, topLeft.y),
-            Offset(topLeft.x + side - corner, topLeft.y),
-            Offset(topLeft.x, topLeft.y + side - corner),
-            Offset(topLeft.x + side - corner, topLeft.y + side - corner),
-        ).forEach { at ->
-            clipRect(at.x, at.y, at.x + corner, at.y + corner) {
-                drawRoundRect(
-                    color = accent,
-                    topLeft = topLeft,
-                    size = window,
-                    cornerRadius = radius,
-                    style = Stroke(width = CornerStroke.toPx()),
-                )
-            }
-        }
+        // No corner brackets. They were four thicker arcs drawn on top of the
+        // border, and at 4.5dp against a 2dp line the join was visible as a step
+        // in the stroke — the window looked like a rectangle with something stuck
+        // to each corner rather than one shape. One weight, the whole way round,
+        // is the shape this always wanted to be.
 
         // A soft band travelling down the window — the one moving thing that says
         // the camera is live even when it's pointed at a blank wall.
         clipRect(topLeft.x, topLeft.y, topLeft.x + side, topLeft.y + side) {
             val y = topLeft.y + side * sweep
-            val band = side * 0.18f
+            val band = side * 0.22f
             drawRect(
                 brush = Brush.verticalGradient(
-                    colors = listOf(Color.Transparent, accent.copy(alpha = 0.35f), Color.Transparent),
+                    colors = listOf(Color.Transparent, accent.copy(alpha = 0.22f), Color.Transparent),
                     startY = y - band,
                     endY = y + band,
                 ),
@@ -578,6 +629,82 @@ private fun Reticle(active: Boolean, modifier: Modifier = Modifier) {
  * they are not equal choices: allowing the camera is what this screen is for,
  * and typing is what to do when that is not going to happen.
  */
+/**
+ * Who the scanned pass belongs to.
+ *
+ * Deliberately not everything the roster holds. su-server returns a phone number
+ * and an email with each participant, and neither belongs on a screen held up at
+ * a booth in front of a queue — an admin checking that the person in front of
+ * them is who the pass says needs a name, an id and how far along they are.
+ * Contact details are the dashboard's job, on a desk, behind a login.
+ */
+@Composable
+private fun ParticipantCard(
+    participant: Participant,
+    onAgain: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .glassSurface(cornerRadius = Dimens.RadiusLg)
+            .padding(Dimens.CardPadding),
+        verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm),
+    ) {
+        Text(
+            text = participant.name,
+            modifier = Modifier.semantics { heading() },
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
+            fontSize = 20.sp,
+            color = Color.White,
+        )
+        participant.studentId?.let { id ->
+            Text(
+                text = id,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
+                fontSize = 14.sp,
+                color = Palette.Accent,
+            )
+        }
+        listOfNotNull(participant.school, participant.major).forEach { line ->
+            Text(
+                text = line,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
+                fontSize = 13.sp,
+                lineHeight = 1.4.em,
+                color = Ink.Muted,
+            )
+        }
+        Text(
+            text = stringResource(R.string.scan_student_visited, participant.visited),
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
+            fontSize = 13.sp,
+            color = Ink.Label,
+        )
+        // Only when true. A flag is the server's word for an account someone has
+        // already looked at, and a badge that renders "not flagged" on everyone
+        // else would turn a rare signal into decoration.
+        if (participant.isFlagged) {
+            Text(
+                text = stringResource(R.string.scan_student_flagged),
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
+                fontSize = 13.sp,
+                color = Palette.Alert,
+            )
+        }
+        PillButton(
+            text = stringResource(R.string.scan_again),
+            onClick = onAgain,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
 @Composable
 private fun Explainer(
     title: String,

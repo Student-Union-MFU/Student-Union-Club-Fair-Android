@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -600,11 +601,14 @@ private fun remainingTime(millis: Long): AnnotatedString {
         // caption is set at.
         fontSize = UnitScale.em,
         fontWeight = AppTextWeight,
-        // Dimmed against the digits, but nowhere near the muted ink of the label
-        // beside them: these are part of the figure and have to read as part of
-        // it. The job of the tone is to let the digits lead, not to push the
-        // letters into the background.
-        color = Color.White.copy(alpha = 0.72f),
+        // The digits' own white, not a dimmed one.
+        //
+        // These were at 72% on the theory that the numbers should lead and the
+        // units should recede. On a 14sp badge that reads as two inks in one
+        // figure — "2d" looking like a number with a grey mark stuck to it — and
+        // the smaller size is already doing all the ranking this needs. Same
+        // colour, smaller letters: one figure with its units attached.
+        color = Color.White,
     )
 
     return buildAnnotatedString {
@@ -624,9 +628,20 @@ private fun remainingTime(millis: Long): AnnotatedString {
 /**
  * The greeting, as the page's headline.
  *
- * Two lines by construction — see [greetingWith] — so [maxLines] is 2 rather
- * than unbounded: a name long enough to wrap would push the whole card stack
- * down the page, and an ellipsis on the end of it is the honest outcome.
+ * **A long name wraps; it is never cut.** This held two lines and an ellipsis,
+ * on the reasoning that a name long enough to wrap would push the card stack
+ * down the page. That trade was the wrong way round: the stack moving a few dp
+ * costs a student nothing, and truncating the one word on the screen that is
+ * *theirs* — into "THANAKORN SRIWATTANA…" — is the app getting a person's own
+ * name wrong on the first line they read. Thai names run long, and MFU's roster
+ * has plenty that do.
+ *
+ * The type shrinks before the line count grows. [TextAutoSize] steps down from
+ * 32sp to 24sp, which is enough to keep most two-word names on the one line
+ * [greetingWith] builds for them; only past that does the name take a third
+ * line. Four is the ceiling, and it is generous rather than expected — a name
+ * that reaches it has already been given the smallest type this heading can be
+ * set in.
  */
 @Composable
 private fun HomeHeader(name: String, modifier: Modifier = Modifier) {
@@ -634,10 +649,13 @@ private fun HomeHeader(name: String, modifier: Modifier = Modifier) {
         text = greetingWith(name),
         modifier = modifier,
         fontFamily = AppSans,
-        fontSize = 32.sp,
         lineHeight = 1.15.em,
-        maxLines = 2,
-        overflow = TextOverflow.Ellipsis,
+        autoSize = TextAutoSize.StepBased(
+            minFontSize = 24.sp,
+            maxFontSize = 32.sp,
+            stepSize = 1.sp,
+        ),
+        maxLines = 4,
     )
 }
 

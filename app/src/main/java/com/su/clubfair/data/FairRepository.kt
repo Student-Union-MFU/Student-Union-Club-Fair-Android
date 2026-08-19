@@ -3,6 +3,7 @@ package com.su.clubfair.data
 import com.su.clubfair.data.net.AnnouncementDto
 import com.su.clubfair.data.net.ApiResult
 import com.su.clubfair.data.net.BoothDto
+import com.su.clubfair.data.net.FairInfoDto
 import com.su.clubfair.data.net.CheckInRequest
 import com.su.clubfair.data.net.ClubFairApi
 import com.su.clubfair.data.net.GoogleAccount
@@ -18,6 +19,7 @@ import com.su.clubfair.data.net.valueOrNull
 import com.su.clubfair.ui.model.Announcement
 import com.su.clubfair.ui.model.Booth
 import com.su.clubfair.ui.model.FairProgress
+import com.su.clubfair.ui.model.Participant
 import com.su.clubfair.ui.model.PrizeTier
 import com.su.clubfair.ui.model.ProgramEntry
 import com.su.clubfair.ui.model.Reaction
@@ -269,6 +271,10 @@ class FairRepository(
                 _announcements.value = dtos.map { it.toModel() }
             }
         }
+        store.cachedFairInfo.first()?.let { raw ->
+            decode<FairInfoDto>(raw)?.let(::applyFairInfo)
+        }
+
         store.cachedProgram.first()?.let { raw ->
             decode<List<ProgramEntryDto>>(raw)?.let { dtos ->
                 _program.value = dtos.mapNotNull { it.toModel() }
@@ -323,6 +329,18 @@ class FairRepository(
                     reachedServer = true
                     store.cacheZones(json.encodeToString(dtos))
                     _zones.value = dtos.map(Zone::from)
+                }
+
+                // Cheap and unauthenticated, and the one piece of state that
+                // every screen with a date on it reads. Refreshed with the rest
+                // rather than once at launch: the Student Union moving the hall
+                // an hour before the doors open is exactly the case this route
+                // exists for, and a student who already had the app open is the
+                // one who most needs to see it.
+                api.fairInfo().valueOrNull()?.let { dto ->
+                    reachedServer = true
+                    store.cacheFairInfo(json.encodeToString(dto))
+                    applyFairInfo(dto)
                 }
 
                 api.progress().orEndSession().valueOrNull()?.let { dto ->
@@ -456,6 +474,28 @@ class FairRepository(
 
         is ApiResult.Offline -> AuthOutcome.Offline
         is ApiResult.Failure -> AuthOutcome.Rejected(result.message)
+    }
+
+    /**
+     * Find the person a scanned pass belongs to.
+     *
+     * The pass carries a student id and nothing else — see `QrTicketScreen`, which
+     * encodes exactly that — so the lookup is the roster's own free-text search
+     * with the id as the query. su-server matches it against the id, the name and
+     * the email, which is wider than needed here; the exact-id filter below is
+     * what stops a query that happens to match two people returning the wrong one.
+     *
+     * Null for "no such student" and null for a failed request alike. The caller
+     * is a scanner pointed at a person who is standing there, and the useful
+     * answer to both is the same: try again.
+     */
+    suspend fun findParticipant(studentId: String): Participant? {
+        val trimmed = studentId.trim()
+        if (trimmed.isEmpty()) return null
+        val page = api.participants(trimmed).orEndSession().valueOrNull() ?: return null
+        return page.participants
+            .firstOrNull { it.studentId?.trim() == trimmed }
+            ?.let(Participant::from)
     }
 
     /**
@@ -832,6 +872,19 @@ private fun ProgramEntryDto.toModel(): ProgramEntry? {
         locationEn = locationEn,
         zoneCode = zone,
     )
+}
+
+/**
+ * Hand the server's window to [FairSchedule], if it can be read at all.
+ *
+ * A row whose instants will not parse is dropped rather than half-applied — the
+ * app has a correct window compiled in and showing a date from one source and a
+ * venue from another would be worse than being a release behind.
+ */
+private fun applyFairInfo(dto: FairInfoDto) {
+    val start = parseInstant(dto.startsAt) ?: return
+    val end = parseInstant(dto.endsAt) ?: return
+    FairSchedule.applyServer(start, end, dto.venue, dto.venueEn)
 }
 
 private fun parseInstant(raw: String): Long? =

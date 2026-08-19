@@ -14,6 +14,7 @@ import com.su.clubfair.data.SessionStatus
 import com.su.clubfair.ui.model.Announcement
 import com.su.clubfair.ui.model.Booth
 import com.su.clubfair.ui.model.FairProgress
+import com.su.clubfair.ui.model.Participant
 import com.su.clubfair.ui.model.ProgramEntry
 import com.su.clubfair.ui.model.Student
 import com.su.clubfair.ui.model.Zone
@@ -298,6 +299,20 @@ class FairViewModel(private val repository: FairRepository) : ViewModel() {
     fun clearScan() {
         _lastScan.value = null
     }
+
+    /**
+     * The current code for one booth, for the admin wall.
+     *
+     * A plain suspend call rather than a second polling flow: the wall shows one
+     * booth at a time and the screen that opens it owns the loop, so there is no
+     * lifecycle here to get wrong. Compare `boothDisplay`, which is a flow
+     * because a booth owner's Home has no such moment to hang a loop off.
+     */
+    suspend fun boothCode(boothId: Int): String? = repository.boothCode(boothId)
+
+    /** Who a scanned pass belongs to, for an admin's scanner. */
+    suspend fun findParticipant(studentId: String): Participant? =
+        repository.findParticipant(studentId)
 
     fun refresh() {
         viewModelScope.launch { repository.refresh() }

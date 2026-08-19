@@ -166,6 +166,68 @@ data class CheckinCodeDto(
     @SerialName("accepted_until") val acceptedUntil: String,
 )
 
+/**
+ * The fair itself, from `GET /clubfair/info` — one row, `clubfair_fair_info`.
+ *
+ * The window and the venue live on the server so the Student Union can move them
+ * without an app release, which is not a hypothetical: this app shipped two
+ * different invented windows in `FairSchedule` before anyone noticed the server
+ * had been modelling the real one all along.
+ *
+ * Everything but the two instants is nullable, and that is the shape of a row
+ * somebody fills in over time — a venue is decided before a notice is written.
+ *
+ * [notice] is the Student Union's own line for something the app has no field
+ * for: a hall moved at short notice, a downpour, a delayed opening. Nothing
+ * renders it yet.
+ */
+@Serializable
+data class FairInfoDto(
+    @SerialName("starts_at") val startsAt: String,
+    @SerialName("ends_at") val endsAt: String,
+    val venue: String? = null,
+    @SerialName("venue_en") val venueEn: String? = null,
+    val notice: String? = null,
+    @SerialName("notice_en") val noticeEn: String? = null,
+    @SerialName("updated_at") val updatedAt: String? = null,
+)
+
+/**
+ * One account on the admin roster, from `GET /clubfair/admin/participants`.
+ *
+ * Everything an admin sees about a person, which is why nothing in this app
+ * fetches it outside the admin screens: it carries a phone number and an email
+ * for someone who is not the person holding the phone.
+ *
+ * [visited] is the booth count su-server already computes for the dashboard, so
+ * a scanned pass can say how far along that student is without a second request.
+ * [isFlagged] is the server's own moderation flag; the app only reads it.
+ */
+@Serializable
+data class ParticipantDto(
+    val id: Int,
+    @SerialName("first_name") val firstName: String,
+    val surname: String,
+    val email: String,
+    @SerialName("student_id") val studentId: String? = null,
+    val phone: String? = null,
+    val school: String? = null,
+    val major: String? = null,
+    val role: String,
+    @SerialName("is_flagged") val isFlagged: Boolean = false,
+    val visited: Int = 0,
+)
+
+/**
+ * A page of the roster. An envelope rather than a bare array, because su-server
+ * sends the total alongside — a page without it is a list nothing can paginate.
+ */
+@Serializable
+data class ParticipantsPageDto(
+    val participants: List<ParticipantDto> = emptyList(),
+    val total: Int = 0,
+)
+
 // ---- Requests ------------------------------------------------------------
 
 @Serializable

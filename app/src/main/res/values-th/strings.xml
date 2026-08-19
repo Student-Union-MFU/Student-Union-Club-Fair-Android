@@ -27,7 +27,6 @@
     <string name="app_name">Club Fair องค์การนักศึกษา</string>
 
     <string name="welcome_title">Club Fair</string>
-    <string name="welcome_subtitle">ชมรม บูธ\nและสุดสัปดาห์\nแห่งการค้นพบ</string>
     <string name="welcome_drag_hint">เริ่มต้นใช้งาน</string>
 
     <string name="login_title">เข้าสู่ระบบ</string>
@@ -124,6 +123,11 @@
     </plurals>
     <string name="prizes_qr_checkpoints">%1$d/%2$d</string>
     <string name="prizes_qr_checkpoints_label">จุดเช็คอิน</string>
+    <string name="prizes_about_title">MFU333 คืออะไร</string>
+    <string name="prizes_about_body">MFU333 คือรางวัลจากองค์การนักศึกษาสำหรับคนที่เดินชมงานครบ ทุกบูธที่ไปเยี่ยมนับเป็นหนึ่งจุดเช็คอิน เมื่อครบ %1$d จุด รหัสของคุณจะปลดล็อก</string>
+    <string name="prizes_step_scan">สแกน QR ที่แต่ละบูธชมรม ปุ่มสแกนคือปุ่มกลมทางขวาของแถบด้านล่าง</string>
+    <string name="prizes_step_collect">เก็บให้ครบ %1$d จุดเช็คอิน ความคืบหน้าจะถูกบันทึกไว้ให้แม้ออฟไลน์ และดูได้ที่หน้าแรก</string>
+    <string name="prizes_step_claim">นำรหัสที่ปลดล็อกแล้วด้านบนไปแสดงที่จุดองค์การนักศึกษาภายในงานเพื่อรับรางวัล</string>
     <string name="prizes_qr_hint">แสดงรหัสนี้ที่จุดขององค์การนักศึกษาเพื่อรับ MFU333</string>
     <plurals name="prizes_qr_locked">
         <item quantity="other">เก็บอีก %1$d บูธเพื่อปลดล็อกรหัสของคุณ</item>
@@ -188,6 +192,13 @@
     <string name="nav_home">หน้าแรก</string>
     <string name="nav_booths">บูธ</string>
     <string name="nav_profile">โปรไฟล์</string>
+    <string name="codes_title">รหัส QR ของบูธ</string>
+    <string name="codes_subtitle">เลือกบูธเพื่อแสดง QR</string>
+    <string name="codes_no_zone">ยังไม่ได้กำหนดโซน</string>
+    <string name="codes_back">กลับไปรายชื่อบูธ</string>
+    <string name="codes_waiting">กำลังรับรหัสของบูธนี้…</string>
+    <string name="codes_hint">รหัสนี้เปลี่ยนทุก 30 วินาที ยกหน้าจอให้นักศึกษาสแกนได้เลย</string>
+    <string name="nav_codes">รหัส QR</string>
     <string name="nav_events">กิจกรรม</string>
     <string name="nav_scan">สแกนบูธ</string>
 
@@ -210,6 +221,14 @@
     <string name="scan_permission_cta">อนุญาตให้ใช้กล้อง</string>
     <string name="scan_permission_settings">เปิดการตั้งค่า</string>
     <string name="scan_permission_denied_body">คุณปฏิเสธการเข้าถึงกล้อง โค้ดของบูธเปลี่ยนทุกไม่กี่วินาที จึงต้องใช้กล้องเท่านั้น — อนุญาตได้ในการตั้งค่า</string>
+    <string name="scan_title_pass">สแกนบัตรนักศึกษา</string>
+    <string name="scan_hint_pass">เล็งกล้องไปที่บัตร Club Fair ของนักศึกษา</string>
+    <string name="scan_looking_title">กำลังอ่านบัตร…</string>
+    <string name="scan_looking_body">กำลังค้นหาข้อมูลนักศึกษาจากเซิร์ฟเวอร์</string>
+    <string name="scan_no_student_title">ไม่พบนักศึกษาจากบัตรนี้</string>
+    <string name="scan_no_student_body">สแกนได้แต่ไม่พบบัญชีที่ตรงกัน ตรวจสอบว่าเป็นบัตร Club Fair ไม่ใช่รหัสของบูธ</string>
+    <string name="scan_student_visited">สแกนแล้ว %1$d บูธ</string>
+    <string name="scan_student_flagged">บัญชีนี้ถูกทำเครื่องหมายไว้</string>
     <string name="scan_locked_title">การสแกนสำหรับผู้เข้าร่วมเท่านั้น</string>
     <string name="scan_locked_body">บัญชีของคุณเป็นผู้ดูแลงาน จึงไม่มีอะไรให้สแกน นักศึกษาจะสแกน QR ที่แต่ละบูธเพื่อสะสมแต้ม</string>
     <string name="scan_unavailable_title">ไม่พบกล้อง</string>
@@ -375,7 +394,6 @@
     <string name="qr_subtitle">บัตรนักศึกษา</string>
     <string name="qr_hint">แสดงบัตรนี้ที่บูธใดก็ได้เพื่อรับจุดเช็คอิน</string>
     <string name="qr_admit">สำหรับหนึ่งท่าน</string>
-    <string name="qr_event_dates">26–27 ก.ค.</string>
     <string name="qr_code_desc">QR code ของนักศึกษา %1$s</string>
 
     <string name="auth_error_session_expired">คุณออกจากระบบเนื่องจากเซสชันหมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง — แสตมป์ของคุณยังอยู่ครบบนเซิร์ฟเวอร์</string>
@@ -383,6 +401,8 @@
     <string name="auth_student_id_hint">รหัสนักศึกษา</string>
     <string name="auth_password_hint">รหัสผ่าน</string>
 
+    <string name="welcome_when">%1$s · %2$s</string>
+    <string name="welcome_venue">อาคารกีฬาในร่ม มหาวิทยาลัยแม่ฟ้าหลวง</string>
     <string name="logo_mfu">มหาวิทยาลัยแม่ฟ้าหลวง</string>
     <string name="logo_su">องค์การนักศึกษา</string>
 </resources>

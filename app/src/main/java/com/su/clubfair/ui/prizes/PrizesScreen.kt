@@ -1,13 +1,16 @@
 package com.su.clubfair.ui.prizes
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -34,6 +37,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import com.su.clubfair.ui.model.FairProgress
 import com.su.clubfair.ui.model.PreviewProgress
@@ -106,11 +111,26 @@ fun PrizesScreen(
     modifier: Modifier = Modifier,
     onBack: () -> Unit = {},
 ) {
+    // The code takes the page.
+    //
+    // This screen is one card and it was sitting in the top two thirds with a
+    // third of a phone empty under it — a page that looks like it failed to
+    // finish loading. There is nothing else to put there, and the thing that *is*
+    // there is a QR someone holds up at a desk, so it gets the room: centred in
+    // what is left under the header, and as wide as the screen allows.
+    //
+    // `heightIn(min = maxHeight)` inside the scroll is what makes the weights
+    // below work. A scrolling column is handed infinite height, so a `weight`
+    // has nothing to divide; forcing a minimum of one viewport gives it real
+    // spare room to share, while still letting the content grow and scroll on a
+    // short screen. Same trick Home uses to sit its stack on the bottom edge.
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
     Column(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxSize()
             .safeDrawingPadding()
             .verticalScroll(rememberScrollState())
+            .heightIn(min = maxHeight)
             .padding(horizontal = Dimens.ScreenPadding),
     ) {
         Spacer(Modifier.height(Dimens.Space))
@@ -120,11 +140,17 @@ fun PrizesScreen(
             backDescription = stringResource(R.string.profile_back),
         )
 
+        // Slightly less air above than below, so the card sits a touch high of
+        // true centre — optically centred rather than measured, which is where
+        // the eye expects a single object under a header.
         Spacer(Modifier.height(Dimens.SpaceLg))
         Mfu333Card(progress = progress, student = student)
 
-        Spacer(Modifier.height(Dimens.SpaceXl))
+        Spacer(Modifier.height(Dimens.Space))
+        Mfu333Explainer(progress = progress)
+        Spacer(Modifier.weight(1f))
         Spacer(Modifier.height(Dimens.NavBarClearance))
+    }
     }
 }
 
@@ -157,16 +183,117 @@ fun PrizesScreen(
  * is a question for the server at the moment of collection, and `reached` here
  * only decides what the app draws.
  */
+/**
+ * What MFU333 is, how it is earned, and where it is collected.
+ *
+ * The page was a code and a fraction. That is enough for a student who already
+ * knows the game and nothing at all for one who tapped a tile called MFU333 on
+ * their first evening — the screen named the prize, showed a padlock, and never
+ * said what was behind it or what to do about it.
+ *
+ * Three steps, because the thing being explained genuinely has three: scan at
+ * booths, reach the threshold, show the code at the desk. Numbered rather than
+ * bulleted, since the order is the whole point and step two is the only one that
+ * takes any time.
+ *
+ * The tier's own name and description come from the server when it has them —
+ * `clubfair_prize_tier` is a table the Student Union edits — so what this prize
+ * actually *is* stays theirs to write, and the app supplies only the mechanics
+ * around it. When they have written nothing, the mechanics stand on their own
+ * rather than leaving a labelled gap.
+ */
+@Composable
+private fun Mfu333Explainer(progress: FairProgress, modifier: Modifier = Modifier) {
+    val threshold = progress.mfu333?.threshold ?: 0
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = stringResource(R.string.prizes_about_title),
+            modifier = Modifier.semantics { heading() },
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
+            fontSize = 16.sp,
+            color = Color.White,
+        )
+        Spacer(Modifier.height(Dimens.SpaceXs))
+        Text(
+            // The app's copy, always — not the tier's own `description`.
+            //
+            // Preferring the server's words here was the obvious thing and the
+            // wrong one: `clubfair_prize_tier.description` is a roadmap caption
+            // ("15 booths visited"), written to sit under a node on the route
+            // where the surrounding page supplies the context. Dropped into a
+            // card headed "What is MFU333?" it answers a different question than
+            // the one asked, and reads as a bug. The tier's words still lead the
+            // roadmap; the explanation is this screen's own.
+            text = stringResource(R.string.prizes_about_body, threshold),
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
+            fontSize = 13.sp,
+            lineHeight = 1.5.em,
+            color = Ink.Muted,
+        )
+
+        Spacer(Modifier.height(Dimens.Space))
+        Step(1, stringResource(R.string.prizes_step_scan))
+        Step(2, stringResource(R.string.prizes_step_collect, threshold))
+        Step(3, stringResource(R.string.prizes_step_claim))
+    }
+}
+
+/** One numbered line of the explainer. */
+@Composable
+private fun Step(number: Int, text: String, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = Dimens.SpaceXs),
+        verticalAlignment = Alignment.Top,
+    ) {
+        // A disc rather than a bare numeral: at 13sp a lone "1" beside a
+        // paragraph reads as a footnote marker, which is the opposite of a step
+        // somebody is meant to follow.
+        Box(
+            modifier = Modifier
+                .size(22.dp)
+                .clip(CircleShape)
+                .background(Palette.Accent.copy(alpha = 0.16f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = number.toString(),
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
+                fontSize = 12.sp,
+                color = Palette.Accent,
+            )
+        }
+        Spacer(Modifier.size(Dimens.Space))
+        Text(
+            text = text,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
+            fontSize = 13.sp,
+            lineHeight = 1.5.em,
+            color = Ink.Label,
+        )
+    }
+}
+
 @Composable
 private fun Mfu333Card(progress: FairProgress, student: Student) {
     val unlocked = progress.mfu333Unlocked
     val threshold = progress.mfu333?.threshold ?: 0
 
+    // No card around this any more.
+    //
+    // The glass panel was wrapping the code *and* the figure *and* the hint, so
+    // the lock read as a lock on the whole block — a page that looked switched
+    // off rather than a code that is not ready yet. The paper square is the only
+    // object here that needs a surface of its own (dark ink has to sit on light
+    // ground to be scannable), and everything under it is just type on the page.
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .glassSurface(cornerRadius = CardRadius)
-            .padding(Dimens.CardPadding),
+        modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         // No title. The sheet header above already reads "MFU333", and a
@@ -241,11 +368,9 @@ private fun Mfu333Card(progress: FairProgress, student: Student) {
             color = Ink.Muted,
         )
 
-        // Where you are, then what to do about it. The rule is doing the work
-        // the removed title was doing badly — separating the two without
-        // spending a third font size on a heading.
-        Spacer(Modifier.height(Dimens.SpaceLg))
-        Hairline()
+        // The rule went with the card. It was separating two halves of one
+        // surface; on the open page the space does that on its own, and a
+        // hairline across nothing is a seam in a sheet that is not there.
         Spacer(Modifier.height(Dimens.Space))
         Text(
             text = if (unlocked) {

@@ -1,5 +1,6 @@
 package com.su.clubfair.data.net
 
+import android.net.Uri
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -57,9 +58,25 @@ class ClubFairApi(
 
     // ---- Public ----------------------------------------------------------
 
+    /**
+     * The admin roster, filtered by a free-text query — su-server matches it
+     * against the name, the email and the student id.
+     *
+     * Admin only, and a 403 for everyone else including staff: this is the one
+     * route in the app that returns other people's contact details.
+     */
+    suspend fun participants(query: String): ApiResult<ParticipantsPageDto> =
+        get("admin/participants?q=" + Uri.encode(query))
+
     suspend fun booths(): ApiResult<List<BoothDto>> = get("booths", authenticated = false)
 
     suspend fun zones(): ApiResult<List<ZoneDto>> = get("zones", authenticated = false)
+
+    /**
+     * When and where the fair is. Public, like the booths beside it — the app
+     * shows this on the welcome screen, before anyone has signed in.
+     */
+    suspend fun fairInfo(): ApiResult<FairInfoDto> = get("info", authenticated = false)
 
     /**
      * The fair's running order, published entries only and already in start

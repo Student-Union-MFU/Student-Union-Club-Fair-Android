@@ -2,6 +2,7 @@ package com.su.clubfair.ui.qr
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import android.text.format.DateUtils
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,6 +38,7 @@ import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -57,6 +59,7 @@ import com.su.clubfair.ui.scene.MeshBackground
 import com.su.clubfair.ui.components.glassSurface
 import com.su.clubfair.ui.model.PreviewStudent
 import com.su.clubfair.ui.model.Student
+import com.su.clubfair.data.FairSchedule
 import com.su.clubfair.ui.theme.AppSans
 import com.su.clubfair.ui.theme.AppTextWeight
 import com.su.clubfair.ui.theme.Dimens
@@ -177,7 +180,12 @@ private fun Ticket(student: Student, modifier: Modifier = Modifier) {
             Column(modifier = Modifier.weight(1f)) {
                 Label(stringResource(R.string.qr_admit))
                 Text(
-                    text = stringResource(R.string.qr_event_dates),
+                    // From `FairSchedule`, not a string. This line read
+                    // "26–27 Jul" for two releases after the fair moved, because
+                    // a date typed into strings.xml has nothing to keep it
+                    // honest. The pass a student holds up at a booth is the last
+                    // place a stale date should survive.
+                    text = passDate(),
                     fontFamily = AppSans,
                     fontWeight = AppTextWeight,
                     fontSize = 13.sp,
@@ -301,6 +309,15 @@ private class TicketShape(
  * If the booth-side scanner is known to handle inversion, swapping [QrInk] and
  * [Palette.Paper] restores the original look.
  */
+/** The fair's date, formatted where it cannot go stale — see `FairSchedule`. */
+@Composable
+private fun passDate(): String = DateUtils.formatDateRange(
+    LocalContext.current,
+    FairSchedule.startMillis,
+    FairSchedule.endMillis,
+    DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_ABBREV_MONTH or DateUtils.FORMAT_NO_YEAR,
+)
+
 @Composable
 internal fun StyledQr(content: String, modifier: Modifier = Modifier) {
     val matrix = remember(content) {

@@ -13,7 +13,6 @@
     <string name="app_name">Student Union Club Fair</string>
 
     <string name="welcome_title">Club Fair</string>
-    <string name="welcome_subtitle">Clubs, booths\n&amp; a weekend\nto explore</string>
     <string name="welcome_drag_hint">Get Started</string>
 
     <string name="login_title">Log in</string>
@@ -154,6 +153,13 @@
          above it and the card's own title both already said MFU333; the title is
          gone and this no longer has to carry the name. -->
     <string name="prizes_qr_checkpoints_label">checkpoints</string>
+    <!-- The explainer under the code. `prizes_about_body` is the fallback for a
+         tier whose description the Student Union has not written yet. -->
+    <string name="prizes_about_title">What is MFU333?</string>
+    <string name="prizes_about_body">MFU333 is the Student Union\'s prize for walking the fair. Every booth you visit is a checkpoint, and at %1$d checkpoints your code unlocks.</string>
+    <string name="prizes_step_scan">Scan the QR code shown at each club booth. The Scan tab is the round button in the bar below.</string>
+    <string name="prizes_step_collect">Collect %1$d checkpoints. Your progress saves as you go, even offline, and appears on the Home tab.</string>
+    <string name="prizes_step_claim">Show the unlocked code above at the Student Union desk during the fair to collect your prize.</string>
     <string name="prizes_qr_hint">Show this at the Student Union desk to collect MFU333.</string>
     <plurals name="prizes_qr_locked">
         <item quantity="one">Collect %1$d more booth to unlock your code</item>
@@ -249,6 +255,15 @@
     <string name="nav_home">Home</string>
     <string name="nav_booths">Booths</string>
     <string name="nav_profile">Profile</string>
+    <!-- The admin code wall. -->
+    <string name="codes_title">Booth codes</string>
+    <string name="codes_subtitle">Open a booth to show its QR</string>
+    <string name="codes_no_zone">No area set</string>
+    <string name="codes_back">Back to the booth list</string>
+    <string name="codes_waiting">Getting this booth\'s code…</string>
+    <string name="codes_hint">This code changes every 30 seconds. Hold the screen up for the student to scan.</string>
+    <!-- The admin-only fourth tab: every booth's live QR. -->
+    <string name="nav_codes">Codes</string>
     <string name="nav_events">Events</string>
     <string name="nav_scan">Scan a booth</string>
 
@@ -279,6 +294,15 @@
     <string name="scan_permission_cta">Allow camera</string>
     <string name="scan_permission_settings">Open settings</string>
     <string name="scan_permission_denied_body">Camera access was turned down. Booth codes change every few seconds, so the camera is the only way to collect one — you can allow it in Settings.</string>
+    <!-- An admin scanner reads a student pass rather than a booth code. -->
+    <string name="scan_title_pass">Scan a pass</string>
+    <string name="scan_hint_pass">Point the camera at a student\'s Club Fair pass</string>
+    <string name="scan_looking_title">Reading pass…</string>
+    <string name="scan_looking_body">Looking this student up on the server.</string>
+    <string name="scan_no_student_title">No student for that pass</string>
+    <string name="scan_no_student_body">The code scanned, but no account matches it. Check it is a Club Fair pass and not a booth code.</string>
+    <string name="scan_student_visited">%1$d booths scanned</string>
+    <string name="scan_student_flagged">This account is flagged</string>
     <!-- The scanner, for the same accounts. -->
     <string name="scan_locked_title">Scanning is for participants</string>
     <string name="scan_locked_body">Your account helps run the fair, so there is nothing here to scan. Students scan the QR at each booth to collect their checkpoints.</string>
@@ -467,7 +491,6 @@
     <string name="qr_subtitle">Student pass</string>
     <string name="qr_hint">Show this at any booth to get your checkpoint</string>
     <string name="qr_admit">Admit one</string>
-    <string name="qr_event_dates">26–27 Jul</string>
     <string name="qr_code_desc">QR code for student %1$s</string>
 
     <string name="auth_error_session_expired">You were signed out because your session expired. Please sign in again — your stamps are safe on the server.</string>
@@ -475,6 +498,12 @@
     <string name="auth_student_id_hint">Student ID</string>
     <string name="auth_password_hint">Password</string>
 
+    <!-- "22 Aug · 16:00 – 21:30". Both halves come from FairSchedule; this
+         resource only says how they are joined, which is a punctuation decision
+         and differs by language. -->
+    <string name="welcome_when">%1$s · %2$s</string>
+    <!-- The welcome screen's venue line, under the dates. -->
+    <string name="welcome_venue">Indoor Stadium, Mae Fah Luang University</string>
     <string name="logo_mfu">Mae Fah Luang University</string>
     <string name="logo_su">Student Union</string>
 </resources>
