@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Everything the app shows now comes from su-server. -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -17,6 +18,28 @@
     <uses-feature
         android:name="android.hardware.camera.any"
         android:required="false" />
+
+    <!-- Removed, not requested.
+
+         `androidx.credentials` — which is how Google sign-in works — depends on
+         `androidx.biometric`, and that library declares both of these in its own
+         manifest. Nothing in this app calls `BiometricPrompt`, so the merged
+         manifest was asking two thousand students for fingerprint access on
+         behalf of a code path that does not exist.
+
+         The manifest merger has no idea that; only we do, which is why this has
+         to be said explicitly here rather than fixed by an exclusion in Gradle.
+
+         **If a passkey sign-in is ever added, these come back.** Credential
+         Manager uses BiometricPrompt to confirm a passkey, and it will fail
+         without them — the failure would look like a broken Google button, not
+         like a missing permission, so this comment is the trail back. -->
+    <uses-permission
+        android:name="android.permission.USE_BIOMETRIC"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.USE_FINGERPRINT"
+        tools:node="remove" />
 
     <application
         android:name=".ClubFairApplication"

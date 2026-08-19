@@ -41,7 +41,7 @@
     <string name="login_error_generic">เข้าสู่ระบบไม่สำเร็จ ตรวจสอบรหัสนักศึกษาและรหัสผ่าน</string>
     <string name="login_error_credentials">รหัสนักศึกษาหรือรหัสผ่านไม่ถูกต้อง</string>
     <string name="auth_error_offline">เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่</string>
-    <string name="auth_google_unavailable">ยังไม่ได้ตั้งค่าการเข้าสู่ระบบด้วย Google — ใช้เบอร์โทรและรหัสผ่านแทน</string>
+    <string name="auth_google_unavailable">ยังไม่ได้ตั้งค่าการเข้าสู่ระบบด้วย Google — ใช้รหัสนักศึกษาและรหัสผ่านแทน</string>
     <string name="auth_google_unavailable_signup">บิลด์นี้ยังไม่ได้ตั้งค่าการเข้าสู่ระบบด้วย Google จึงยังสมัครบัญชีใหม่ไม่ได้</string>
 
     <string name="register_title">สร้างบัญชี</string>
@@ -70,7 +70,7 @@
     <string name="complete_student_id">รหัสนักศึกษา %1$s</string>
     <string name="complete_school_derived">กรอกให้จากรหัสนักศึกษา — ถ้าไม่ถูกต้องแก้ไขได้</string>
     <string name="complete_password_hint">ตั้งรหัสผ่าน</string>
-    <string name="complete_password_why">ไว้เข้าสู่ระบบด้วยเบอร์โทรเมื่อใช้ Google ไม่ได้</string>
+    <string name="complete_password_why">ไว้เข้าสู่ระบบด้วยรหัสนักศึกษาเมื่อใช้ Google ไม่ได้</string>
     <string name="complete_cta">สมัครให้เสร็จ</string>
     <string name="complete_working">กำลังบันทึก…</string>
     <string name="complete_wrong_account">ไม่ใช่บัญชีนี้? ออกจากระบบ</string>
@@ -86,8 +86,8 @@
     <string name="auth_error_password_short">อย่างน้อย %1$d ตัวอักษร</string>
     <string name="auth_error_password_letter">ต้องมีตัวอักษรอย่างน้อยหนึ่งตัว</string>
     <string name="auth_error_password_digit">ต้องมีตัวเลขอย่างน้อยหนึ่งตัว</string>
-    <string name="auth_error_google_failed">เริ่มการเข้าสู่ระบบด้วย Google ไม่ได้ กรุณาใช้เบอร์โทรและรหัสผ่านแทน</string>
-    <string name="auth_error_google_no_account">ไม่พบบัญชี Google ในเครื่องนี้ เพิ่มบัญชีในการตั้งค่า หรือใช้เบอร์โทรและรหัสผ่านแทน</string>
+    <string name="auth_error_google_failed">เริ่มการเข้าสู่ระบบด้วย Google ไม่ได้ กรุณาใช้รหัสนักศึกษาและรหัสผ่านแทน</string>
+    <string name="auth_error_google_no_account">ไม่พบบัญชี Google ในเครื่องนี้ เพิ่มบัญชีในการตั้งค่า หรือใช้รหัสนักศึกษาและรหัสผ่านแทน</string>
     <string name="auth_show_password">แสดงรหัสผ่าน</string>
     <string name="auth_hide_password">ซ่อนรหัสผ่าน</string>
 
@@ -132,6 +132,13 @@
     <string name="prizes_claimed">รับรางวัลแล้ว</string>
 
     <string name="home_checkpoints">จุดเช็คอิน</string>
+    <string name="home_booth_code">รหัสบูธของคุณ</string>
+    <string name="home_booth_unknown">บูธ</string>
+    <string name="home_booth_none">ยังไม่ได้กำหนดบูธให้บัญชีนี้</string>
+    <string name="home_booth_waiting">กำลังรับรหัส…</string>
+    <string name="home_booth_offline">ไม่ได้อัปเดตรหัส รหัสนี้จะใช้ไม่ได้ภายในสามนาที</string>
+    <string name="home_checkpoints_locked">จุดเช็คอินสำหรับผู้เข้าร่วมเท่านั้น</string>
+    <string name="home_checkpoints_locked_hint">บัญชีของคุณเป็นผู้ดูแลงาน จึงไม่มีแต้มบูธให้สะสม</string>
     <string name="home_checkpoints_count">%1$d</string>
     <plurals name="home_checkpoints_total">
         <item quantity="other">/ %1$d บูธ</item>
@@ -148,11 +155,13 @@
     <string name="program_route_section">ลำดับกิจกรรม</string>
     <string name="program_time_range">%1$s – %2$s</string>
     <string name="program_zone">โซน %1$s</string>
-    <string name="program_all_done">จบกำหนดการทั้งหมดแล้ว</string>
+    <string name="program_all_done">ไม่มีรายการที่กำลังจะถึง</string>
+    <string name="program_all_done_body">โปรดติดตาม องค์การนักศึกษาอาจเพิ่มรายการในกำหนดการได้อีก</string>
     <string name="program_empty_title">ยังไม่มีกำหนดการ</string>
     <string name="program_empty_body">องค์การนักศึกษายังไม่ได้ประกาศลำดับกิจกรรม เมื่อประกาศแล้วจะแสดงที่นี่</string>
     <string name="home_program">กำหนดการ</string>
     <string name="home_program_hint">มีอะไรบ้าง และเมื่อไหร่</string>
+    <string name="home_program_done">ไม่มีรายการที่กำลังจะถึง</string>
     <string name="home_prizes">MFU333</string>
 
     <string name="home_greeting">ยินดีต้อนรับกลับมา %1$s</string>
@@ -201,6 +210,8 @@
     <string name="scan_permission_cta">อนุญาตให้ใช้กล้อง</string>
     <string name="scan_permission_settings">เปิดการตั้งค่า</string>
     <string name="scan_permission_denied_body">คุณปฏิเสธการเข้าถึงกล้อง โค้ดของบูธเปลี่ยนทุกไม่กี่วินาที จึงต้องใช้กล้องเท่านั้น — อนุญาตได้ในการตั้งค่า</string>
+    <string name="scan_locked_title">การสแกนสำหรับผู้เข้าร่วมเท่านั้น</string>
+    <string name="scan_locked_body">บัญชีของคุณเป็นผู้ดูแลงาน จึงไม่มีอะไรให้สแกน นักศึกษาจะสแกน QR ที่แต่ละบูธเพื่อสะสมแต้ม</string>
     <string name="scan_unavailable_title">ไม่พบกล้อง</string>
     <string name="scan_unavailable_body">เครื่องนี้ไม่มีกล้องที่แอปใช้งานได้ กรุณาแจ้งเจ้าหน้าที่ที่บูธเพื่อบันทึกการเข้าร่วม</string>
     <string name="scan_result_booth">บูธ %1$02d</string>
@@ -253,6 +264,10 @@
     <string name="booths_search_empty_body">ลองใช้คำที่สั้นลง หรือชื่อสิ่งที่ชมรมทำ เช่น “ฟุตบอล” “ศิลปะ” “โค้ด”</string>
 
     <string name="profile_title">โปรไฟล์</string>
+    <string name="profile_role_student">ผู้เข้าร่วม</string>
+    <string name="profile_role_staff">เจ้าหน้าที่</string>
+    <string name="profile_role_admin">ผู้ดูแลระบบ</string>
+    <string name="profile_role_booth">เจ้าของบูธ</string>
     <string name="profile_pass_active">บัตรพร้อมใช้งาน</string>
     <string name="profile_back">ย้อนกลับ</string>
     <string name="profile_email">อีเมล</string>

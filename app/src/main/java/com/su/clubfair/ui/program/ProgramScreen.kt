@@ -220,13 +220,58 @@ private fun NowCard(steps: List<ProgramStep>) {
             .padding(Dimens.CardPadding),
     ) {
         if (step == null) {
-            Text(
-                text = stringResource(R.string.program_all_done),
-                fontFamily = AppSans,
-                fontWeight = AppTextWeight,
-                fontSize = 16.sp,
-                color = Color.White,
-            )
+            // The finished state is the one a student is most likely to be
+            // reading — the fair ends and this card stays on screen for the rest
+            // of the evening — and it was a single sentence floating in a card
+            // sized for four lines, which reads as a card that failed to fill
+            // rather than as an answer.
+            //
+            // A ticked node and two lines give it the shape the other two states
+            // have: a mark, a heading, and something underneath. The mark is the
+            // route's own Done node — see [StepNode] — because that is what every
+            // row below it is now wearing, and a different tick for the same fact
+            // would be a second visual vocabulary on one screen.
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        // The halo, not the filled node. At 40dp a solid accent
+                        // disc is the brightest thing on the page and would make
+                        // "nothing is on" the loudest statement on it; the ring
+                        // the running step wears is the right weight for a
+                        // heading mark.
+                        .background(Palette.Accent.copy(alpha = 0.16f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_check),
+                        contentDescription = null,
+                        tint = Palette.Accent,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+                Spacer(Modifier.width(Dimens.Space))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.program_all_done),
+                        modifier = Modifier.semantics { heading() },
+                        fontFamily = AppSans,
+                        fontWeight = AppTextWeight,
+                        fontSize = 16.sp,
+                        color = Color.White,
+                    )
+                    Spacer(Modifier.height(Dimens.SpaceXs))
+                    Text(
+                        text = stringResource(R.string.program_all_done_body),
+                        fontFamily = AppSans,
+                        fontWeight = AppTextWeight,
+                        fontSize = 13.sp,
+                        lineHeight = 1.45.em,
+                        color = Ink.Muted,
+                    )
+                }
+            }
             return@Column
         }
 

@@ -76,6 +76,27 @@ class ClubFairApi(
 
     suspend fun me(): ApiResult<UserDto> = get("me")
 
+    /**
+     * The booths this account owns — `clubfair_booth_owner`, resolved for the
+     * token's own user.
+     *
+     * Empty for everyone else, which is the answer rather than an error: the
+     * route is open to any signed-in account and a student simply owns nothing.
+     * It is how the app learns *which* booth a booth owner's display is for,
+     * without the booth id ever being typed in or guessed.
+     */
+    suspend fun myBooths(): ApiResult<List<BoothDto>> = get("me/booths")
+
+    /**
+     * The booth's rotating check-in code. Staff, admin and the booth's own owner.
+     *
+     * Answers 403 to a student token — including one that asks about a booth
+     * nobody owns — so a display that starts returning 403 has been signed into
+     * the wrong account rather than pointed at the wrong booth.
+     */
+    suspend fun checkinCode(boothId: Int): ApiResult<CheckinCodeDto> =
+        get("booths/$boothId/checkin-code")
+
     suspend fun updateProfile(body: UpdateProfileRequest): ApiResult<UserDto> =
         send("PATCH", "me", body)
 
