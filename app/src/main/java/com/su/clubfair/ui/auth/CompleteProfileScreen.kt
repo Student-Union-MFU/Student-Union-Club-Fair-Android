@@ -17,7 +17,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
@@ -27,7 +26,8 @@ import androidx.compose.ui.unit.sp
 import com.su.clubfair.R
 import com.su.clubfair.data.Campus
 import com.su.clubfair.ui.components.PillButton
-import com.su.clubfair.ui.theme.AlanSans
+import com.su.clubfair.ui.theme.AppSans
+import com.su.clubfair.ui.theme.AppTextWeight
 import com.su.clubfair.ui.theme.Dimens
 import com.su.clubfair.ui.theme.Ink
 import com.su.clubfair.ui.theme.SUClubFairTheme
@@ -65,8 +65,8 @@ fun CompleteProfileScreen(
             Spacer(Modifier.height(Dimens.SpaceLg))
             Text(
                 text = stringResource(R.string.complete_title),
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Bold,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
                 fontSize = 44.sp,
                 lineHeight = 1.05.em,
                 color = Color.White,
@@ -80,8 +80,8 @@ fun CompleteProfileScreen(
                     R.string.complete_subtitle,
                     "${state.firstName} ${state.surname}".trim(),
                 ),
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Normal,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
                 fontSize = 15.sp,
                 lineHeight = 1.35.em,
                 color = Color.White,
@@ -91,8 +91,8 @@ fun CompleteProfileScreen(
                 Spacer(Modifier.height(Dimens.SpaceXs))
                 Text(
                     text = stringResource(R.string.complete_student_id, id),
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Normal,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     fontSize = 13.sp,
                     color = Ink.Muted,
                 )
@@ -141,8 +141,8 @@ fun CompleteProfileScreen(
                     // forgot, and nobody checks their own typing.
                     text = stringResource(R.string.complete_school_derived),
                     modifier = Modifier.padding(start = Dimens.CardPadding),
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Normal,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     fontSize = 12.sp,
                     color = Ink.Muted,
                 )
@@ -181,8 +181,8 @@ fun CompleteProfileScreen(
                 // with no signal.
                 text = stringResource(R.string.complete_password_why),
                 modifier = Modifier.padding(start = Dimens.CardPadding),
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Normal,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
                 fontSize = 12.sp,
                 lineHeight = 1.4.em,
                 color = Ink.Muted,
@@ -207,8 +207,8 @@ fun CompleteProfileScreen(
                     // Google account is stuck on this form with no back gesture
                     // to undo a sign-in that already happened.
                     text = stringResource(R.string.complete_wrong_account),
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Medium,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     fontSize = 13.sp,
                     color = Color.White,
                 )

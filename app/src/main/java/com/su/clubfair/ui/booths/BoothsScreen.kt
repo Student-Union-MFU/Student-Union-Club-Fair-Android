@@ -47,7 +47,6 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -62,7 +61,8 @@ import com.su.clubfair.ui.model.displayTitle
 import com.su.clubfair.ui.model.previewRoster
 import com.su.clubfair.ui.model.zoneIntent
 import com.su.clubfair.ui.scene.MeshBackground
-import com.su.clubfair.ui.theme.AlanSans
+import com.su.clubfair.ui.theme.AppSans
+import com.su.clubfair.ui.theme.AppTextWeight
 import com.su.clubfair.ui.theme.Dimens
 import com.su.clubfair.ui.theme.Ink
 import com.su.clubfair.ui.theme.SUClubFairTheme
@@ -248,8 +248,8 @@ private fun ZonePicker(
                 Text(
                     text = stringResource(R.string.booths_title),
                     modifier = Modifier.semantics { heading() },
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Bold,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     fontSize = 20.sp,
                     color = Color.White,
                 )
@@ -261,8 +261,8 @@ private fun ZonePicker(
                         visited,
                         total,
                     ),
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Normal,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     fontSize = 12.sp,
                     color = Ink.Muted,
                 )
@@ -387,8 +387,8 @@ private fun ZoneCard(
             ) {
                 Text(
                     text = zone.letter,
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Bold,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     fontSize = 28.sp,
                     color = zone.accent,
                 )
@@ -398,8 +398,8 @@ private fun ZoneCard(
             Column(Modifier.weight(1f)) {
                 Text(
                     text = zone.displayTitle(),
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Bold,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     // 20sp, like every other titled card. It was 24sp, a size
                     // that exists nowhere else in the app.
                     fontSize = 20.sp,
@@ -409,8 +409,8 @@ private fun ZoneCard(
                     // Whichever of the area's two names is not the headline
                     // above, so both are on screen whatever the language.
                     text = zoneIntent(zone, booths).orEmpty(),
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Normal,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     fontSize = 12.sp,
                     color = Ink.Muted,
                 )
@@ -447,8 +447,8 @@ private fun ZoneCard(
         Spacer(Modifier.height(Dimens.SpaceLg))
         Text(
             text = stringResource(R.string.booths_zone_progress, scanned, total),
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Medium,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 12.sp,
             color = Color.White,
         )

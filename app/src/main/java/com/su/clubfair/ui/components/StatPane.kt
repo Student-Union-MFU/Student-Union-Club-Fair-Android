@@ -13,11 +13,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import com.su.clubfair.ui.theme.AlanSans
+import com.su.clubfair.ui.theme.AppSans
+import com.su.clubfair.ui.theme.AppTextWeight
 import com.su.clubfair.ui.theme.Dimens
 import com.su.clubfair.ui.theme.Ink
 
@@ -51,8 +51,8 @@ fun StatPane(
             ) {
                 Text(
                     text = entry.value,
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Bold,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     fontSize = 19.sp,
                     lineHeight = 1.1.em,
                     color = Color.White,
@@ -61,8 +61,8 @@ fun StatPane(
                 Spacer(Modifier.height(Dimens.SpaceXs / 2))
                 Text(
                     text = entry.label,
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Normal,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     fontSize = 11.sp,
                     lineHeight = 1.1.em,
                     color = Ink.Muted,

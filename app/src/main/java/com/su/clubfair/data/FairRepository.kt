@@ -6,6 +6,7 @@ import com.su.clubfair.data.net.BoothDto
 import com.su.clubfair.data.net.CheckInRequest
 import com.su.clubfair.data.net.ClubFairApi
 import com.su.clubfair.data.net.GoogleAccount
+import com.su.clubfair.data.net.ProgramEntryDto
 import com.su.clubfair.data.net.ProgressDto
 import com.su.clubfair.data.net.RegisterRequest
 import com.su.clubfair.data.net.UpdateProfileRequest
@@ -18,6 +19,7 @@ import com.su.clubfair.ui.model.Announcement
 import com.su.clubfair.ui.model.Booth
 import com.su.clubfair.ui.model.FairProgress
 import com.su.clubfair.ui.model.PrizeTier
+import com.su.clubfair.ui.model.ProgramEntry
 import com.su.clubfair.ui.model.Reaction
 import com.su.clubfair.ui.model.Student
 import com.su.clubfair.ui.model.Zone
@@ -35,6 +37,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import java.time.Instant
+import java.time.OffsetDateTime
 import java.util.UUID
 
 /**
@@ -58,6 +61,22 @@ sealed interface AuthOutcome {
     /** The server said no, with its own message — already in the reader's language. */
     data class Rejected(val message: String?) : AuthOutcome
 
+    /**
+     * The identifier or the password was wrong.
+     *
+     * Split out of [Rejected] so the app can phrase this one itself. su-server's
+     * copy for a failed login names three things the student might have got
+     * wrong — "รหัสนักศึกษา เบอร์โทร หรือรหัสผ่าน" — because the route accepts
+     * all three as an identifier. The form only asks for a student id, so two of
+     * the three are fields the reader never saw, and the message is Thai
+     * whatever language the app is set to.
+     *
+     * Every other rejection still passes the server's own words through: only
+     * the server knows about a flagged account or a rate limit, and it says so
+     * better than a generic string could.
+     */
+    data object BadCredentials : AuthOutcome
+
     /** Never reached the server. Signing in is the one thing that cannot be queued. */
     data object Offline : AuthOutcome
 }
@@ -78,6 +97,41 @@ sealed interface ScanOutcome {
      * recorded locally and will go up on the next successful call.
      */
     data object Queued : ScanOutcome
+}
+
+/**
+ * What happened to a reaction tap.
+ *
+ * A reaction is the one write in this app that is neither queued nor retried: it
+ * is a toggle on a shared count, and a tap replayed from a pocket an hour later
+ * would land on a post the student has long stopped looking at. So it either
+ * takes now or it says it did not.
+ */
+sealed interface ReactionOutcome {
+    data object Saved : ReactionOutcome
+    data class Rejected(val message: String?) : ReactionOutcome
+    data object Offline : ReactionOutcome
+}
+
+/**
+ * What happened to a staff member's announcement.
+ *
+ * Deliberately not a [ScanOutcome]-style `Queued` case. A scan is queued offline
+ * because it is a fact about something that already happened — the student stood
+ * at that booth — and holding it costs nothing. An announcement is the opposite:
+ * it is an instruction to two thousand phones, its whole value is in arriving
+ * now, and one that surfaced from a pocket an hour later would be worse than one
+ * that was never sent. So this fails, keeps the draft, and lets the author
+ * decide whether it is still worth sending.
+ */
+sealed interface PostOutcome {
+    data object Posted : PostOutcome
+
+    /** The server said no — an empty body, one over 2000 characters, or not staff. */
+    data class Rejected(val message: String?) : PostOutcome
+
+    /** Never reached the server. Nothing was published. */
+    data object Offline : PostOutcome
 }
 
 /**
@@ -107,6 +161,7 @@ class FairRepository(
     private val _zones = MutableStateFlow<List<Zone>>(emptyList())
     private val _progress = MutableStateFlow(FairProgress())
     private val _announcements = MutableStateFlow<List<Announcement>>(emptyList())
+    private val _program = MutableStateFlow<List<ProgramEntry>>(emptyList())
 
     /** True while a refresh is in flight, for a pull-to-refresh indicator. */
     private val _refreshing = MutableStateFlow(false)
@@ -160,6 +215,7 @@ class FairRepository(
     val zones: StateFlow<List<Zone>> = _zones.asStateFlow()
     val progress: StateFlow<FairProgress> = _progress.asStateFlow()
     val announcements: StateFlow<List<Announcement>> = _announcements.asStateFlow()
+    val program: StateFlow<List<ProgramEntry>> = _program.asStateFlow()
     val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()
     val offline: StateFlow<Boolean> = _offline.asStateFlow()
 
@@ -211,6 +267,11 @@ class FairRepository(
         store.cachedAnnouncements.first()?.let { raw ->
             decode<List<AnnouncementDto>>(raw)?.let { dtos ->
                 _announcements.value = dtos.map { it.toModel() }
+            }
+        }
+        store.cachedProgram.first()?.let { raw ->
+            decode<List<ProgramEntryDto>>(raw)?.let { dtos ->
+                _program.value = dtos.mapNotNull { it.toModel() }
             }
         }
 
@@ -276,6 +337,15 @@ class FairRepository(
                     _announcements.value = dtos.map { it.toModel() }
                 }
 
+                // Unauthenticated, so no `orEndSession` — a 401 from this route
+                // would say nothing about the session and there is nothing here
+                // to end one over.
+                api.program().valueOrNull()?.let { dtos ->
+                    reachedServer = true
+                    store.cacheProgram(json.encodeToString(dtos))
+                    _program.value = dtos.mapNotNull { it.toModel() }
+                }
+
                 _offline.value = !reachedServer
             } finally {
                 _refreshing.value = false
@@ -330,8 +400,14 @@ class FairRepository(
         return completeSignIn(result)
     }
 
-    suspend fun signInWithPassword(phone: String, password: String): AuthOutcome =
-        completeSignIn(api.signInWithPassword(phone, password))
+    suspend fun signInWithPassword(studentId: String, password: String): AuthOutcome {
+        val result = api.signInWithPassword(studentId, password)
+        // A 401 from *this* route is the credentials, not an expired session:
+        // the call carries no token to expire. Everything else — a 429, a
+        // disabled account — keeps su-server's own message.
+        if (result.isUnauthorized) return AuthOutcome.BadCredentials
+        return completeSignIn(result)
+    }
 
     suspend fun register(
         firstName: String,
@@ -598,7 +674,7 @@ class FairRepository(
      * write is trivially reversible. The server's answer wins: on failure the flip
      * is undone, so a rejected tap does not leave a chip lit.
      */
-    suspend fun toggleReaction(postId: Long, emoji: String) {
+    suspend fun toggleReaction(postId: Long, emoji: String): ReactionOutcome {
         val before = _announcements.value
         _announcements.value = before.map { post ->
             if (post.id == postId) post.toggling(emoji) else post
@@ -607,7 +683,17 @@ class FairRepository(
         val result = api.toggleReaction(postId, emoji).orEndSession()
         if (result.valueOrNull() == null) {
             _announcements.value = before
-            return
+            // The rollback used to be the whole of the failure handling, which
+            // made a rejected tap indistinguishable from one that never
+            // registered: the chip appeared and vanished inside a frame and the
+            // student was left tapping a picker that closed and did nothing.
+            // Saying so costs a line and is the difference between "this app is
+            // broken" and "that did not go through".
+            return when (result) {
+                is ApiResult.Offline -> ReactionOutcome.Offline
+                is ApiResult.Failure -> ReactionOutcome.Rejected(result.message)
+                is ApiResult.Success -> ReactionOutcome.Rejected(null)
+            }
         }
         // Re-read the channel so the counts are everyone's, not this device's
         // guess at everyone's.
@@ -615,6 +701,37 @@ class FairRepository(
             store.cacheAnnouncements(json.encodeToString(dtos))
             _announcements.value = dtos.map { it.toModel() }
         }
+        return ReactionOutcome.Saved
+    }
+
+    /**
+     * Publishes an announcement, then reconciles the channel against the server.
+     *
+     * The created post goes into the list first, from the 201 body, so the author
+     * sees it land at once. Then the whole channel is re-read for the same reason
+     * [toggleReaction] re-reads it: ordering and reaction counts are everyone's,
+     * not this device's guess at everyone's, and a post someone else made in the
+     * meantime arrives with it.
+     *
+     * The re-read is allowed to fail. It is a refresh, not the write — the post
+     * is already published at that point, and dropping the optimistic insert
+     * because the second call timed out would tell the author their announcement
+     * had not been sent when it had. That is the one wrong answer available here.
+     */
+    suspend fun postAnnouncement(body: String): PostOutcome {
+        val created = when (val result = api.postAnnouncement(body).orEndSession()) {
+            is ApiResult.Success -> result.value
+            is ApiResult.Offline -> return PostOutcome.Offline
+            is ApiResult.Failure -> return PostOutcome.Rejected(result.message)
+        }
+
+        _announcements.value = _announcements.value + created.toModel()
+
+        api.announcements().orEndSession().valueOrNull()?.let { dtos ->
+            store.cacheAnnouncements(json.encodeToString(dtos))
+            _announcements.value = dtos.map { it.toModel() }
+        }
+        return PostOutcome.Posted
     }
 
     // ---- Preferences -----------------------------------------------------
@@ -633,6 +750,7 @@ class FairRepository(
         _sessionExpired.value = false
         _progress.value = FairProgress()
         _announcements.value = emptyList()
+        _program.value = emptyList()
         _booths.value = emptyList()
         _zones.value = emptyList()
     }
@@ -656,6 +774,42 @@ private fun ProgressDto.toModel() = FairProgress(
         )
     },
 )
+
+/**
+ * One programme entry, with its two timestamps read.
+ *
+ * Null — dropping the entry — when `starts_at` will not parse, which is the one
+ * field the whole row is useless without: an entry with no time cannot be placed
+ * on the route, cannot be compared against the clock, and would sit at the top
+ * of the running order claiming to be first. That is worse than one row missing
+ * from a schedule the server can fix.
+ *
+ * `OffsetDateTime` rather than `Instant.parse`, which is strict about wanting a
+ * `Z`. su-server sends UTC today because its database session is UTC, and a
+ * deployment whose session is Asia/Bangkok would send `+07:00` instead —
+ * correct, the same moment, and unparseable by the stricter reader.
+ */
+private fun ProgramEntryDto.toModel(): ProgramEntry? {
+    val startsAt = parseInstant(startsAt) ?: return null
+    return ProgramEntry(
+        id = id,
+        startsAtMillis = startsAt,
+        // An unreadable end is treated as absent rather than as a reason to drop
+        // the entry: "we know when it starts and not when it finishes" is a
+        // state the type already has a place for.
+        endsAtMillis = endsAt?.let(::parseInstant),
+        title = title,
+        titleEn = titleEn,
+        detail = detail,
+        detailEn = detailEn,
+        location = location,
+        locationEn = locationEn,
+        zoneCode = zone,
+    )
+}
+
+private fun parseInstant(raw: String): Long? =
+    runCatching { OffsetDateTime.parse(raw).toInstant().toEpochMilli() }.getOrNull()
 
 private fun AnnouncementDto.toModel() = Announcement(
     id = id,

@@ -35,7 +35,7 @@ The day the fair opens, as a calendar.
     <path android:pathData="M25,20 H71 A11,11 0 0 1 82,31 V71 A11,11 0 0 1 71,82 H25 A11,11 0 0 1 14,71 V31 A11,11 0 0 1 25,20 Z" android:fillColor="#00000000"
         android:strokeColor="#FFFFFFFF" android:strokeWidth="3.2"
         android:strokeLineCap="round" android:strokeLineJoin="round" />
-    <path android:pathData="M14,39 H82" android:fillColor="#00000000"
+    <path android:pathData="M20,39 H76" android:fillColor="#00000000"
         android:strokeColor="#8AFFFFFF" android:strokeWidth="3.2"
         android:strokeLineCap="round" android:strokeLineJoin="round" />
     <path android:pathData="M28,49.4 A2.6,2.6 0 1 1 28,54.6 A2.6,2.6 0 1 1 28,49.4 Z" android:fillColor="#8AFFFFFF" />

@@ -35,7 +35,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -47,15 +46,12 @@ import com.su.clubfair.ui.scene.MeshBackground
 import com.su.clubfair.ui.components.ActionRow
 import com.su.clubfair.ui.components.Hairline
 import com.su.clubfair.ui.components.SheetHeader
-import com.su.clubfair.ui.components.StatEntry
-import com.su.clubfair.ui.components.StatPane
 import com.su.clubfair.ui.components.StudentAvatar
 import com.su.clubfair.ui.components.glassSurface
-import com.su.clubfair.ui.model.FairProgress
-import com.su.clubfair.ui.model.PreviewProgress
 import com.su.clubfair.ui.model.PreviewStudent
 import com.su.clubfair.ui.model.Student
-import com.su.clubfair.ui.theme.AlanSans
+import com.su.clubfair.ui.theme.AppSans
+import com.su.clubfair.ui.theme.AppTextWeight
 import com.su.clubfair.ui.theme.Dimens
 import com.su.clubfair.ui.theme.Ink
 import com.su.clubfair.ui.theme.LocalAccent
@@ -79,7 +75,6 @@ private val CardRadius = Dimens.RadiusLg
 fun ProfileScreen(
     modifier: Modifier = Modifier,
     student: Student = PreviewStudent,
-    progress: FairProgress = PreviewProgress,
     onBack: () -> Unit = {},
     onOpenPass: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
@@ -122,28 +117,13 @@ fun ProfileScreen(
             Spacer(Modifier.height(Dimens.Space))
             PassRow(onClick = onOpenPass)
 
-            Spacer(Modifier.height(Dimens.Space))
-            StatPane(
-                entries = listOf(
-                    StatEntry(
-                        value = "${progress.visited}/${progress.total}",
-                        label = stringResource(R.string.profile_stat_booths),
-                    ),
-                    StatEntry(
-                        // The server ranks by check-in count. An em dash for a
-                        // student who has scanned nothing: they are not in the
-                        // running, and a made-up position is what `#42` was.
-                        value = progress.rank?.let { "#$it" }
-                            ?: stringResource(R.string.home_stat_unknown),
-                        label = stringResource(R.string.home_stat_rank),
-                    ),
-                    StatEntry(
-                        value = "${progress.prizesEarned}",
-                        label = stringResource(R.string.home_stat_prizes),
-                    ),
-                ),
-            )
-
+            // No stat pane here. Booths, rank and MFU333 were a second
+            // rendering of numbers Home already leads with — the checkpoint card
+            // is the first thing on that page and the MFU333 tile is directly
+            // under it — and this is the page a student opens to check their own
+            // details or to sign out, not to check their score. Repeating them
+            // here made the profile look like a dashboard and pushed the details
+            // that are only on this page further down.
             Spacer(Modifier.height(Dimens.Space))
             DetailsCard(student = student)
 
@@ -212,16 +192,16 @@ private fun IdentityCard(student: Student, modifier: Modifier = Modifier) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = student.name,
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Bold,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
                 fontSize = 22.sp,
                 color = Color.White,
             )
             Spacer(Modifier.height(2.dp))
             Text(
                 text = student.studentId ?: student.email,
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Normal,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
                 fontSize = 13.sp,
                 color = Ink.Muted,
             )
@@ -250,8 +230,8 @@ private fun VerifiedChip(modifier: Modifier = Modifier) {
         Spacer(Modifier.size(Dimens.SpaceXs))
         Text(
             text = stringResource(R.string.profile_pass_active),
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Medium,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 11.sp,
             color = LocalAccent.current,
         )
@@ -333,16 +313,16 @@ private fun DetailRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = label,
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Normal,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
                 fontSize = 11.sp,
                 color = Ink.Muted,
             )
             Spacer(Modifier.height(1.dp))
             Text(
                 text = value,
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Medium,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
                 fontSize = 14.sp,
                 color = if (muted) Ink.Muted else Ink.Label,
             )
@@ -380,15 +360,15 @@ private fun PassRow(onClick: () -> Unit, modifier: Modifier = Modifier) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = stringResource(R.string.profile_pass_row),
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Bold,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
                 fontSize = 15.sp,
                 color = Color.White,
             )
             Text(
                 text = stringResource(R.string.profile_pass_row_hint),
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Normal,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
                 fontSize = 12.sp,
                 color = Ink.Muted,
             )
@@ -428,8 +408,8 @@ private fun SignOutButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
         Spacer(Modifier.size(Dimens.SpaceSm))
         Text(
             text = stringResource(R.string.profile_sign_out),
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Medium,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 14.sp,
             color = Color.White,
         )
@@ -464,7 +444,7 @@ private fun LegalLinks(
         )
         Text(
             text = "·",
-            fontFamily = AlanSans,
+            fontFamily = AppSans,
             fontSize = 11.sp,
             color = Ink.Faint,
         )
@@ -491,8 +471,8 @@ private fun LegalLink(
     ) {
         Text(
             text = label,
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Normal,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 11.sp,
             textDecoration = TextDecoration.Underline,
             color = Ink.Muted,

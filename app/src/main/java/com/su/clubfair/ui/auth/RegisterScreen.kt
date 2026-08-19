@@ -19,7 +19,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -32,7 +31,8 @@ import com.su.clubfair.data.Campus
 import com.su.clubfair.ui.components.PillButton
 import com.su.clubfair.ui.legal.LegalConsentNotice
 import com.su.clubfair.ui.legal.LegalDocument
-import com.su.clubfair.ui.theme.AlanSans
+import com.su.clubfair.ui.theme.AppSans
+import com.su.clubfair.ui.theme.AppTextWeight
 import com.su.clubfair.ui.theme.Dimens
 import com.su.clubfair.ui.theme.Ink
 import com.su.clubfair.ui.theme.SUClubFairTheme
@@ -80,8 +80,8 @@ fun RegisterScreen(
             Spacer(Modifier.height(Dimens.SpaceLg))
             Text(
                 text = stringResource(R.string.register_title),
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Bold,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
                 fontSize = 44.sp,
                 lineHeight = 1.05.em,
                 color = Color.White,
@@ -89,8 +89,8 @@ fun RegisterScreen(
             Spacer(Modifier.height(Dimens.SpaceSm))
             Text(
                 text = stringResource(R.string.register_subtitle),
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Normal,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
                 fontSize = 15.sp,
                 lineHeight = 1.35.em,
                 color = Color.White,
@@ -161,8 +161,8 @@ fun RegisterScreen(
                 Text(
                     text = stringResource(R.string.register_derived_id, id),
                     modifier = Modifier.padding(start = Dimens.CardPadding),
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Normal,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     fontSize = 12.sp,
                     color = Ink.Muted,
                 )
@@ -246,8 +246,8 @@ fun RegisterScreen(
             ) {
                 Text(
                     text = stringResource(R.string.register_have_account),
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Medium,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     fontSize = 13.sp,
                     color = Color.White,
                 )

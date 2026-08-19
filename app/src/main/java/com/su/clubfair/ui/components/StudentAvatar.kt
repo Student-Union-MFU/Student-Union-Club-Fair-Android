@@ -12,13 +12,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.su.clubfair.ui.model.Student
-import com.su.clubfair.ui.theme.AlanSans
+import com.su.clubfair.ui.theme.AppSans
+import com.su.clubfair.ui.theme.AppTextWeight
 import com.su.clubfair.ui.theme.LocalAccent
 
 /**
@@ -64,8 +64,8 @@ fun StudentAvatar(
             // Both names now that sign-up asks for both: one letter collides
             // across a fair of thousands, two mostly don't.
             text = student.initials,
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Bold,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             // Scaled to the circle rather than fixed, so the same composable
             // works at 64.dp on Profile and at whatever a later caller wants.
             fontSize = (size.value * 0.4f).sp,

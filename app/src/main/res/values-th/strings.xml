@@ -38,7 +38,8 @@
     <string name="login_or">หรือ</string>
     <string name="login_google">ดำเนินการต่อด้วย Google</string>
 
-    <string name="login_error_generic">เข้าสู่ระบบไม่สำเร็จ ตรวจสอบเบอร์โทรและรหัสผ่าน</string>
+    <string name="login_error_generic">เข้าสู่ระบบไม่สำเร็จ ตรวจสอบรหัสนักศึกษาและรหัสผ่าน</string>
+    <string name="login_error_credentials">รหัสนักศึกษาหรือรหัสผ่านไม่ถูกต้อง</string>
     <string name="auth_error_offline">เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่</string>
     <string name="auth_google_unavailable">ยังไม่ได้ตั้งค่าการเข้าสู่ระบบด้วย Google — ใช้เบอร์โทรและรหัสผ่านแทน</string>
     <string name="auth_google_unavailable_signup">บิลด์นี้ยังไม่ได้ตั้งค่าการเข้าสู่ระบบด้วย Google จึงยังสมัครบัญชีใหม่ไม่ได้</string>
@@ -77,6 +78,7 @@
 
     <string name="loading_fair">กำลังเตรียมงานให้คุณ…</string>
     <string name="auth_error_required">จำเป็นต้องกรอก</string>
+    <string name="auth_error_student_id">กรอกรหัสนักศึกษา 10 หลัก</string>
     <string name="auth_error_phone">กรอกเบอร์มือถือไทย เช่น 0683150329</string>
     <string name="auth_error_email">กรอกอีเมลให้ถูกต้อง</string>
     <string name="auth_error_email_mfu">ใช้อีเมล @lamduan.mfu.ac.th ของคุณ</string>
@@ -110,25 +112,25 @@
 
     <!-- หน้ารางวัล ชื่อและรายละเอียดของแต่ละขั้นมาจากเซิร์ฟเวอร์
          มีเฉพาะข้อความแจ้งเตือนที่เป็นของแอป เพราะรายการรางวัลยังเป็นข้อมูลตัวอย่าง -->
-    <string name="prizes_title">รางวัล</string>
-    <string name="prizes_earned_of">ได้รับแล้ว จากทั้งหมด %1$d รางวัล</string>
-    <string name="prizes_booths_progress">เก็บแล้ว %1$d จาก %2$d บูธ</string>
-    <string name="prizes_route_section">เส้นทางของคุณ</string>
-    <string name="prizes_route_hint">เส้นทางที่สว่างคือระยะที่คุณเดินมาแล้ว กล่องของขวัญคือจุดที่มีของรางวัล</string>
+    <string name="prizes_title">MFU333</string>
     <string name="prizes_here">คุณอยู่ตรงนี้</string>
     <string name="prizes_start">จุดเริ่มต้น</string>
     <!-- Thai does not inflect for number, so "other" is the whole of it. -->
     <plurals name="prizes_tier_desc">
         <item quantity="other">%1$s ที่ %2$d บูธ %3$s</item>
     </plurals>
-    <string name="prizes_placeholder_notice">รายการรางวัลยังไม่สรุป ขั้นรางวัลที่เห็นเป็นข้อมูลตัวอย่างระหว่างรอองค์การนักศึกษายืนยัน แต่จำนวนบูธที่ต้องเก็บเป็นข้อมูลจริง</string>
     <plurals name="prizes_remaining">
         <item quantity="other">อีก %1$d บูธ</item>
+    </plurals>
+    <string name="prizes_qr_checkpoints">%1$d/%2$d</string>
+    <string name="prizes_qr_checkpoints_label">จุดเช็คอิน</string>
+    <string name="prizes_qr_hint">แสดงรหัสนี้ที่จุดขององค์การนักศึกษาเพื่อรับ MFU333</string>
+    <plurals name="prizes_qr_locked">
+        <item quantity="other">เก็บอีก %1$d บูธเพื่อปลดล็อกรหัสของคุณ</item>
     </plurals>
     <string name="prizes_ready">ได้รับแล้ว รับรางวัลที่จุดองค์การนักศึกษา</string>
     <string name="prizes_claimed">รับรางวัลแล้ว</string>
 
-    <string name="home_headline">ค้นหาชมรมของคุณในสุดสัปดาห์นี้</string>
     <string name="home_checkpoints">จุดเช็คอิน</string>
     <string name="home_checkpoints_count">%1$d</string>
     <plurals name="home_checkpoints_total">
@@ -138,23 +140,39 @@
     <string name="home_checkpoints_desc">สแกนแล้ว %1$d จาก %2$d บูธ</string>
     <string name="home_offline">ออฟไลน์ — แสดงความคืบหน้าที่บันทึกไว้ล่าสุด</string>
     <string name="home_clubs">ชมรม</string>
-    <string name="home_prizes">รางวัล</string>
+
+    <!-- หน้ากำหนดการ ข้อมูลแต่ละรายการมาจากเซิร์ฟเวอร์ (clubfair_program) -->
+    <string name="program_title">กำหนดการ</string>
+    <string name="program_now">กำลังดำเนินอยู่</string>
+    <string name="program_next">รายการถัดไป</string>
+    <string name="program_route_section">ลำดับกิจกรรม</string>
+    <string name="program_time_range">%1$s – %2$s</string>
+    <string name="program_zone">โซน %1$s</string>
+    <string name="program_all_done">จบกำหนดการทั้งหมดแล้ว</string>
+    <string name="program_empty_title">ยังไม่มีกำหนดการ</string>
+    <string name="program_empty_body">องค์การนักศึกษายังไม่ได้ประกาศลำดับกิจกรรม เมื่อประกาศแล้วจะแสดงที่นี่</string>
+    <string name="home_program">กำหนดการ</string>
+    <string name="home_program_hint">มีอะไรบ้าง และเมื่อไหร่</string>
+    <string name="home_prizes">MFU333</string>
 
     <string name="home_greeting">ยินดีต้อนรับกลับมา %1$s</string>
     <string name="home_profile">เปิดโปรไฟล์</string>
     <string name="home_announcements">ประกาศ</string>
 
     <string name="home_stat_rank">อันดับ</string>
-    <string name="home_stat_prizes">รางวัล</string>
+    <string name="home_stat_prizes">MFU333</string>
     <string name="home_stat_unknown">—</string>
     <string name="home_stat_ended">งาน</string>
     <string name="home_stat_ended_value">จบแล้ว</string>
-    <string name="home_opens_on">งานเปิด %1$s</string>
+    <string name="home_opens_in">งานเปิดในอีก</string>
     <!-- The countdown runs days + hours + minutes on one line, so the units are
          abbreviated: spelled out, three of them do not fit at 40sp. -->
-    <string name="home_unit_days">%1$d ว.</string>
-    <string name="home_unit_hours">%1$d ชม.</string>
-    <string name="home_unit_minutes">%1$d น.</string>
+    <!-- Quoted so the leading space survives: Android trims unquoted
+         whitespace, and Thai sets a space between the number and its unit. -->
+    <string name="home_unit_day">" ว."</string>
+    <string name="home_unit_hour">" ชม."</string>
+    <string name="home_unit_minute">" น."</string>
+    <string name="home_unit_second">" วิ."</string>
     <string name="home_open_now">งานเปิดอยู่</string>
     <string name="home_open_ends_in">งานเปิดอยู่ · ปิดใน</string>
 
@@ -171,6 +189,10 @@
     <string name="events_reaction_desc">%1$s, %2$d</string>
     <string name="events_composer_hint">ส่งข้อความถึง #ประกาศ</string>
     <string name="events_send">ส่งประกาศ</string>
+    <string name="events_reaction_offline">ไม่มีสัญญาณ ยังไม่ได้บันทึกรีแอคชัน</string>
+    <string name="events_reaction_failed">บันทึกรีแอคชันไม่สำเร็จ ลองอีกครั้ง</string>
+    <string name="events_post_offline">ไม่มีสัญญาณ ยังไม่ได้ส่งประกาศ ข้อความของคุณยังอยู่ ลองอีกครั้ง</string>
+    <string name="events_post_failed">ส่งประกาศไม่สำเร็จ ข้อความของคุณยังอยู่ ลองอีกครั้ง</string>
     <string name="events_just_now">เมื่อสักครู่</string>
 
     <string name="scan_title">สแกนบูธ</string>
@@ -232,7 +254,6 @@
 
     <string name="profile_title">โปรไฟล์</string>
     <string name="profile_pass_active">บัตรพร้อมใช้งาน</string>
-    <string name="profile_stat_booths">บูธ</string>
     <string name="profile_back">ย้อนกลับ</string>
     <string name="profile_email">อีเมล</string>
     <string name="profile_phone">เบอร์โทรศัพท์</string>
@@ -344,7 +365,7 @@
 
     <string name="auth_error_session_expired">คุณออกจากระบบเนื่องจากเซสชันหมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง — แสตมป์ของคุณยังอยู่ครบบนเซิร์ฟเวอร์</string>
 
-    <string name="auth_phone_hint">683XXXXXXX</string>
+    <string name="auth_student_id_hint">รหัสนักศึกษา</string>
     <string name="auth_password_hint">รหัสผ่าน</string>
 
     <string name="logo_mfu">มหาวิทยาลัยแม่ฟ้าหลวง</string>

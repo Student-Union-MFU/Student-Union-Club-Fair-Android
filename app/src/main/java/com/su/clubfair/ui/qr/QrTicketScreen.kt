@@ -42,7 +42,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
@@ -58,7 +57,8 @@ import com.su.clubfair.ui.scene.MeshBackground
 import com.su.clubfair.ui.components.glassSurface
 import com.su.clubfair.ui.model.PreviewStudent
 import com.su.clubfair.ui.model.Student
-import com.su.clubfair.ui.theme.AlanSans
+import com.su.clubfair.ui.theme.AppSans
+import com.su.clubfair.ui.theme.AppTextWeight
 import com.su.clubfair.ui.theme.Dimens
 import com.su.clubfair.ui.theme.Ink
 import com.su.clubfair.ui.theme.Palette
@@ -109,8 +109,8 @@ fun QrTicketScreen(
             Spacer(Modifier.height(Dimens.Space))
             Text(
                 text = stringResource(R.string.qr_hint),
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Normal,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
                 fontSize = 13.sp,
                 color = Ink.Muted,
                 textAlign = TextAlign.Center,
@@ -135,8 +135,8 @@ private fun Ticket(student: Student, modifier: Modifier = Modifier) {
         Spacer(Modifier.height(Dimens.SpaceLg))
         Text(
             text = stringResource(R.string.qr_title),
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Bold,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 24.sp,
             color = Color.White,
             modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -144,8 +144,8 @@ private fun Ticket(student: Student, modifier: Modifier = Modifier) {
         Spacer(Modifier.height(Dimens.SpaceXs))
         Text(
             text = stringResource(R.string.qr_subtitle),
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Normal,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 12.sp,
             color = Ink.Muted,
             modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -178,8 +178,8 @@ private fun Ticket(student: Student, modifier: Modifier = Modifier) {
                 Label(stringResource(R.string.qr_admit))
                 Text(
                     text = stringResource(R.string.qr_event_dates),
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Medium,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     fontSize = 13.sp,
                     color = Color.White,
                 )
@@ -187,22 +187,22 @@ private fun Ticket(student: Student, modifier: Modifier = Modifier) {
             Column(horizontalAlignment = Alignment.End) {
                 Text(
                     text = student.studentId.orEmpty(),
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Bold,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     fontSize = 16.sp,
                     color = Color.White,
                 )
                 Text(
                     text = student.major.orEmpty(),
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Normal,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     fontSize = 11.sp,
                     color = Ink.Muted,
                 )
                 Text(
                     text = student.school.orEmpty(),
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Normal,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     fontSize = 11.sp,
                     color = Ink.Muted,
                 )
@@ -216,8 +216,8 @@ private fun Ticket(student: Student, modifier: Modifier = Modifier) {
 private fun Label(text: String, modifier: Modifier = Modifier) {
     Text(
         text = text.uppercase(),
-        fontFamily = AlanSans,
-        fontWeight = FontWeight.Medium,
+        fontFamily = AppSans,
+        fontWeight = AppTextWeight,
         fontSize = 9.sp,
         letterSpacing = 1.4.sp,
         color = Ink.Faint,
@@ -302,7 +302,7 @@ private class TicketShape(
  * [Palette.Paper] restores the original look.
  */
 @Composable
-private fun StyledQr(content: String, modifier: Modifier = Modifier) {
+internal fun StyledQr(content: String, modifier: Modifier = Modifier) {
     val matrix = remember(content) {
         runCatching { Encoder.encode(content, ErrorCorrectionLevel.H).matrix }.getOrNull()
     } ?: return

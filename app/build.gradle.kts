@@ -76,8 +76,8 @@ android {
         applicationId = "com.su.clubfair"
         minSdk = 24
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -104,7 +104,7 @@ android {
         )
 
         // Which intakes may sign up, as the leading digits of a student id —
-        // "69" is the 2569 intake, so 67-69 is the three years currently on
+        // "69" is the 2569 intake, so 66-69 is the four years currently on
         // campus. Mirrors su-server's own default and its
         // CLUBFAIR_INTAKE_PREFIXES so the form can say no before a round trip;
         // the server remains the one that decides, and is the only side that
@@ -116,7 +116,7 @@ android {
         buildConfigField(
             "String",
             "INTAKE_PREFIXES",
-            "\"${localConfig("clubfairIntakePrefixes", "CLUBFAIR_INTAKE_PREFIXES", "67,68,69")}\"",
+            "\"${localConfig("clubfairIntakePrefixes", "CLUBFAIR_INTAKE_PREFIXES", "66,67,68,69")}\"",
         )
 
         // Only the languages actually translated. Without this the APK carries

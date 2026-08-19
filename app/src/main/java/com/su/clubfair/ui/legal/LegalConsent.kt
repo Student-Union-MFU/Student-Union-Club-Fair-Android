@@ -12,14 +12,14 @@ import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.su.clubfair.R
-import com.su.clubfair.ui.theme.AlanSans
+import com.su.clubfair.ui.theme.AppSans
+import com.su.clubfair.ui.theme.AppTextWeight
 
 /**
  * "By continuing, you agree to…", with both documents reachable from it.
@@ -50,8 +50,8 @@ fun LegalConsentNotice(
     Text(
         text = consentText(notice = notice, onOpen = onOpen),
         modifier = modifier.fillMaxWidth(),
-        fontFamily = AlanSans,
-        fontWeight = FontWeight.Normal,
+        fontFamily = AppSans,
+        fontWeight = AppTextWeight,
         fontSize = 11.sp,
         lineHeight = 1.45.em,
         color = Color.White,
@@ -74,7 +74,7 @@ private fun consentText(
     // tappable — the styling was never the problem.
     val linkStyle = TextLinkStyles(
         style = SpanStyle(
-            fontWeight = FontWeight.Medium,
+            fontWeight = AppTextWeight,
             textDecoration = TextDecoration.Underline,
         ),
     )

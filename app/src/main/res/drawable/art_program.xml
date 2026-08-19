@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+A running order: a clock face over a listed schedule.
+
+  The tile has to say "what is on, and when" in one glance, and the two halves
+  of that are a time and a list. A clock alone reads as a countdown, which the
+  home screen already has on the fair-status card; a list alone reads as the
+  booths directory two tiles away. Together they are a timetable and nothing
+  else on this page.
+
+  Same material as art_clubs and art_prizes: white line work at the two weights
+  used everywhere, no fills in palette colours. The sheet, the clock ring and
+  the hands are the drawing at full weight; the ruled lines and the tick marks
+  sit at 54% so the clock reads in front of the page rather than on it.
+
+  The accent stays off it, for the reason the other two tiles keep it off: lime
+  in this app means something has happened — a checkpoint scanned, a step
+  finished. A tile is a door, not an event, and the route inside this one uses
+  lime for exactly that job.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="76dp"
+    android:height="76dp"
+    android:viewportWidth="76"
+    android:viewportHeight="76">
+
+    <!-- The schedule sheet, sitting back and to the left. -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="3.0"
+        android:pathData="M14,12H46A4,4 0 0,1 50,16V56A4,4 0 0,1 46,60H14A4,4 0 0,1 10,56V16A4,4 0 0,1 14,12Z" />
+
+    <!-- Ruled entries. Secondary weight: they are the texture of a list, not
+         four separate objects to read. -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeAlpha="0.54"
+        android:strokeLineCap="round"
+        android:strokeWidth="3.0"
+        android:pathData="M19,24H41" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeAlpha="0.54"
+        android:strokeLineCap="round"
+        android:strokeWidth="3.0"
+        android:pathData="M19,33H41" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeAlpha="0.54"
+        android:strokeLineCap="round"
+        android:strokeWidth="3.0"
+        android:pathData="M19,42H32" />
+
+    <!-- The clock, overlapping the sheet's lower-right corner so the two read as
+         one object with a front and a back. The gap around it is cut by drawing
+         it over the sheet in the app's own dark ground: a stroke-only ring on a
+         translucent surface cannot mask what is behind it, so the ring is drawn
+         filled first in the backdrop tone, then outlined. -->
+    <path
+        android:fillColor="#FF0B120E"
+        android:pathData="M52,36m-19,0a19,19 0 1,0 38,0a19,19 0 1,0 -38,0" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="3.0"
+        android:pathData="M52,36m-15,0a15,15 0 1,0 30,0a15,15 0 1,0 -30,0" />
+
+    <!-- Hands, reading a little past the hour. -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="3.0"
+        android:pathData="M52,28V36L58,40" />
+
+    <!-- Quarter ticks, at the secondary weight. -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeAlpha="0.54"
+        android:strokeLineCap="round"
+        android:strokeWidth="2.0"
+        android:pathData="M52,22.5V24.5" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeAlpha="0.54"
+        android:strokeLineCap="round"
+        android:strokeWidth="2.0"
+        android:pathData="M52,47.5V49.5" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeAlpha="0.54"
+        android:strokeLineCap="round"
+        android:strokeWidth="2.0"
+        android:pathData="M64.5,36H66.5" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeAlpha="0.54"
+        android:strokeLineCap="round"
+        android:strokeWidth="2.0"
+        android:pathData="M37.5,36H39.5" />
+</vector>

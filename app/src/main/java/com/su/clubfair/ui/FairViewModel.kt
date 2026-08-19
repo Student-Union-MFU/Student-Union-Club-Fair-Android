@@ -7,11 +7,14 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.su.clubfair.ClubFairApplication
 import com.su.clubfair.data.FairRepository
+import com.su.clubfair.data.PostOutcome
+import com.su.clubfair.data.ReactionOutcome
 import com.su.clubfair.data.ScanOutcome
 import com.su.clubfair.data.SessionStatus
 import com.su.clubfair.ui.model.Announcement
 import com.su.clubfair.ui.model.Booth
 import com.su.clubfair.ui.model.FairProgress
+import com.su.clubfair.ui.model.ProgramEntry
 import com.su.clubfair.ui.model.Student
 import com.su.clubfair.ui.model.Zone
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -46,6 +49,7 @@ data class FairUiState(
     val zones: List<Zone> = emptyList(),
     val progress: FairProgress = FairProgress(),
     val announcements: List<Announcement> = emptyList(),
+    val program: List<ProgramEntry> = emptyList(),
     val hapticsEnabled: Boolean = true,
     val pendingScans: Int = 0,
     val refreshing: Boolean = false,
@@ -132,6 +136,7 @@ class FairViewModel(private val repository: FairRepository) : ViewModel() {
         val zones: List<Zone>,
         val progress: FairProgress,
         val announcements: List<Announcement>,
+        val program: List<ProgramEntry>,
     )
 
     private val content = combine(
@@ -139,6 +144,7 @@ class FairViewModel(private val repository: FairRepository) : ViewModel() {
         repository.zones,
         repository.progress,
         repository.announcements,
+        repository.program,
         ::FairContent,
     )
 
@@ -159,6 +165,7 @@ class FairViewModel(private val repository: FairRepository) : ViewModel() {
                 zones = fair.zones,
                 progress = fair.progress,
                 announcements = fair.announcements,
+                program = fair.program,
                 hapticsEnabled = haptics,
                 pendingScans = status.pending,
                 refreshing = status.refreshing,
@@ -204,8 +211,55 @@ class FairViewModel(private val repository: FairRepository) : ViewModel() {
         viewModelScope.launch { repository.refresh() }
     }
 
+    /**
+     * Why the last reaction did not stick, if it did not.
+     *
+     * Only failures land here — a reaction that saves has nothing to say, and
+     * the chip lighting up is the confirmation.
+     */
+    private val _lastReaction = MutableStateFlow<ReactionOutcome?>(null)
+    val lastReaction: StateFlow<ReactionOutcome?> = _lastReaction.asStateFlow()
+
     fun toggleReaction(postId: Long, emoji: String) {
-        viewModelScope.launch { repository.toggleReaction(postId, emoji) }
+        viewModelScope.launch {
+            val outcome = repository.toggleReaction(postId, emoji)
+            _lastReaction.value = outcome.takeIf { it != ReactionOutcome.Saved }
+        }
+    }
+
+    fun clearReactionOutcome() {
+        _lastReaction.value = null
+    }
+
+    /**
+     * How the last announcement went, for the composer at the foot of Events.
+     *
+     * Held here rather than in the screen for the reason [lastScan] is: the
+     * answer arrives after a round trip, and a tab change in the meantime
+     * disposes the screen. It is also what tells the composer whether it may
+     * clear the draft — see `EventsScreen`.
+     */
+    private val _lastPost = MutableStateFlow<PostOutcome?>(null)
+    val lastPost: StateFlow<PostOutcome?> = _lastPost.asStateFlow()
+
+    /** True while a post is in flight, so the send button cannot be tapped twice. */
+    private val _posting = MutableStateFlow(false)
+    val posting: StateFlow<Boolean> = _posting.asStateFlow()
+
+    fun postAnnouncement(body: String) {
+        if (_posting.value) return
+        _posting.value = true
+        viewModelScope.launch {
+            try {
+                _lastPost.value = repository.postAnnouncement(body)
+            } finally {
+                _posting.value = false
+            }
+        }
+    }
+
+    fun clearPostOutcome() {
+        _lastPost.value = null
     }
 
     fun setHapticsEnabled(enabled: Boolean) {

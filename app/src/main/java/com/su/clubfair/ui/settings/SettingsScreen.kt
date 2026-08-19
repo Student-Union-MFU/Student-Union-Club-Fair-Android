@@ -51,7 +51,8 @@ import com.su.clubfair.ui.components.glassSurface
 import com.su.clubfair.ui.legal.LegalDocument
 import com.su.clubfair.ui.legal.LegalScreen
 import com.su.clubfair.ui.scene.MeshBackground
-import com.su.clubfair.ui.theme.AlanSans
+import com.su.clubfair.ui.theme.AppSans
+import com.su.clubfair.ui.theme.AppTextWeight
 import com.su.clubfair.ui.theme.Dimens
 import com.su.clubfair.ui.theme.Ink
 import com.su.clubfair.ui.theme.Palette
@@ -142,8 +143,8 @@ fun SettingsScreen(
             Column(modifier = Modifier.padding(vertical = Dimens.Space)) {
                 Text(
                     text = stringResource(R.string.settings_stored_title),
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Medium,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     fontSize = 15.sp,
                     color = Color.White,
                 )
@@ -161,8 +162,8 @@ fun SettingsScreen(
                             else R.string.settings_synced,
                         )
                     },
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Medium,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     fontSize = 13.sp,
                     // Amber while something is still waiting to go up, accent once
                     // everything has: the colour is the answer to "am I safe?".
@@ -171,8 +172,8 @@ fun SettingsScreen(
                 Spacer(Modifier.height(Dimens.SpaceXs))
                 Text(
                     text = stringResource(R.string.settings_stored_body),
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Normal,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     fontSize = 12.sp,
                     lineHeight = 1.45.em,
                     color = Ink.Muted,
@@ -309,8 +310,8 @@ private fun LanguagePicker(
         title = {
             Text(
                 text = stringResource(R.string.settings_language),
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Bold,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
                 fontSize = 18.sp,
                 color = Color.White,
             )
@@ -334,7 +335,7 @@ private fun LanguagePicker(
                         Text(
                             text = languageLabel(option),
                             modifier = Modifier.weight(1f),
-                            fontFamily = AlanSans,
+                            fontFamily = AppSans,
                             fontWeight = if (chosen) FontWeight.Bold else FontWeight.Medium,
                             fontSize = 15.sp,
                             color = if (chosen) Color.White else Ink.Label,
@@ -358,8 +359,8 @@ private fun LanguagePicker(
             TextButton(onClick = onDismiss) {
                 Text(
                     text = stringResource(R.string.settings_cancel),
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Medium,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     fontSize = 14.sp,
                     color = Ink.Label,
                 )
@@ -386,8 +387,8 @@ private fun EraseConfirmation(
         title = {
             Text(
                 text = stringResource(R.string.settings_erase_confirm_title),
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Bold,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
                 fontSize = 18.sp,
                 color = Color.White,
             )
@@ -395,8 +396,8 @@ private fun EraseConfirmation(
         text = {
             Text(
                 text = stringResource(R.string.settings_erase_confirm_body),
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Normal,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
                 fontSize = 14.sp,
                 lineHeight = 1.45.em,
                 color = Ink.Label,
@@ -406,8 +407,8 @@ private fun EraseConfirmation(
             TextButton(onClick = onConfirm) {
                 Text(
                     text = stringResource(R.string.settings_erase_confirm_cta),
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Bold,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     fontSize = 14.sp,
                     color = Palette.Alert,
                 )
@@ -417,8 +418,8 @@ private fun EraseConfirmation(
             TextButton(onClick = onDismiss) {
                 Text(
                     text = stringResource(R.string.settings_cancel),
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Medium,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     fontSize = 14.sp,
                     color = Ink.Label,
                 )

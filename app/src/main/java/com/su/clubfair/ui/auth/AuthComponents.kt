@@ -55,7 +55,6 @@ import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -65,7 +64,8 @@ import com.su.clubfair.data.MfuStudentId
 import com.su.clubfair.data.PasswordPolicy
 import com.su.clubfair.ui.components.glassSurface
 import com.su.clubfair.ui.scene.MeshBackground
-import com.su.clubfair.ui.theme.AlanSans
+import com.su.clubfair.ui.theme.AppSans
+import com.su.clubfair.ui.theme.AppTextWeight
 import com.su.clubfair.ui.theme.Dimens
 import com.su.clubfair.ui.theme.Ink
 import com.su.clubfair.ui.theme.Palette
@@ -154,8 +154,8 @@ private fun authFieldColors(): TextFieldColors = OutlinedTextFieldDefaults.color
 )
 
 private val FieldTextStyle = TextStyle(
-    fontFamily = AlanSans,
-    fontWeight = FontWeight.Normal,
+    fontFamily = AppSans,
+    fontWeight = AppTextWeight,
     fontSize = 15.sp,
 )
 
@@ -169,6 +169,7 @@ private val FieldTextStyle = TextStyle(
 @Composable
 fun fieldErrorText(error: FieldError): String = when (error) {
     FieldError.Required -> stringResource(R.string.auth_error_required)
+    FieldError.BadStudentId -> stringResource(R.string.auth_error_student_id)
     FieldError.BadPhone -> stringResource(R.string.auth_error_phone)
     FieldError.BadEmail -> stringResource(R.string.auth_error_email)
     FieldError.NotMfuEmail -> stringResource(R.string.auth_error_email_mfu)
@@ -263,8 +264,8 @@ fun AuthTextField(
                     // Already announced through the field's own error semantics;
                     // reading it twice is how a form gets tedious under TalkBack.
                     .clearAndSetSemantics {},
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Normal,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
                 fontSize = 12.sp,
                 color = Palette.Alert,
             )
@@ -318,6 +319,7 @@ fun AuthFormError(error: FormError, modifier: Modifier = Modifier) {
     // the reader's language already. The resource is the fallback.
     val message = when (error) {
         is FormError.Rejected -> error.message ?: stringResource(R.string.login_error_generic)
+        FormError.BadCredentials -> stringResource(R.string.login_error_credentials)
         FormError.Offline -> stringResource(R.string.auth_error_offline)
         FormError.GoogleUnavailable -> stringResource(R.string.auth_error_google_failed)
         FormError.GoogleNoAccount -> stringResource(R.string.auth_error_google_no_account)
@@ -345,8 +347,8 @@ fun AuthFormError(error: FormError, modifier: Modifier = Modifier) {
         Spacer(Modifier.width(Dimens.Space))
         Text(
             text = message,
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Medium,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 13.sp,
             color = Palette.Alert,
         )
@@ -372,8 +374,8 @@ fun AuthDivider(
         Text(
             text = label,
             modifier = Modifier.padding(horizontal = Dimens.Space),
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Medium,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 13.sp,
             color = Ink.Muted,
         )
@@ -422,8 +424,8 @@ fun GoogleButton(
         Spacer(Modifier.width(Dimens.Space))
         Text(
             text = text,
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Medium,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 15.sp,
             color = if (enabled) Color.White else Ink.Faint,
         )
@@ -483,7 +485,7 @@ fun AuthDropdownField(
                     Text(
                         text = it,
                         modifier = Modifier.clearAndSetSemantics {},
-                        fontFamily = AlanSans,
+                        fontFamily = AppSans,
                         fontSize = 12.sp,
                         color = Palette.Alert,
                     )

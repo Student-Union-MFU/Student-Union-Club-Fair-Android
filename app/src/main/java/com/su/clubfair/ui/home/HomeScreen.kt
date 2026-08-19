@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,8 +39,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import android.text.format.DateUtils
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -47,8 +46,8 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
@@ -66,8 +65,16 @@ import com.su.clubfair.ui.model.FairProgress
 import com.su.clubfair.ui.model.PreviewProgress
 import com.su.clubfair.ui.model.PreviewStudent
 import com.su.clubfair.ui.model.Student
+import com.su.clubfair.ui.model.ProgramEntry
+import com.su.clubfair.ui.model.stepsAt
+import com.su.clubfair.ui.model.running
+import com.su.clubfair.ui.model.upNext
+import com.su.clubfair.ui.model.displayTitle
+import com.su.clubfair.ui.program.timeRange
+import com.su.clubfair.ui.program.whereLine
 import com.su.clubfair.ui.scene.MeshBackground
-import com.su.clubfair.ui.theme.AlanSans
+import com.su.clubfair.ui.theme.AppSans
+import com.su.clubfair.ui.theme.AppTextWeight
 import com.su.clubfair.ui.theme.Dimens
 import com.su.clubfair.ui.theme.Ink
 import com.su.clubfair.ui.theme.LocalAccent
@@ -119,6 +126,8 @@ fun HomeScreen(
     onRefresh: () -> Unit = {},
     onOpenClubs: () -> Unit = {},
     onOpenPrizes: () -> Unit = {},
+    onOpenProgram: () -> Unit = {},
+    program: List<ProgramEntry> = emptyList(),
     onOpenProfile: () -> Unit = {},
 ) {
     val scroll = rememberScrollState()
@@ -169,18 +178,17 @@ fun HomeScreen(
             Spacer(Modifier.height(Dimens.SpaceXl))
             HomeHeader(name = student.name)
 
-            // Supporting text under the name, not a headline. It used to be
-            // the biggest thing on the page, which put the emphasis on a line
-            // of copy instead of on whose page this is.
+            // The one line of supporting type under the name.
+            //
+            // "Find your club this weekend" sat here first and went because it
+            // was doing nothing this line does not: it named the event to a
+            // student already inside the event's own app, in copy that read the
+            // same on the Tuesday three weeks out as on the morning of the fair.
+            // The countdown says what today is and changes while you look at it,
+            // and two muted lines under a greeting is one more than the header
+            // can carry before it stops being a greeting.
             Spacer(Modifier.height(Dimens.SpaceSm))
-            Text(
-                text = stringResource(R.string.home_headline),
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Normal,
-                fontSize = 16.sp,
-                lineHeight = 1.3.em,
-                color = Ink.Muted,
-            )
+            FairStatusLine()
 
             // Said once, at the top, and only when it is true. A stale-data notice
             // repeated per card would be four times the noise for one fact.
@@ -189,28 +197,23 @@ fun HomeScreen(
                 OfflineNotice()
             }
 
-            // Which of these two leads depends on what is actually happening.
+            // Checkpoints leads the card stack, and is now the only thing that
+            // could.
             //
-            // Before the fair opens there is no progress to report — the grid is
-            // 28 empty cells on every phone in the university — and the one live
-            // fact on the page is that it opens in ten days. Once it is running
-            // that reverses: the countdown becomes a footnote and how many
-            // booths you have collected is the reason you opened the app.
+            // The two used to swap places: the countdown was promoted before the
+            // fair opened, on the argument that there is no progress to report
+            // yet and the one live fact is that it opens in ten days. Defensible,
+            // and it made the page rearrange itself on a date — a student who
+            // learned where their booth count lives came back on the 22nd to find
+            // it had moved. A home screen that keeps still is worth more than one
+            // that is optimally ordered on any given morning.
             //
-            // The alternative was a fixed order, which meant one of the two was
-            // always in the wrong place for half the fortnight.
-            val opensLater = fairStatus() is FairStatus.BeforeStart
-
+            // That argument is spent now that the countdown is a caption up in
+            // the header: nothing is competing for this slot, and Checkpoints
+            // holds it because it is the only card on the page about *this
+            // student*. The countdown is the same on two thousand phones.
             Spacer(Modifier.height(Dimens.SpaceLg))
-            if (opensLater) {
-                FairStatusBanner(hero = true)
-                Spacer(Modifier.height(Dimens.Space))
-                CheckpointsCard(progress = progress)
-            } else {
-                CheckpointsCard(progress = progress)
-                Spacer(Modifier.height(Dimens.Space))
-                FairStatusBanner()
-            }
+            CheckpointsCard(progress = progress)
 
             Spacer(Modifier.height(Dimens.Space))
             Row(horizontalArrangement = Arrangement.spacedBy(Dimens.Space)) {
@@ -227,6 +230,16 @@ fun HomeScreen(
                     modifier = Modifier.weight(1f),
                 )
             }
+
+            // Under the pair rather than beside them, and a different shape on
+            // purpose. Three equal tiles across would have cut each one to a
+            // third of the width, and the illustration is what makes these read
+            // as somewhere to go rather than as buttons — at that size it stops
+            // being an illustration. A wide row also suits what this one is:
+            // Clubs and MFU333 are places, the programme is a question with a
+            // time in the answer, so it gets a line to say so.
+            Spacer(Modifier.height(Dimens.Space))
+            ProgramCard(program = program, onClick = onOpenProgram)
 
 
             // Clearance so the last card can scroll out from behind the nav bar.
@@ -285,10 +298,14 @@ fun HomeScreen(
 @Composable
 private fun greetingWith(name: String): AnnotatedString {
     val template = stringResource(R.string.home_greeting, NamePlaceholder)
-    val emphasis = SpanStyle(fontWeight = FontWeight.Bold, color = Color.White)
+    // The name carries the line on tone alone now: white against the prefix's
+    // muted ink, at the same weight as everything else. It was Bold, which is
+    // the one thing on the page that would still have been if the sweep had
+    // missed it — an AnnotatedString span is not a `fontWeight =` on a Text.
+    val emphasis = SpanStyle(fontWeight = AppTextWeight, color = Color.White)
 
     return buildAnnotatedString {
-        pushStyle(SpanStyle(fontWeight = FontWeight.Normal, color = Ink.Muted))
+        pushStyle(SpanStyle(fontWeight = AppTextWeight, color = Ink.Muted))
         val at = template.indexOf(NamePlaceholder)
         if (at < 0) {
             // The placeholder was dropped from a translation. Show the greeting
@@ -351,117 +368,66 @@ private fun OfflineNotice(modifier: Modifier = Modifier) {
         Spacer(Modifier.size(Dimens.SpaceSm))
         Text(
             text = stringResource(R.string.home_offline),
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Normal,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 12.sp,
             color = Ink.Muted,
         )
     }
 }
 
-/** What the banner says: the big figure, and the line that frames it. */
-private data class Countdown(val value: AnnotatedString, val label: String)
-
 /**
  * When the fair opens, and how far off that is.
  *
- * One figure, not two. It carried the prize count in its right half for a
- * version, and that was a second thing competing with the only one on this page
- * that changes on its own — the prize total is already a tile directly below and
- * a whole page behind it, so it was being said three times. This says one thing.
+ * **A line of type, not a card.** This had a glass surface of its own for
+ * several versions, and every attempt to make that surface look right failed the
+ * same way: a card is a container, and there is one sentence to put in this one.
+ * At a card's proportions it sat half empty, so the empty half was given an
+ * illustration; the illustration went, and the content was centred in a pill
+ * instead — which cured the emptiness by making the shape wrong, a 5:1 capsule
+ * reading as a rectangle with strange corners against three 20dp cards, and off
+ * the left edge every other thing on the page is aligned to. The surface was the
+ * problem. Without one there is nothing left to look under-filled.
  *
- * **Days, hours and minutes, with the last two carrying the weight** — see
- * [remainingTime]. The days are the part a student already knows, because the
- * date is on the line above; the minutes are the part they cannot work out for
- * themselves, and they are what makes this the one figure on Home that moves
- * while you are looking at it.
+ * It sits under the headline rather than in the card stack for the same reason.
+ * This is the page's supporting type — the sentence that says what today is —
+ * so it belongs with the greeting it qualifies, not between two cards a student
+ * navigates from.
  *
- * The opening date is on the label rather than left implicit. A countdown alone
- * makes a student do the arithmetic to get to a date they can put in a calendar,
- * and it is formatted through `DateUtils`, so it follows the app's language
- * setting along with everything else.
+ * The label and the figure are one line, told apart by colour rather than by a
+ * separator: muted for the words, white for the number. A dot between them would
+ * be the second one in "Fair is open · ends in".
  */
 @Composable
-private fun FairStatusBanner(
-    modifier: Modifier = Modifier,
-    /**
-     * Whether this is the card the page is about.
-     *
-     * The only difference is emphasis — taller, and the app's lime on the figure
-     * and the border. It is deliberately not a *different card*: a student who
-     * scans their first booth on the morning of the 22nd should see this move
-     * down the page, not turn into something they have to re-learn.
-     */
-    hero: Boolean = false,
-) {
-    val figureSize = if (hero) 40.sp else 30.sp
-    val countdown = fairCountdown(figureSize)
-
-    Row(
+private fun FairStatusLine(modifier: Modifier = Modifier) {
+    Text(
+        text = fairCountdown(),
         modifier = modifier
-            .fillMaxWidth()
-            .glassSurface(cornerRadius = Dimens.RadiusLg)
-            .height(if (hero) 128.dp else 96.dp)
-            .padding(start = Dimens.CardPadding, end = Dimens.Space),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = countdown.label,
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Medium,
-                fontSize = 13.sp,
-                lineHeight = 1.1.em,
-                color = Ink.Muted,
-                maxLines = 1,
-            )
-            Spacer(Modifier.height(Dimens.SpaceXs))
-            Text(
-                text = countdown.value,
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Bold,
-                fontSize = figureSize,
-                lineHeight = 1.05.em,
-                // White, like every other figure on the page.
-                //
-                // It was set in the accent, along with a lime hairline round
-                // the card, to give Home some colour before anything is
-                // scanned. It gave it too much: the figure is the largest
-                // thing on the screen, so putting the app's one action colour
-                // in it made a number look like a control, and it was the only
-                // lime text anywhere. The lime is spent on the illustrations
-                // now — small, on three cards, next to white type, which is
-                // the same division the booth tiles use.
-                color = Color.White,
-                maxLines = 1,
-            )
-        }
-
-        // Only while it is the card the page is about. On the small version it
-        // would be a picture squeezed beside a figure, and the figure is the
-        // only reason that version is on the page at all.
-        if (hero) {
-            Image(
-                painter = painterResource(R.drawable.art_countdown),
-                contentDescription = null,
-                modifier = Modifier.size(84.dp),
-            )
-        }
-    }
-}
-
-/** The fair's phase, polled on the same half-minute as the countdown. */
-@Composable
-private fun fairStatus(): FairStatus {
-    val status by produceState<FairStatus>(
-        initialValue = FairSchedule.statusAt(System.currentTimeMillis()),
-    ) {
-        while (true) {
-            value = FairSchedule.statusAt(System.currentTimeMillis())
-            delay(30_000)
-        }
-    }
-    return status
+            // A pill now that it hugs its own content rather than a card's
+            // width. This is the shape working the way it is supposed to: the
+            // ends cap a single line of type instead of terminating a 5:1 box,
+            // which is what made the full-width version read as a rectangle with
+            // strange corners.
+            .glassSurface(cornerRadius = Dimens.RadiusPill)
+            // Measured off the line's own height rather than the card scale:
+            // a badge's padding is a fraction of its type, and CardPadding here
+            // would put it in a lozenge twice the size of what it holds.
+            .padding(horizontal = Dimens.Space, vertical = Dimens.SpaceSm),
+        fontFamily = AppSans,
+        fontWeight = AppTextWeight,
+        // A step under the 16sp this started at. In a badge the type is not the
+        // page's supporting copy any more — it is the badge's contents, and at
+        // 16sp the pill was as tall as a control and read as something to press.
+        // 14sp is where it settles into a label.
+        fontSize = 14.sp,
+        lineHeight = 1.3.em,
+        // Tabular figures, so the line does not shuffle sideways as a digit
+        // rolls over. Inherited from Alan Sans, which carried `tnum` — worth
+        // confirming Anuphan does, or this is doing nothing.
+        style = TextStyle(fontFeatureSettings = "tnum"),
+        color = Ink.Muted,
+        maxLines = 1,
+    )
 }
 
 /**
@@ -472,107 +438,156 @@ private fun fairStatus(): FairStatus {
  * the one figure on this screen a phone can work out exactly, which made
  * hardcoding it the least defensible thing on it.
  *
- * The poll is a half minute, which is finer than the unit shown for all but the
- * last hour, and deliberately so: it is what makes the banner change *while a
- * student is looking at it* rather than the next time they cold-start the app.
  * [produceState] ties the loop to this composable, so leaving Home stops the
- * clock.
+ * clock rather than leaving it running in a pocket.
  */
 @Composable
-private fun fairCountdown(big: TextUnit): Countdown {
+private fun fairCountdown(): AnnotatedString {
     val status by produceState<FairStatus>(
         initialValue = FairSchedule.statusAt(System.currentTimeMillis()),
     ) {
         while (true) {
-            value = FairSchedule.statusAt(System.currentTimeMillis())
-            delay(30_000)
+            val current = FairSchedule.statusAt(System.currentTimeMillis())
+            value = current
+            delay(tickFor(current))
         }
     }
 
-    return when (val current = status) {
-        is FairStatus.BeforeStart -> Countdown(
-            value = remainingTime(current.untilStartMillis, big),
-            label = stringResource(R.string.home_opens_on, fairOpeningDate()),
-        )
+    val current = status
+    val label = when (current) {
+        is FairStatus.BeforeStart -> stringResource(R.string.home_opens_in)
+        is FairStatus.Running -> stringResource(R.string.home_open_ends_in)
+        FairStatus.Ended -> stringResource(R.string.home_stat_ended)
+    }
+    val figure = when (current) {
+        is FairStatus.BeforeStart -> remainingTime(current.untilStartMillis)
+        is FairStatus.Running -> remainingTime(current.remainingMillis)
+        FairStatus.Ended -> {
+            val ended = stringResource(R.string.home_stat_ended_value)
+            buildAnnotatedString {
+                withStyle(SpanStyle(color = Color.White)) { append(ended) }
+            }
+        }
+    }
 
-        is FairStatus.Running -> Countdown(
-            value = remainingTime(current.remainingMillis, big),
-            label = stringResource(R.string.home_open_ends_in),
-        )
-
-        FairStatus.Ended -> Countdown(
-            value = AnnotatedString(stringResource(R.string.home_stat_ended_value)),
-            label = stringResource(R.string.home_stat_ended),
-        )
+    // Two spaces. The colour change is what separates these, and a single space
+    // between muted words and a white figure closes up enough to read as one
+    // word at 16sp.
+    return buildAnnotatedString {
+        append(label)
+        append("  ")
+        append(figure)
     }
 }
 
 /**
- * The opening date, in the reader's language.
+ * How long to wait before working the figure out again.
  *
- * `DateUtils` rather than a hand-built pattern: "22 Aug" and "22 ส.ค." are not
- * the same string with a different month in it, and the ordering differs by
- * locale even where the words do not. The context is the one
- * `ProvideAppLanguage` provides, so this follows the in-app setting rather than
- * the phone's.
+ * A second, because the figure has a seconds place at every distance from the
+ * fair — see [remainingTime]. It was briefly adaptive, a second inside the last
+ * hour and half a minute above it, which was the right answer for a two-unit
+ * figure that only showed seconds at the end; with the seconds always on screen
+ * a coarser tick is just a clock that has stopped.
+ *
+ * One `Text` recomposing per second is what a countdown is. [produceState] ties
+ * the loop to the composable, so it stops when Home leaves the composition
+ * rather than running on in a pocket.
  */
-@Composable
-private fun fairOpeningDate(): String = DateUtils.formatDateTime(
-    LocalContext.current,
-    FairSchedule.startMillis,
-    DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_ABBREV_MONTH or DateUtils.FORMAT_NO_YEAR,
-)
+private fun tickFor(status: FairStatus): Long = when (status) {
+    // Nothing left to count. The loop stays alive rather than exiting so the
+    // composable does not need a second shape for its terminal state.
+    FairStatus.Ended -> 60_000L
+    else -> 1_000L
+}
+
+/** Unit letters against the digits they belong to — "2" full size, "d" a little under. */
+private const val UnitScale = 0.8f
 
 /**
- * Days, hours and minutes — with the hours and minutes carrying the weight.
+ * How long is left, largest unit first: "2d 21h 33m 36s".
  *
- * It showed one unit for a while, the coarsest that still fit: "10 days" at ten
- * days out, hours on the final day, minutes in the last hour. The argument was
- * that nobody plans around minute twelve of day ten. True, and beside the point
- * — a countdown that moves once a day is a date with extra steps, and the whole
- * reason this figure is on the screen rather than the date alone is that it is
- * the one thing on Home that changes while you watch it.
+ * **All four units, down to the seconds.** It was cut to the two largest for a
+ * version, on the argument that seconds three days out are a stopwatch telling a
+ * student nothing. True of the information and wrong about what the badge is
+ * for: the seconds are the only thing on Home that moves while you are looking
+ * at it, and without them the badge is a fact that could have been printed. The
+ * cost is a longer line and a recomposition per second, and both are worth it.
  *
- * So all three, and the emphasis inverted from the obvious: the hours and
- * minutes are the figure, and the days trail behind them at half size in muted
- * ink. The days are the part a student already knows — the date is on the line
- * above — and the minutes are the part they cannot work out for themselves, so
- * the minutes get the start of the line and the days get the end of it.
+ * A unit that has run out drops off the front rather than showing a zero: the
+ * final hour reads "40m 12s", not "0d 0h 40m 12s". Trailing zeroes are kept —
+ * "2d 0h 40m 12s" is right, because dropping the hours there leaves "2d 40m",
+ * which reads as a typo.
  *
- * Sized off the caller's figure rather than a constant, so the hero card's 44sp
- * and the plain one's 34sp both get a half-size day count without a second
- * number to keep in step.
+ * **The order used to be inverted and it made the card lie.** Hours and minutes
+ * were the figure and the days trailed behind them at half size in muted ink, on
+ * the reasoning that the days are the part a student already knows — the date is
+ * on the line beside it — while the minutes are the part they cannot work out
+ * for themselves. Coherent, and disproved by looking at it: at three days out it
+ * read "23h 40m  2d", and every convention there is says the big bright thing is
+ * the number and the small grey thing is a label. A student glancing at it
+ * concluded the fair opened the next morning. It opened in three days.
+ *
+ * So the units run the way durations are written everywhere else, and nothing is
+ * demoted a whole size class. The split is between *digits* and *unit letters*
+ * rather than between one unit and another: both figures are the same size and
+ * weight, and their letters ride a little under it. That reads as one number
+ * with its units attached instead of two numbers of unequal rank.
+ *
+ * The trailing unit is zero-padded and the leading one is not. Without the
+ * padding the line changes width every time a figure crosses ten and the caption
+ * shuffles sideways under the reader; with it on the leading unit, "02d" is a
+ * stopwatch affectation on something that only changes once a day. A trailing
+ * zero is kept — "2d 00h" is right, because dropping it leaves a bare "2d" that
+ * reads as a different, coarser figure.
  */
 @Composable
-private fun remainingTime(millis: Long, big: TextUnit): AnnotatedString {
-    val total = (millis / 60_000L).coerceAtLeast(0L)
-    val days = total / (60 * 24)
-    val hours = (total / 60) % 24
-    val minutes = total % 60
+private fun remainingTime(millis: Long): AnnotatedString {
+    val total = (millis / 1_000L).coerceAtLeast(0L)
+    val days = total / (60 * 60 * 24)
+    val hours = (total / (60 * 60)) % 24
+    val minutes = (total / 60) % 60
+    val seconds = total % 60
 
     // Resolved out here: buildAnnotatedString's lambda is not composable.
-    val dayText = stringResource(R.string.home_unit_days, days.toInt())
-    val hourText = stringResource(R.string.home_unit_hours, hours.toInt())
-    val minuteText = stringResource(R.string.home_unit_minutes, minutes.toInt())
+    //
+    // The suffix alone, not "%1$d d" — the number and its unit are styled
+    // differently, so they cannot come from one format string. Thai carries its
+    // own leading space inside the resource, which is why these are quoted over
+    // there: " ชม." is spaced and "h" is not, and that is a fact about the
+    // language rather than something to decide in Kotlin.
+    val dayUnit = stringResource(R.string.home_unit_day)
+    val hourUnit = stringResource(R.string.home_unit_hour)
+    val minuteUnit = stringResource(R.string.home_unit_minute)
+    val secondUnit = stringResource(R.string.home_unit_second)
+
+    val shown = buildList {
+        if (days > 0) add(days to dayUnit)
+        if (days > 0 || hours > 0) add(hours to hourUnit)
+        if (days > 0 || hours > 0 || minutes > 0) add(minutes to minuteUnit)
+        add(seconds to secondUnit)
+    }
+
+    val unitStyle = SpanStyle(
+        // Relative rather than absolute, so the ratio survives whatever size the
+        // caption is set at.
+        fontSize = UnitScale.em,
+        fontWeight = AppTextWeight,
+        // Dimmed against the digits, but nowhere near the muted ink of the label
+        // beside them: these are part of the figure and have to read as part of
+        // it. The job of the tone is to let the digits lead, not to push the
+        // letters into the background.
+        color = Color.White.copy(alpha = 0.72f),
+    )
 
     return buildAnnotatedString {
-        append(hourText)
-        append(" ")
-        append(minuteText)
-        // Days last, after the figure rather than in front of it. Leading with
-        // them put the smallest, faintest thing on the line where the eye lands
-        // first and made the reader step over it to reach the number they came
-        // for. Trailing, it reads as the footnote it is.
-        if (days > 0) {
-            append("  ")
-            withStyle(
-                SpanStyle(
-                    fontSize = big * 0.5f,
-                    fontWeight = FontWeight.Medium,
-                    color = Ink.Muted,
-                ),
-            ) {
-                append(dayText)
+        // White against the label's muted ink. This is the whole separation
+        // between the two halves of the line, so it is the one thing here that
+        // cannot be dropped.
+        withStyle(SpanStyle(color = Color.White)) {
+            shown.forEachIndexed { index, (value, unit) ->
+                if (index > 0) append(" ")
+                append(if (index == 0) value.toString() else value.toString().padStart(2, '0'))
+                withStyle(unitStyle) { append(unit) }
             }
         }
     }
@@ -590,7 +605,7 @@ private fun HomeHeader(name: String, modifier: Modifier = Modifier) {
     Text(
         text = greetingWith(name),
         modifier = modifier,
-        fontFamily = AlanSans,
+        fontFamily = AppSans,
         fontSize = 32.sp,
         lineHeight = 1.15.em,
         maxLines = 2,
@@ -615,8 +630,8 @@ private fun CheckpointsCard(
     ) {
         Text(
             text = stringResource(R.string.home_checkpoints),
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Medium,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 15.sp,
             color = Ink.Label,
         )
@@ -625,18 +640,51 @@ private fun CheckpointsCard(
         Row(verticalAlignment = Alignment.Bottom) {
             Text(
                 text = stringResource(R.string.home_checkpoints_count, visited),
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Bold,
-                fontSize = 30.sp,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
+                // The size the countdown used to have when it led the page. This
+                // card holds the lead slot now, so it holds the figure that goes
+                // with it — otherwise "first" is only an ordering and not an
+                // emphasis, and the two cards read as equals in a new order.
+                fontSize = 40.sp,
                 lineHeight = 1.em,
-                color = Color.White,
+                // Accent once there is something to be pleased about, white
+                // while it is nothing. Lime in this app means a thing has
+                // happened — a scanned checkpoint, a filled bar — so a lime zero
+                // would be the one number on the page claiming credit it has not
+                // earned. It is also the only accent on this screen, which is
+                // what makes the first scan visibly change the page.
+                color = if (visited > 0) Palette.Accent else Color.White,
             )
             Spacer(Modifier.size(Dimens.SpaceSm))
             Text(
                 text = pluralStringResource(R.plurals.home_checkpoints_total, total, total),
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Medium,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
                 fontSize = 15.sp,
+                color = Ink.Muted,
+                modifier = Modifier.padding(bottom = Dimens.SpaceXs),
+            )
+
+            // The percentage sits above the bar, on the count's own line and
+            // pushed to the far end of it. Below the bar it was a footnote to a
+            // thing that had already been said — the bar is the percentage,
+            // drawn — and it left the card ending on its faintest line before
+            // the grid started. Up here the two figures read as one statement:
+            // how many booths on the left, how far along on the right, and the
+            // bar underneath as the picture of both.
+            Spacer(Modifier.weight(1f))
+            Text(
+                // Truncates rather than rounds, so the number never claims
+                // progress that hasn't been earned — 26/27 must not read as
+                // "100 % complete".
+                text = stringResource(
+                    R.string.home_checkpoints_percent,
+                    (fraction * 100).toInt(),
+                ),
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
+                fontSize = 11.sp,
                 color = Ink.Muted,
                 modifier = Modifier.padding(bottom = Dimens.SpaceXs),
             )
@@ -644,18 +692,6 @@ private fun CheckpointsCard(
 
         Spacer(Modifier.height(12.dp))
         ProgressTrack(fraction = fraction)
-
-        Spacer(Modifier.height(Dimens.SpaceSm))
-        Text(
-            // Truncates rather than rounds, so the number never claims progress
-            // that hasn't been earned — 26/27 must not read as "100 % complete".
-            text = stringResource(R.string.home_checkpoints_percent, (fraction * 100).toInt()),
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Normal,
-            fontSize = 11.sp,
-            color = Ink.Muted,
-            modifier = Modifier.align(Alignment.End),
-        )
 
         Spacer(Modifier.height(Dimens.Space))
         CheckpointGrid(
@@ -773,11 +809,145 @@ private fun ShortcutTile(
         Spacer(Modifier.height(Dimens.SpaceXs))
         Text(
             text = stringResource(label),
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Medium,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 14.sp,
             color = Ink.Label,
         )
+    }
+}
+
+/**
+ * What is on at the fair, on the page a student actually opens.
+ *
+ * This was a generic row — an illustration, "Programme", "What's on, and when",
+ * a chevron — which is a door with a sign on it. The programme is the one thing
+ * on this app that answers a question a student has *while standing in the
+ * hall*, and making them open a page to find out what is happening now put a tap
+ * between them and the answer. So the card answers it, and opening the page is
+ * for the rest of the running order.
+ *
+ * Three states, and they are the same three [ProgramScreen] shows, resolved by
+ * the same [stepsAt] against the same clock — the two must never disagree about
+ * what is on. Something is running; or nothing is and something is next; or the
+ * Student Union has not published a running order, in which case this falls back
+ * to being the door it used to be rather than showing an empty card.
+ *
+ * The tick is half a minute, not the countdown's second: nothing here changes
+ * more finely than an entry starting.
+ */
+@Composable
+private fun ProgramCard(
+    program: List<ProgramEntry>,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val now by produceState(initialValue = System.currentTimeMillis(), program) {
+        while (true) {
+            value = System.currentTimeMillis()
+            delay(30_000)
+        }
+    }
+    val steps = program.stepsAt(nowMillis = now, fairEndMillis = FairSchedule.endMillis)
+    val running = steps.running()
+    val step = running ?: steps.upNext()
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .glassSurface(cornerRadius = CardRadius)
+            .clip(RoundedCornerShape(CardRadius))
+            .clickable(onClick = onClick)
+            .padding(Dimens.CardPadding),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = stringResource(R.string.home_program),
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
+                fontSize = 12.sp,
+                letterSpacing = 0.4.sp,
+                color = Ink.Muted,
+                modifier = Modifier.weight(1f),
+            )
+            Icon(
+                painter = painterResource(R.drawable.ic_chevron_right),
+                contentDescription = null,
+                tint = Ink.Faint,
+                modifier = Modifier.size(16.dp),
+            )
+        }
+
+        if (step == null) {
+            // Nothing published, or the fair's running order has finished. The
+            // old hint line, which is still true and is all there is to say.
+            Spacer(Modifier.height(Dimens.SpaceXs))
+            Text(
+                text = stringResource(R.string.home_program_hint),
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
+                fontSize = 15.sp,
+                color = Color.White,
+            )
+            return@Column
+        }
+
+        Spacer(Modifier.height(Dimens.Space))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            // The same lit dot the route uses for the step it is standing on, so
+            // the card and the diagram behind it are visibly about one row.
+            if (running != null) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(Palette.Accent),
+                )
+                Spacer(Modifier.size(Dimens.SpaceSm))
+            }
+            Text(
+                text = stringResource(
+                    if (running != null) R.string.program_now else R.string.program_next,
+                ),
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
+                fontSize = 12.sp,
+                color = if (running != null) Palette.Accent else Ink.Muted,
+            )
+            Spacer(Modifier.size(Dimens.SpaceSm))
+            Text(
+                text = step.entry.timeRange(),
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
+                fontSize = 12.sp,
+                color = Ink.Muted,
+            )
+        }
+
+        Spacer(Modifier.height(Dimens.SpaceXs))
+        Text(
+            text = step.entry.displayTitle(),
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
+            fontSize = 20.sp,
+            lineHeight = 1.25.em,
+            color = Color.White,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+
+        step.entry.whereLine()?.let { where ->
+            Spacer(Modifier.height(Dimens.SpaceXs))
+            Text(
+                text = where,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
+                fontSize = 13.sp,
+                color = Ink.Muted,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 

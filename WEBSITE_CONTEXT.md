@@ -22,7 +22,7 @@ stamps toward prizes.
 - **Dates:** 22 Aug 2026 09:00 → 23 Aug 2026 17:00, `Asia/Bangkok`.
   (`FairSchedule` in the app; the website should not hardcode these separately
   if it can avoid it.)
-- **Audience:** MFU students, intakes 67–69, signing in with a
+- **Audience:** MFU students, intakes 66–69, signing in with a
   `@lamduan.mfu.ac.th` address.
 - **Languages:** Thai and English, both first-class. The API returns both
   (`name` / `name_en`), and the app ships `values/` and `values-th/` strings.

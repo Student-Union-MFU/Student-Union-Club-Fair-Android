@@ -30,7 +30,6 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.su.clubfair.R
@@ -39,7 +38,8 @@ import com.su.clubfair.ui.model.accent
 import com.su.clubfair.ui.model.blurb
 import com.su.clubfair.ui.model.categoryName
 import com.su.clubfair.ui.model.displayName
-import com.su.clubfair.ui.theme.AlanSans
+import com.su.clubfair.ui.theme.AppSans
+import com.su.clubfair.ui.theme.AppTextWeight
 import com.su.clubfair.ui.theme.Dimens
 import com.su.clubfair.ui.theme.Ink
 import com.su.clubfair.ui.theme.Palette
@@ -154,8 +154,8 @@ fun BoothSheet(
                 Column(Modifier.weight(1f)) {
                     Text(
                         text = booth.displayName(),
-                        fontFamily = AlanSans,
-                        fontWeight = FontWeight.Bold,
+                        fontFamily = AppSans,
+                        fontWeight = AppTextWeight,
                         fontSize = 20.sp,
                         lineHeight = 24.sp,
                         color = Color.White,
@@ -170,8 +170,8 @@ fun BoothSheet(
                     Text(
                         text = listOfNotNull(booth.displayCode, booth.categoryName())
                             .joinToString("  ·  "),
-                        fontFamily = AlanSans,
-                        fontWeight = FontWeight.Medium,
+                        fontFamily = AppSans,
+                        fontWeight = AppTextWeight,
                         fontSize = 12.sp,
                         color = accent,
                     )
@@ -184,8 +184,8 @@ fun BoothSheet(
             Spacer(Modifier.height(Dimens.Space))
             Text(
                 text = booth.blurb(),
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Normal,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
                 fontSize = 14.sp,
                 lineHeight = 20.sp,
                 color = Ink.Label,
@@ -260,8 +260,8 @@ private fun StatusBand(scanned: Boolean, accent: Color, modifier: Modifier = Mod
                 if (scanned) R.string.booth_status_scanned
                 else R.string.booth_status_unscanned
             ),
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Bold,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 13.sp,
             color = if (scanned) Palette.Ink else Color.White,
         )
