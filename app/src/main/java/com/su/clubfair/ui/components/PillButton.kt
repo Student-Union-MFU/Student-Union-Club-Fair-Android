@@ -8,10 +8,10 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.su.clubfair.ui.theme.AlanSans
+import com.su.clubfair.ui.theme.AppSans
+import com.su.clubfair.ui.theme.AppTextWeight
 import com.su.clubfair.ui.theme.Palette
 
 /**
@@ -48,8 +48,8 @@ fun PillButton(
     ) {
         Text(
             text = text,
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Medium,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 15.sp,
         )
     }

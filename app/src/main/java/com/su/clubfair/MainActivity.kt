@@ -287,7 +287,7 @@ private fun SignedOutFlow() {
 
             AuthStep.Login -> LoginScreen(
                 state = loginForm,
-                onPhoneChange = auth::onLoginPhone,
+                onStudentIdChange = auth::onLoginStudentId,
                 onPasswordChange = auth::onLoginPassword,
                 // No navigation on success: a successful sign-in writes the
                 // session, `SessionState` changes, and the gate above swaps the

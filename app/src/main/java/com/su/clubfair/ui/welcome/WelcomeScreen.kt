@@ -42,7 +42,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
@@ -52,7 +51,8 @@ import androidx.compose.ui.unit.sp
 import com.su.clubfair.R
 import com.su.clubfair.ui.components.glassSurface
 import com.su.clubfair.ui.scene.MeshBackground
-import com.su.clubfair.ui.theme.AlanSans
+import com.su.clubfair.ui.theme.AppSans
+import com.su.clubfair.ui.theme.AppTextWeight
 import com.su.clubfair.ui.theme.Bitcount
 import com.su.clubfair.ui.theme.Dimens
 import com.su.clubfair.ui.theme.Ink
@@ -97,7 +97,7 @@ fun WelcomeScreen(
                 modifier = Modifier.offset(y = 40.dp),
                 style = TextStyle(
                     fontFamily = Bitcount,
-                    fontWeight = FontWeight.Light,
+                    fontWeight = AppTextWeight,
                     color = Color.White,
                     // Bitcount's cap height is 0.6em inside a 1.2em natural line
                     // box (0.84 up, 0.36 down). Stacked, that box is mostly air:
@@ -129,8 +129,8 @@ fun WelcomeScreen(
             BasicText(
                 text = stringResource(R.string.welcome_subtitle),
                 style = TextStyle(
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.ExtraBold,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     color = Color.White,
                     lineHeight = 1.13.em,
                     // Drop the leading above the first line only. Between lines
@@ -217,8 +217,8 @@ private fun DragToContinue(
                 // sliding out from under a moving knob reads as a glitch.
                 .graphicsLayer { alpha = (1f - progress * 3f).coerceIn(0f, 1f) },
             color = Ink.Label,
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Medium,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 17.sp,
         )
         Box(

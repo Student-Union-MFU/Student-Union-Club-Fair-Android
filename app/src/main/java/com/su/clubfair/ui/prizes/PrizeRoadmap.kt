@@ -44,7 +44,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
@@ -57,7 +56,8 @@ import com.su.clubfair.R
 import com.su.clubfair.ui.components.glassSurface
 import com.su.clubfair.ui.model.FairProgress
 import com.su.clubfair.ui.model.PrizeTier
-import com.su.clubfair.ui.theme.AlanSans
+import com.su.clubfair.ui.theme.AppSans
+import com.su.clubfair.ui.theme.AppTextWeight
 import com.su.clubfair.ui.theme.Dimens
 import com.su.clubfair.ui.theme.Ink
 import com.su.clubfair.ui.theme.Palette
@@ -478,8 +478,8 @@ private fun StartCaption(node: RouteNode, routeWidth: Dp) {
                 toLeft = true,
             )
             .width(CaptionWidth),
-        fontFamily = AlanSans,
-        fontWeight = FontWeight.Medium,
+        fontFamily = AppSans,
+        fontWeight = AppTextWeight,
         fontSize = 12.sp,
         letterSpacing = 0.4.sp,
         color = Ink.Muted,
@@ -530,20 +530,67 @@ private fun PrizeDisc(
             .semantics(mergeDescendants = true) { contentDescription = description },
         contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            painter = painterResource(
-                when {
-                    tier.claimed -> R.drawable.ic_check
-                    tier.reached -> R.drawable.ic_gift
-                    // Shut, and visibly so. A gift you have not earned drawn in
-                    // the same glyph as one you have is the one thing this screen
-                    // must not say.
-                    else -> R.drawable.ic_lock
-                },
-            ),
-            contentDescription = null,
-            tint = if (tier.reached) Palette.Ink else Color.White.copy(alpha = 0.65f),
-            modifier = Modifier.size(30.dp),
+        when {
+            tier.claimed -> Icon(
+                painter = painterResource(R.drawable.ic_check),
+                contentDescription = null,
+                tint = Palette.Ink,
+                modifier = Modifier.size(30.dp),
+            )
+            tier.reached -> Mfu333Mark(tint = Palette.Ink)
+            // Shut, and visibly so. A reward you have not earned drawn in the
+            // same mark as one you have is the one thing this screen must not
+            // say.
+            else -> Icon(
+                painter = painterResource(R.drawable.ic_lock),
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.65f),
+                modifier = Modifier.size(30.dp),
+            )
+        }
+    }
+}
+
+/**
+ * The MFU333 wordmark, as the thing sitting in an earned stop.
+ *
+ * Set as type rather than drawn as a vector: it is a word, and a word rendered
+ * from the app's own family stays sharp at any density, follows the theme's ink,
+ * and never has to be redrawn if the reward is renamed. A traced outline would
+ * be a second copy of the name that no string change can reach.
+ *
+ * Two lines, not one. Seven characters across a 72dp disc leaves each glyph
+ * about four dp wide — legible on a render, not on a phone at arm's length in a
+ * hall. Stacked "MFU" over "333" doubles the height available to each line, and
+ * the split falls where the name already reads as two parts.
+ *
+ * Silent to TalkBack: [PrizeDisc] above carries the whole stop as one
+ * description, and a wordmark repeating the tier name would be the second half
+ * of a stutter.
+ */
+@Composable
+private fun Mfu333Mark(tint: Color, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.clearAndSetSemantics {},
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = "MFU",
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
+            fontSize = 15.sp,
+            lineHeight = 15.sp,
+            letterSpacing = (-0.2).sp,
+            color = tint,
+        )
+        Text(
+            text = "333",
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
+            fontSize = 17.sp,
+            lineHeight = 17.sp,
+            letterSpacing = (-0.2).sp,
+            color = tint,
         )
     }
 }
@@ -594,8 +641,8 @@ private fun PrizePlate(
     ) {
         Text(
             text = tier.name,
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Bold,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 14.sp,
             color = Color.White,
             textAlign = TextAlign.Center,
@@ -605,8 +652,8 @@ private fun PrizePlate(
         Spacer(Modifier.height(2.dp))
         Text(
             text = status,
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Medium,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 12.sp,
             lineHeight = 1.35.em,
             color = if (tier.reached) Palette.Accent else Ink.Muted,
@@ -617,8 +664,8 @@ private fun PrizePlate(
         tier.description?.let { line ->
             Text(
                 text = line,
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Normal,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
                 fontSize = 11.sp,
                 lineHeight = 1.35.em,
                 color = Ink.Muted,
@@ -707,8 +754,8 @@ private fun HereMarker(position: Offset, captionAbove: Boolean) {
             .clip(CircleShape)
             .background(Palette.Base.copy(alpha = 0.72f))
             .padding(horizontal = Dimens.SpaceSm, vertical = 3.dp),
-        fontFamily = AlanSans,
-        fontWeight = FontWeight.Bold,
+        fontFamily = AppSans,
+        fontWeight = AppTextWeight,
         fontSize = 11.sp,
         letterSpacing = 0.4.sp,
         color = Palette.Accent,

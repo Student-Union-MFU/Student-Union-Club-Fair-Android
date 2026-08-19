@@ -41,7 +41,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
@@ -55,7 +54,8 @@ import com.su.clubfair.ui.model.accent
 import com.su.clubfair.ui.model.displayName
 import com.su.clubfair.ui.model.previewRoster
 import com.su.clubfair.ui.scene.MeshBackground
-import com.su.clubfair.ui.theme.AlanSans
+import com.su.clubfair.ui.theme.AppSans
+import com.su.clubfair.ui.theme.AppTextWeight
 import com.su.clubfair.ui.theme.Dimens
 import com.su.clubfair.ui.theme.Ink
 import com.su.clubfair.ui.theme.LocalAccent
@@ -203,8 +203,8 @@ private fun SearchField(
                 if (query.isEmpty()) {
                     Text(
                         text = stringResource(R.string.booths_search_hint),
-                        fontFamily = AlanSans,
-                        fontWeight = FontWeight.Normal,
+                        fontFamily = AppSans,
+                        fontWeight = AppTextWeight,
                         fontSize = 15.sp,
                         color = Ink.Placeholder,
                     )
@@ -216,8 +216,8 @@ private fun SearchField(
                         .fillMaxWidth()
                         .focusRequester(focusRequester),
                     textStyle = TextStyle(
-                        fontFamily = AlanSans,
-                        fontWeight = FontWeight.Normal,
+                        fontFamily = AppSans,
+                        fontWeight = AppTextWeight,
                         fontSize = 15.sp,
                         color = Color.White,
                     ),
@@ -278,8 +278,8 @@ private fun Results(
                 results.size,
                 results.size,
             ),
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Normal,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 12.sp,
             color = Ink.Muted,
         )
@@ -331,8 +331,8 @@ private fun ResultRow(
         Column(Modifier.weight(1f)) {
             Text(
                 text = booth.displayName(),
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Bold,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
                 fontSize = 15.sp,
                 color = Color.White,
             )
@@ -340,8 +340,8 @@ private fun ResultRow(
                 // The code is what is on the sign, which is the answer to
                 // "where is it" that a club name cannot give.
                 text = booth.displayCode,
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Normal,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
                 fontSize = 12.sp,
                 color = Ink.Muted,
             )
@@ -385,16 +385,16 @@ private fun EmptyResults(
         Text(
             text = stringResource(R.string.booths_search_empty_title, query),
             modifier = Modifier.semantics { heading() },
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Bold,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 16.sp,
             color = Color.White,
         )
         Spacer(Modifier.height(Dimens.SpaceXs))
         Text(
             text = stringResource(R.string.booths_search_empty_body),
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Normal,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 13.sp,
             lineHeight = 1.45.em,
             color = Ink.Muted,

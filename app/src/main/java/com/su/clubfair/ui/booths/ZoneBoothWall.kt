@@ -48,7 +48,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
@@ -72,7 +71,8 @@ import com.su.clubfair.ui.model.displayName
 import com.su.clubfair.ui.model.displayTitle
 import com.su.clubfair.ui.model.zoneIntent
 import com.su.clubfair.ui.scene.MeshBackground
-import com.su.clubfair.ui.theme.AlanSans
+import com.su.clubfair.ui.theme.AppSans
+import com.su.clubfair.ui.theme.AppTextWeight
 import com.su.clubfair.ui.theme.Dimens
 import com.su.clubfair.ui.theme.Ink
 import com.su.clubfair.ui.theme.Palette
@@ -701,8 +701,8 @@ private fun BoothTile(
         Spacer(Modifier.height(Dimens.Space))
         Text(
             text = booth.displayName(),
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Bold,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 15.sp,
             lineHeight = 19.sp,
             color = Color.White.copy(alpha = InkName),
@@ -720,8 +720,8 @@ private fun BoothTile(
         Spacer(Modifier.height(Dimens.SpaceXs))
         Text(
             text = booth.blurb(),
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Normal,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 12.sp,
             lineHeight = 16.sp,
             color = Color.White.copy(alpha = InkBlurb),
@@ -749,8 +749,8 @@ private fun BoothTile(
         booth.categoryName()?.let { category ->
             Text(
                 text = category,
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Medium,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
                 fontSize = 11.sp,
                 color = cardInk(accent).copy(alpha = InkGlyph),
                 maxLines = 1,
@@ -831,8 +831,8 @@ private fun StatusBadge(booth: Booth, accent: Color, modifier: Modifier = Modifi
         } else {
             Text(
                 text = booth.displayCode,
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Bold,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
                 fontSize = 11.sp,
                 color = cardInk(accent).copy(alpha = InkGlyph),
             )
@@ -896,8 +896,8 @@ private fun ZoneMasthead(
             ) {
                 Text(
                     text = zone.letter,
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Bold,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     fontSize = 20.sp,
                     color = zone.accent,
                 )
@@ -907,8 +907,8 @@ private fun ZoneMasthead(
             Column(Modifier.weight(1f)) {
                 Text(
                     text = zone.displayTitle(),
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Bold,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     // 24sp, one step up from the 20sp of a card title: this is
                     // the only heading on the screen, so it is allowed to be
                     // the biggest thing on it.
@@ -917,8 +917,8 @@ private fun ZoneMasthead(
                 )
                 Text(
                     text = zoneIntent(zone, booths).orEmpty(),
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Normal,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     fontSize = 12.sp,
                     color = Ink.Muted,
                 )
@@ -936,8 +936,8 @@ private fun ZoneMasthead(
             Spacer(Modifier.width(Dimens.Space))
             Text(
                 text = stringResource(R.string.booths_zone_progress, scanned, total),
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Medium,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
                 fontSize = 12.sp,
                 color = Color.White,
             )

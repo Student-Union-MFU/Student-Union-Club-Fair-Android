@@ -170,6 +170,30 @@ data class FairProgress(
 
     /** Tiers actually earned — what Home's "Prizes" tile counts. */
     val prizesEarned: Int get() = prizes.count { it.reached }
+
+    /**
+     * The MFU333 tier — the lowest threshold the fair offers.
+     *
+     * Picked by threshold rather than by list position or by name: `sort_order`
+     * is the server's business and the name is the Student Union's to rewrite,
+     * but "the first thing a student can reach" is neither. It survives both.
+     */
+    val mfu333: PrizeTier? get() = prizes.minByOrNull { it.threshold }
+
+    /**
+     * Whether the MFU333 code is unlocked.
+     *
+     * `reached` is the server's answer, not arithmetic done here — the threshold
+     * can move mid-fair and this must move with it. No tiers at all reads as
+     * locked: that is the state before the first `GET /clubfair/progress` lands,
+     * and showing a claim code to someone who has not earned one is the worse of
+     * the two ways to be wrong for a moment.
+     */
+    val mfu333Unlocked: Boolean get() = mfu333?.reached == true
+
+    /** Booths still to walk before it unlocks; zero once it has. */
+    val boothsToMfu333: Int
+        get() = mfu333?.let { (it.threshold - visited).coerceAtLeast(0) } ?: 0
 }
 
 /**

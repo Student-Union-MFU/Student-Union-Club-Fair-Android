@@ -17,7 +17,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -26,7 +25,8 @@ import com.su.clubfair.ui.components.Hairline
 import com.su.clubfair.ui.components.SheetHeader
 import com.su.clubfair.ui.components.glassSurface
 import com.su.clubfair.ui.scene.MeshBackground
-import com.su.clubfair.ui.theme.AlanSans
+import com.su.clubfair.ui.theme.AppSans
+import com.su.clubfair.ui.theme.AppTextWeight
 import com.su.clubfair.ui.theme.Dimens
 import com.su.clubfair.ui.theme.Ink
 import com.su.clubfair.ui.theme.SUClubFairTheme
@@ -140,8 +140,8 @@ fun LegalScreen(
         Spacer(Modifier.height(Dimens.SpaceLg))
         Text(
             text = stringResource(document.intro),
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Normal,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 14.sp,
             lineHeight = 1.5.em,
             color = Ink.Label,
@@ -149,8 +149,8 @@ fun LegalScreen(
         Spacer(Modifier.height(Dimens.SpaceXs))
         Text(
             text = stringResource(R.string.legal_updated),
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Medium,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 12.sp,
             color = Ink.Muted,
         )
@@ -168,16 +168,16 @@ fun LegalScreen(
                     Text(
                         text = stringResource(section.heading),
                         modifier = Modifier.semantics { heading() },
-                        fontFamily = AlanSans,
-                        fontWeight = FontWeight.Bold,
+                        fontFamily = AppSans,
+                        fontWeight = AppTextWeight,
                         fontSize = 15.sp,
                         color = Color.White,
                     )
                     Spacer(Modifier.height(Dimens.SpaceXs))
                     Text(
                         text = stringResource(section.body),
-                        fontFamily = AlanSans,
-                        fontWeight = FontWeight.Normal,
+                        fontFamily = AppSans,
+                        fontWeight = AppTextWeight,
                         fontSize = 13.sp,
                         // Looser than the app's other body copy. This is the one
                         // screen someone reads a paragraph at a time rather than

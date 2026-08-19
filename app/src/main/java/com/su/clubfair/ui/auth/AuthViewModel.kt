@@ -42,6 +42,7 @@ import kotlinx.coroutines.launch
  */
 enum class FieldError {
     Required,
+    BadStudentId,
     BadPhone,
     BadEmail,
     NotMfuEmail,
@@ -62,6 +63,17 @@ enum class FieldError {
  */
 sealed interface FormError {
     data class Rejected(val message: String?) : FormError
+
+    /**
+     * The student id or the password was wrong.
+     *
+     * The app's own words rather than the server's — see
+     * [AuthOutcome.BadCredentials] for why this one case is taken off su-server:
+     * its copy offers a phone number and an email as things that might be wrong,
+     * and the form has asked for neither since sign-in went student-id-only.
+     */
+    data object BadCredentials : FormError
+
     data object Offline : FormError
 
     /**
@@ -89,7 +101,7 @@ sealed interface FormError {
 }
 
 data class LoginForm(
-    val phone: String = "",
+    val studentId: String = "",
     val password: String = "",
     /**
      * Errors are held per field but only *shown* once a field has been left or the
@@ -101,15 +113,24 @@ data class LoginForm(
     val formError: FormError? = null,
     val submitting: Boolean = false,
 ) {
-    val phoneError: FieldError? = when {
-        phone.isBlank() -> FieldError.Required
-        !PhoneNumber.isValid(phone) -> FieldError.BadPhone
+    /**
+     * Ten digits, and no intake rule.
+     *
+     * Sign-up checks the intake — see [RegisterForm] — and sign-in must not.
+     * An account that exists signs in whatever year it was opened, which is the
+     * same reasoning `MfuStudentId.isEligibleIntake` carries: applying the rule
+     * here would lock out staff, admins, and every student who registered before
+     * the eligible intakes were last narrowed.
+     */
+    val studentIdError: FieldError? = when {
+        studentId.isBlank() -> FieldError.Required
+        !MfuStudentId.isValid(studentId) -> FieldError.BadStudentId
         else -> null
     }
 
     val passwordError: FieldError? = if (password.isBlank()) FieldError.Required else null
 
-    val isValid: Boolean = phoneError == null && passwordError == null
+    val isValid: Boolean = studentIdError == null && passwordError == null
 }
 
 /**
@@ -315,8 +336,12 @@ class AuthViewModel(private val repository: FairRepository) : ViewModel() {
         }
     }
 
-    fun onLoginPhone(value: String) =
-        _login.update { it.copy(phone = value, formError = null) }
+    fun onLoginStudentId(value: String) =
+        // Digits only, silently. The keyboard is numeric but a hardware keyboard
+        // or a paste can still put a space or a dash in the box, and rejecting
+        // "6931 503029" under the field would be the form being pedantic about
+        // something it can fix itself.
+        _login.update { it.copy(studentId = value.filter(Char::isDigit), formError = null) }
 
     fun onLoginPassword(value: String) =
         _login.update { it.copy(password = value, formError = null) }
@@ -334,15 +359,24 @@ class AuthViewModel(private val repository: FairRepository) : ViewModel() {
 
         _login.update { it.copy(submitting = true, formError = null) }
         viewModelScope.launch {
-            when (val outcome = repository.signInWithPassword(form.phone, form.password)) {
+            when (val outcome = repository.signInWithPassword(form.studentId, form.password)) {
                 AuthOutcome.Success -> _login.value = LoginForm()
 
                 AuthOutcome.Offline ->
                     _login.update { it.copy(submitting = false, formError = FormError.Offline) }
 
+                // Clear the password on both rejections rather than leave a wrong
+                // one in the box for the student to hunt through and edit. The id
+                // stays: it is almost always the half that was right.
+                AuthOutcome.BadCredentials -> _login.update {
+                    it.copy(
+                        submitting = false,
+                        password = "",
+                        formError = FormError.BadCredentials,
+                    )
+                }
+
                 is AuthOutcome.Rejected -> _login.update {
-                    // Clear the password rather than leave a wrong one in the box
-                    // for the student to hunt through and edit.
                     it.copy(
                         submitting = false,
                         password = "",
@@ -378,6 +412,14 @@ class AuthViewModel(private val repository: FairRepository) : ViewModel() {
                 AuthOutcome.Offline ->
                     _register.update { it.copy(submitting = false, formError = FormError.Offline) }
 
+                // Unreachable: only the password route can answer with this.
+                // The branch is here because the `when` is exhaustive over a
+                // sealed type, which is what will make the compiler point at
+                // these three sites the day a new outcome is added.
+                AuthOutcome.BadCredentials -> _register.update {
+                    it.copy(submitting = false, formError = FormError.Rejected(null))
+                }
+
                 is AuthOutcome.Rejected -> _register.update {
                     it.copy(submitting = false, formError = FormError.Rejected(outcome.message))
                 }
@@ -404,6 +446,14 @@ class AuthViewModel(private val repository: FairRepository) : ViewModel() {
 
                 AuthOutcome.Offline ->
                     _login.update { it.copy(submitting = false, formError = FormError.Offline) }
+
+                // Unreachable: only the password route can answer with this.
+                // The branch is here because the `when` is exhaustive over a
+                // sealed type, which is what will make the compiler point at
+                // these three sites the day a new outcome is added.
+                AuthOutcome.BadCredentials -> _login.update {
+                    it.copy(submitting = false, formError = FormError.Rejected(null))
+                }
 
                 is AuthOutcome.Rejected -> _login.update {
                     it.copy(submitting = false, formError = FormError.Rejected(outcome.message))
@@ -465,6 +515,14 @@ class AuthViewModel(private val repository: FairRepository) : ViewModel() {
 
                 AuthOutcome.Offline -> _completeProfile.update {
                     it.copy(submitting = false, formError = FormError.Offline)
+                }
+
+                // Unreachable: only the password route can answer with this.
+                // The branch is here because the `when` is exhaustive over a
+                // sealed type, which is what will make the compiler point at
+                // these three sites the day a new outcome is added.
+                AuthOutcome.BadCredentials -> _completeProfile.update {
+                    it.copy(submitting = false, formError = FormError.Rejected(null))
                 }
 
                 is AuthOutcome.Rejected -> _completeProfile.update {

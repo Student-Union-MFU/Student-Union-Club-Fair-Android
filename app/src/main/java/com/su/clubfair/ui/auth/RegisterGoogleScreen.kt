@@ -19,7 +19,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -30,7 +29,8 @@ import com.su.clubfair.ui.legal.LegalConsentNotice
 import com.su.clubfair.ui.legal.LegalDocument
 import com.su.clubfair.ui.legal.LegalScreen
 import com.su.clubfair.ui.scene.MeshBackground
-import com.su.clubfair.ui.theme.AlanSans
+import com.su.clubfair.ui.theme.AppSans
+import com.su.clubfair.ui.theme.AppTextWeight
 import com.su.clubfair.ui.theme.Dimens
 import com.su.clubfair.ui.theme.Ink
 import com.su.clubfair.ui.theme.SUClubFairTheme
@@ -98,8 +98,8 @@ fun RegisterGoogleScreen(
 
             Text(
                 text = stringResource(R.string.register_title),
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Bold,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
                 fontSize = 46.sp,
                 lineHeight = 1.1.em,
                 color = Color.White,
@@ -107,8 +107,8 @@ fun RegisterGoogleScreen(
             Spacer(Modifier.height(Dimens.SpaceXs))
             Text(
                 text = stringResource(R.string.register_google_subtitle),
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Normal,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
                 fontSize = 15.sp,
                 lineHeight = 1.3.em,
                 color = Color.White,
@@ -138,8 +138,8 @@ fun RegisterGoogleScreen(
                 Text(
                     text = stringResource(R.string.auth_google_unavailable_signup),
                     modifier = Modifier.fillMaxWidth(),
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Normal,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     fontSize = 11.sp,
                     lineHeight = 1.4.em,
                     color = Ink.Muted,
@@ -164,8 +164,8 @@ fun RegisterGoogleScreen(
             ) {
                 Text(
                     text = stringResource(R.string.register_have_account),
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Medium,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     fontSize = 13.sp,
                     color = Color.White,
                 )

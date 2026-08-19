@@ -17,7 +17,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -27,7 +26,8 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.su.clubfair.R
 import com.su.clubfair.ui.components.PillButton
-import com.su.clubfair.ui.theme.AlanSans
+import com.su.clubfair.ui.theme.AppSans
+import com.su.clubfair.ui.theme.AppTextWeight
 import com.su.clubfair.ui.theme.Dimens
 import com.su.clubfair.ui.theme.Ink
 import com.su.clubfair.ui.theme.SUClubFairTheme
@@ -41,14 +41,21 @@ import com.su.clubfair.ui.theme.SUClubFairTheme
  * a device. This screen decides only what that state looks like.
  *
  * It now scrolls. Two error messages and a rejected-password banner add about
- * 120dp to a form that already filled a short phone, and a CTA that cannot be
- * reached is worse than one that has to be scrolled to.
+ * 120dp to a form that was already full, and a CTA that cannot be reached is
+ * worse than one that has to be scrolled to.
+ *
+ * **The identifier is the student id, and only the student id.** It was the
+ * mobile number, which meant the one number every MFU student knows by heart —
+ * the one on their card, in their email address and under the QR on their
+ * ticket — was the one thing the sign-in form would not take. su-server resolves
+ * a phone and an MFU address here too, so nothing is closed off server-side;
+ * this is about what the form asks a tired student for at a booth.
  */
 @Composable
 fun LoginScreen(
     state: LoginForm,
     modifier: Modifier = Modifier,
-    onPhoneChange: (String) -> Unit = {},
+    onStudentIdChange: (String) -> Unit = {},
     onPasswordChange: (String) -> Unit = {},
     onSubmit: () -> Unit = {},
     onSignUp: () -> Unit = {},
@@ -75,8 +82,8 @@ fun LoginScreen(
 
             Text(
                 text = stringResource(R.string.login_title),
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Bold,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
                 fontSize = 46.sp,
                 lineHeight = 1.1.em,
                 color = Color.White,
@@ -84,8 +91,8 @@ fun LoginScreen(
             Spacer(Modifier.height(Dimens.SpaceXs))
             Text(
                 text = stringResource(R.string.login_subtitle),
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Normal,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
                 fontSize = 15.sp,
                 lineHeight = 1.3.em,
                 color = Color.White,
@@ -103,15 +110,18 @@ fun LoginScreen(
 
             Spacer(Modifier.height(Dimens.SpaceLg))
             AuthTextField(
-                value = state.phone,
-                onValueChange = onPhoneChange,
-                placeholder = stringResource(R.string.auth_phone_hint),
+                value = state.studentId,
+                onValueChange = onStudentIdChange,
+                placeholder = stringResource(R.string.auth_student_id_hint),
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Phone,
+                    // Number, not Phone. A phone keypad offers +, * and #, none
+                    // of which belong in a student id, and the field strips
+                    // everything but digits anyway — see `onLoginStudentId`.
+                    keyboardType = KeyboardType.Number,
                     imeAction = ImeAction.Next,
                 ),
-                error = state.phoneError,
+                error = state.studentIdError,
                 showError = state.showErrors,
             )
             Spacer(Modifier.height(Dimens.Space))
@@ -136,8 +146,8 @@ fun LoginScreen(
             ) {
                 Text(
                     text = stringResource(R.string.login_no_account),
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Medium,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     fontSize = 13.sp,
                     color = Color.White,
                 )
@@ -171,8 +181,8 @@ fun LoginScreen(
                 Text(
                     text = stringResource(R.string.auth_google_unavailable),
                     modifier = Modifier.fillMaxWidth(),
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Normal,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     fontSize = 11.sp,
                     lineHeight = 1.4.em,
                     color = Ink.Muted,
@@ -198,10 +208,10 @@ private fun LoginScreenErrorPreview() {
     SUClubFairTheme {
         LoginScreen(
             state = LoginForm(
-                phone = "0683",
+                studentId = "6931",
                 password = "",
                 showErrors = true,
-                formError = FormError.Rejected("เบอร์โทรหรือรหัสผ่านไม่ถูกต้อง"),
+                formError = FormError.Rejected("รหัสนักศึกษาหรือรหัสผ่านไม่ถูกต้อง"),
             ),
         )
     }

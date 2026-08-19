@@ -27,11 +27,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.su.clubfair.R
-import com.su.clubfair.ui.theme.AlanSans
+import com.su.clubfair.ui.theme.AppSans
+import com.su.clubfair.ui.theme.AppTextWeight
 import com.su.clubfair.ui.theme.Dimens
 import com.su.clubfair.ui.theme.Ink
 import com.su.clubfair.ui.theme.LocalAccent
@@ -64,8 +64,8 @@ fun SheetHeader(
         Text(
             text = title,
             modifier = Modifier.semantics { heading() },
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Bold,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 20.sp,
             color = Color.White,
         )
@@ -78,8 +78,8 @@ fun SectionLabel(text: String, modifier: Modifier = Modifier) {
     Text(
         text = text,
         modifier = modifier.semantics { heading() },
-        fontFamily = AlanSans,
-        fontWeight = FontWeight.Medium,
+        fontFamily = AppSans,
+        fontWeight = AppTextWeight,
         fontSize = 12.sp,
         letterSpacing = 0.4.sp,
         color = Ink.Muted,
@@ -158,8 +158,8 @@ fun ActionRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Medium,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
                 fontSize = 15.sp,
                 color = if (tint == Palette.Alert) Palette.Alert else Color.White,
             )
@@ -167,8 +167,8 @@ fun ActionRow(
                 Spacer(Modifier.size(1.dp))
                 Text(
                     text = subtitle,
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Normal,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     fontSize = 12.sp,
                     color = Ink.Muted,
                 )
@@ -218,8 +218,8 @@ fun ToggleRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Medium,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
                 fontSize = 15.sp,
                 color = Color.White,
             )
@@ -227,8 +227,8 @@ fun ToggleRow(
                 Spacer(Modifier.size(1.dp))
                 Text(
                     text = subtitle,
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Normal,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     fontSize = 12.sp,
                     color = Ink.Muted,
                 )
@@ -271,15 +271,15 @@ fun InfoRow(
         Text(
             text = title,
             modifier = Modifier.weight(1f),
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Medium,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 15.sp,
             color = Color.White,
         )
         Text(
             text = value,
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Normal,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 14.sp,
             color = Ink.Muted,
         )

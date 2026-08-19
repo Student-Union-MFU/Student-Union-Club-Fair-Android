@@ -28,7 +28,8 @@
          tells someone nothing about which of the two boxes to look at. -->
     <!-- The server sends its own message for a rejected sign-in; this is only
          the fallback for when it sends none. -->
-    <string name="login_error_generic">Couldn\'t sign in. Check your number and password.</string>
+    <string name="login_error_generic">Couldn\'t sign in. Check your student ID and password.</string>
+    <string name="login_error_credentials">Wrong student ID or password</string>
     <!-- The one failure the student can act on by moving. -->
     <string name="auth_error_offline">Can\'t reach the server. Check your connection and try again.</string>
     <string name="auth_google_unavailable">Google sign-in isn\'t set up yet — use your phone number and password.</string>
@@ -81,6 +82,7 @@
 
     <!-- Field-level validation. -->
     <string name="auth_error_required">Required</string>
+    <string name="auth_error_student_id">Enter your 10-digit student ID</string>
     <string name="auth_error_phone">Enter a Thai mobile number, e.g. 0683150329</string>
     <string name="auth_error_email">Enter a valid email address</string>
     <string name="auth_error_email_mfu">Use your @lamduan.mfu.ac.th address</string>
@@ -124,17 +126,13 @@
     <string name="booth_about_academic">Debate, performance and competition — clubs that take a skill and enter it into things.</string>
     <string name="booth_about_generic">Come and meet the club at their stall.</string>
 
-    <!-- The Prizes page. The tier names and descriptions are the server's; only
-         the notice below is the app's, and it exists because those rows are
-         still the seeded placeholders rather than the real prize list. -->
-    <string name="prizes_title">Prizes</string>
-    <string name="prizes_earned_of">of %1$d prizes earned</string>
-    <string name="prizes_booths_progress">%1$d of %2$d booths collected</string>
-    <string name="prizes_route_section">Your route</string>
+    <!-- The MFU333 page. The section name is the app's, because it is the
+         reward's identity; the tier names, descriptions and thresholds inside it
+         are the server's, so the Student Union can retarget one mid-fair. -->
+    <string name="prizes_title">MFU333</string>
     <!-- Deliberately names no thresholds: the stops come from the server, and a
          sentence that says "at 15 and 28" is wrong the day the Student Union
          moves one. -->
-    <string name="prizes_route_hint">The lit road is how far you have walked. The gifts are where the prizes are.</string>
     <string name="prizes_here">You\'re here</string>
     <string name="prizes_start">Start</string>
     <!-- The whole stop, read as one thing under TalkBack: name, where it falls on
@@ -143,17 +141,27 @@
         <item quantity="one">%1$s, at %2$d booth. %3$s</item>
         <item quantity="other">%1$s, at %2$d booths. %3$s</item>
     </plurals>
-    <string name="prizes_placeholder_notice">The prize list isn\'t final yet — these tiers are placeholders while the Student Union confirms what\'s on offer. The booth targets are real.</string>
     <!-- One booth to go is the state a student is most likely to be looking at
          this line in, and "1 more booths" is what it used to say. -->
     <plurals name="prizes_remaining">
         <item quantity="one">%1$d more booth to go</item>
         <item quantity="other">%1$d more booths to go</item>
     </plurals>
+    <!-- The MFU333 code. Unlocked by reaching the lowest prize tier, which the
+         server decides — see FairProgress.mfu333Unlocked. -->
+    <string name="prizes_qr_checkpoints">%1$d/%2$d</string>
+    <!-- Just the unit. It read "checkpoints for MFU333" while the sheet header
+         above it and the card's own title both already said MFU333; the title is
+         gone and this no longer has to carry the name. -->
+    <string name="prizes_qr_checkpoints_label">checkpoints</string>
+    <string name="prizes_qr_hint">Show this at the Student Union desk to collect MFU333.</string>
+    <plurals name="prizes_qr_locked">
+        <item quantity="one">Collect %1$d more booth to unlock your code</item>
+        <item quantity="other">Collect %1$d more booths to unlock your code</item>
+    </plurals>
     <string name="prizes_ready">Earned — claim it at the Student Union desk</string>
     <string name="prizes_claimed">Claimed</string>
 
-    <string name="home_headline">Find your club this weekend</string>
     <string name="home_checkpoints">Checkpoints</string>
     <string name="home_checkpoints_count">%1$d</string>
     <plurals name="home_checkpoints_total">
@@ -166,7 +174,24 @@
     <string name="home_checkpoints_desc">%1$d of %2$d booths scanned</string>
     <string name="home_offline">Offline — showing your last saved progress</string>
     <string name="home_clubs">Clubs</string>
-    <string name="home_prizes">Prizes</string>
+
+    <!-- The Programme page. Every entry is the server's, from clubfair_program;
+         only the furniture below is the app's. -->
+    <string name="program_title">Programme</string>
+    <string name="program_now">Happening now</string>
+    <!-- Shown instead of "Happening now" in the gap between two entries. -->
+    <string name="program_next">Up next</string>
+    <string name="program_route_section">Running order</string>
+    <!-- "09:00 – 10:30". An en dash with spaces, not a hyphen. -->
+    <string name="program_time_range">%1$s – %2$s</string>
+    <string name="program_zone">Zone %1$s</string>
+    <string name="program_all_done">That\'s the whole running order — nothing left on the schedule.</string>
+    <!-- Not an error. clubfair_program is empty until the Student Union fills it. -->
+    <string name="program_empty_title">No programme yet</string>
+    <string name="program_empty_body">The Student Union hasn\'t published the running order. It\'ll appear here as soon as they do.</string>
+    <string name="home_program">Programme</string>
+    <string name="home_program_hint">What\'s on, and when</string>
+    <string name="home_prizes">MFU333</string>
 
     <!--
       One line, with the name emphasised inside it. The placeholder can be
@@ -178,19 +203,27 @@
     <string name="home_announcements">Announcements</string>
 
     <string name="home_stat_rank">Rank</string>
-    <string name="home_stat_prizes">Prizes</string>
+    <string name="home_stat_prizes">MFU333</string>
     <!-- Stands in for any figure this app cannot know without a server. -->
     <string name="home_stat_unknown">—</string>
     <string name="home_stat_ended">Fair</string>
     <string name="home_stat_ended_value">Ended</string>
-    <!-- The countdown banner. Whole days until the fair opens, with the date
-         itself on the line above so nobody has to do the arithmetic. -->
-    <string name="home_opens_on">Fair opens %1$s</string>
+    <!-- The countdown badge under the greeting. The figure that follows is
+         the whole answer, so this says "in" and stops. The date it used to name
+         is on the Programme card, and a badge cannot carry both. -->
+    <string name="home_opens_in">Fair opens in</string>
     <!-- The countdown runs days + hours + minutes on one line, so the units are
-         abbreviated: spelled out, three of them do not fit at 40sp. -->
-    <string name="home_unit_days">%1$dd</string>
-    <string name="home_unit_hours">%1$dh</string>
-    <string name="home_unit_minutes">%1$dm</string>
+         abbreviated: spelled out, three of them do not fit at 40sp.
+
+         The suffix only — the digits are appended separately so the two can be
+         styled apart, with the unit letters at half the size of the number. Any
+         space between the number and its unit belongs in here, because whether
+         there is one is a fact about the language: "23h" has none and Thai's
+         "23 ชม." does. -->
+    <string name="home_unit_day">d</string>
+    <string name="home_unit_hour">h</string>
+    <string name="home_unit_minute">m</string>
+    <string name="home_unit_second">s</string>
     <string name="home_open_now">Fair is open</string>
     <!-- Wraps the figure above once the fair is running: the same units, but
          counting down to the close rather than to the opening. -->
@@ -210,6 +243,17 @@
     <string name="events_reaction_desc">%1$s, %2$d</string>
     <string name="events_composer_hint">Message #announcements</string>
     <string name="events_send">Send announcement</string>
+    <!-- Shown under the composer when a post did not go out. A rejection uses
+         su-server's own message where it sent one; these two are the fallbacks.
+         Both say the draft is still there, because it is, and the alternative is
+         an author retyping an announcement that was never lost. -->
+    <!-- A reaction that did not save. It used to fail silently — the chip
+         appeared and vanished inside a frame — which reads as a broken app
+         rather than as a rejected write. -->
+    <string name="events_reaction_offline">No signal — that reaction wasn\'t saved.</string>
+    <string name="events_reaction_failed">That reaction couldn\'t be saved. Try again.</string>
+    <string name="events_post_offline">No signal — the announcement wasn\'t sent. Your message is still here; try again.</string>
+    <string name="events_post_failed">The announcement couldn\'t be sent. Your message is still here; try again.</string>
     <string name="events_just_now">Just now</string>
 
     <string name="scan_title">Scan a booth</string>
@@ -275,7 +319,6 @@
 
     <string name="profile_title">Profile</string>
     <string name="profile_pass_active">Pass active</string>
-    <string name="profile_stat_booths">Booths</string>
     <string name="profile_back">Back</string>
     <string name="profile_email">Email</string>
     <string name="profile_phone">Phone</string>
@@ -403,7 +446,7 @@
 
     <string name="auth_error_session_expired">You were signed out because your session expired. Please sign in again — your stamps are safe on the server.</string>
 
-    <string name="auth_phone_hint">683XXXXXXX</string>
+    <string name="auth_student_id_hint">Student ID</string>
     <string name="auth_password_hint">Password</string>
 
     <string name="logo_mfu">Mae Fah Luang University</string>

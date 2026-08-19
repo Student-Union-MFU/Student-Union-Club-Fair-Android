@@ -1,9 +1,7 @@
 package com.su.clubfair.ui.prizes
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,31 +10,39 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.su.clubfair.R
-import com.su.clubfair.ui.components.ProgressTrack
-import com.su.clubfair.ui.components.SectionLabel
+import com.su.clubfair.ui.components.Hairline
 import com.su.clubfair.ui.components.SheetHeader
 import com.su.clubfair.ui.components.glassSurface
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import com.su.clubfair.ui.model.FairProgress
 import com.su.clubfair.ui.model.PreviewProgress
+import com.su.clubfair.ui.model.PreviewStudent
+import com.su.clubfair.ui.model.Student
+import com.su.clubfair.ui.qr.StyledQr
 import com.su.clubfair.ui.scene.MeshBackground
-import com.su.clubfair.ui.theme.AlanSans
+import com.su.clubfair.ui.theme.AppSans
+import com.su.clubfair.ui.theme.AppTextWeight
 import com.su.clubfair.ui.theme.Dimens
 import com.su.clubfair.ui.theme.Ink
 import com.su.clubfair.ui.theme.Palette
@@ -45,29 +51,58 @@ import com.su.clubfair.ui.theme.SUClubFairTheme
 private val CardRadius = Dimens.RadiusLg
 
 /**
+ * How much of the locked code is left on screen.
+ *
+ * Faint enough to read as a ghost of the thing rather than the thing, solid
+ * enough that the square is recognisably a QR code and not an empty panel. The
+ * value applies to the whole paper panel, not just the ink — dimming the ink
+ * alone leaves a bright white card announcing itself as the loudest element on a
+ * screen whose subject is how far the student still has to walk.
+ */
+private const val LockedQrAlpha = 0.10f
+
+/**
+ * What the locked square actually encodes.
+ *
+ * A placeholder rather than the student id at low opacity. Alpha is a drawing
+ * instruction, not a redaction: a photograph of a 10%-opacity code with the
+ * contrast pushed is still a readable code, and the whole claim of the locked
+ * state is that there is nothing here to collect yet. Encoding the reward's own
+ * name means the worst case for a student who defeats the dimming is that they
+ * scanned the word MFU333.
+ *
+ * It doubles as the fallback for an account with no student id — [StyledQr]
+ * draws nothing at all for content it cannot encode, and a lock floating over
+ * blank paper reads as a rendering fault rather than as a locked reward.
+ */
+private const val PlaceholderQrContent = "MFU333"
+
+/**
  * What a student gets for walking the fair, and how close they are to it.
  *
- * **The prize list is not final.** `clubfair_prize_tier` holds two rows — Prize 1
- * at fifteen booths, Prize 2 at twenty-eight — and those are targets, not a
- * description of what is in the bag. The banner at the top says so in as many
- * words, because a student who reads a name on this screen as a promise and
- * turns up to claim it has been misled by this screen rather than by the Student
- * Union. It is also why the tiers are numbered rather than named: "Prize 1"
- * cannot be mistaken for a description of something nobody has bought yet.
+ * Titled **MFU333** — the reward itself, not the mechanism. The name is an app
+ * string because it is the section's identity; the tiers inside it are still the
+ * server's, from `clubfair_prize_tier` via `GET /clubfair/progress`, so the
+ * thresholds, the descriptions and the reached/claimed flags all move without a
+ * release. That split is the point: the Student Union can retarget a tier
+ * mid-fair, and only a rename of the whole section needs a new build.
  *
- * Everything except that banner is real: the thresholds, the descriptions and
- * the reached/claimed flags all come from `GET /clubfair/progress`, so the day
- * the Union rewrites those rows this screen is correct with no release.
- * That is the whole reason it renders the server's tiers rather than a hardcoded
- * "coming soon" — a placeholder that shows nothing teaches a student nothing,
- * and this one already answers "how many booths until something happens".
+ * The "prize list isn't final" banner that used to sit above the route is gone.
+ * It was unconditional, so it would have gone on calling the reward provisional
+ * long after MFU333 was decided — and a caveat that contradicts the heading
+ * above it teaches a student less than no caveat at all.
  *
- * The Prizes tile on Home used to open nothing at all: `onOpenPrizes` had no
+ * The MFU333 tile on Home used to open nothing at all: `onOpenPrizes` had no
  * caller in `AppShell`, so the button was decoration.
  */
 @Composable
 fun PrizesScreen(
     progress: FairProgress,
+    // No default. This ends up encoded in a QR the Student Union desk scans, so
+    // a caller that forgets to pass a student should not compile — the previous
+    // default was `PreviewStudent`, which would have handed the desk a made-up
+    // id from a @Preview fixture.
+    student: Student,
     modifier: Modifier = Modifier,
     onBack: () -> Unit = {},
 ) {
@@ -86,105 +121,176 @@ fun PrizesScreen(
         )
 
         Spacer(Modifier.height(Dimens.SpaceLg))
-        EarnedSummary(progress = progress)
-
-        Spacer(Modifier.height(Dimens.Space))
-        PlaceholderNotice()
-
-        if (progress.prizes.isNotEmpty()) {
-            Spacer(Modifier.height(Dimens.SpaceXl))
-            SectionLabel(stringResource(R.string.prizes_route_section))
-            Spacer(Modifier.height(Dimens.SpaceXs))
-            Text(
-                text = stringResource(R.string.prizes_route_hint),
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Normal,
-                fontSize = 13.sp,
-                lineHeight = 1.45.em,
-                color = Ink.Muted,
-            )
-            Spacer(Modifier.height(Dimens.SpaceLg))
-            PrizeRoadmap(progress = progress)
-        }
+        Mfu333Card(progress = progress, student = student)
 
         Spacer(Modifier.height(Dimens.SpaceXl))
         Spacer(Modifier.height(Dimens.NavBarClearance))
     }
 }
 
-/** How many tiers are already earned, at the size Home shows the same number. */
+/**
+ * The MFU333 code, and how far off it is.
+ *
+ * One card in two states rather than a code that appears out of nowhere at
+ * fifteen. A square is drawn either way — a student who cannot see the reward
+ * cannot aim at it — and while it is locked it sits under a padlock at a tenth
+ * of its opacity: present enough to be recognised as the thing being worked
+ * toward, and plainly not yet a code anyone can hand over.
+ *
+ * The two states differ in what they encode, not only in how brightly it is
+ * drawn. Locked, the square carries [PlaceholderQrContent]; only once the server
+ * says the tier is reached does the student's own id go into it. That is the
+ * difference between a code that is hidden and a code that is not there — see
+ * the constant for why the opacity alone was not enough to claim the second.
+ *
+ * The count below it is the whole answer to "how much further", and it is
+ * deliberately checkpoints-over-threshold rather than a percentage or a bar:
+ * a student standing in the hall is counting booths, so the screen counts the
+ * same thing they are.
+ *
+ * The threshold is the server's, from the tier itself, so the Student Union can
+ * move fifteen to any number and this follows without a release.
+ *
+ * The unlocked payload is the student id — the same value the pass carries,
+ * because the desk needs to know who is standing there and nothing else. It is
+ * not a secret and is not treated as one: whether this student has earned MFU333
+ * is a question for the server at the moment of collection, and `reached` here
+ * only decides what the app draws.
+ */
 @Composable
-private fun EarnedSummary(progress: FairProgress) {
+private fun Mfu333Card(progress: FairProgress, student: Student) {
+    val unlocked = progress.mfu333Unlocked
+    val threshold = progress.mfu333?.threshold ?: 0
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .glassSurface(cornerRadius = CardRadius)
             .padding(Dimens.CardPadding),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(
-            text = "${progress.prizesEarned}",
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Bold,
-            fontSize = 44.sp,
-            lineHeight = 1.1.em,
-            color = Palette.Accent,
-        )
-        Text(
-            text = stringResource(R.string.prizes_earned_of, progress.prizes.size),
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Medium,
-            fontSize = 14.sp,
-            color = Color.White,
-        )
+        // No title. The sheet header above already reads "MFU333", and a
+        // card inside it captioned "MFU333 is locked" is the same word three
+        // times on one screen. The seal on the code says locked, and the line
+        // under the figure says what to do about it.
+        Box(contentAlignment = Alignment.Center) {
+            // The paper panel is not decoration and it is not optional. The code
+            // is drawn in dark ink — see StyledQr for why it has to be that way
+            // round rather than light-on-dark — so on this card's glass it would
+            // be dark ink on a near-black ground, which is a code no scanner at
+            // the desk can read. The pass solves it the same way.
+            //
+            // The square comes from `aspectRatio`, and that is what makes the
+            // code exist at all: StyledQr fills the space it is given, and the
+            // width-only modifier it used to carry left it inside a
+            // wrap-height Column with no height to fill.
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .alpha(if (unlocked) 1f else LockedQrAlpha)
+                    .clip(RoundedCornerShape(Dimens.RadiusMd))
+                    .background(Palette.Paper)
+                    .padding(Dimens.Space),
+            ) {
+                StyledQr(
+                    content = if (unlocked) {
+                        student.studentId?.takeIf { it.isNotBlank() } ?: PlaceholderQrContent
+                    } else {
+                        PlaceholderQrContent
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
 
-        Spacer(Modifier.height(Dimens.Space))
-        ProgressTrack(fraction = progress.progress)
-        Spacer(Modifier.height(Dimens.SpaceXs))
+            // Outside the alpha above, so the dimming does not take the padlock
+            // down with the thing it is locking.
+            //
+            // A paper disc with dark ink in it, rather than the bare white glyph
+            // this used to be. Over a square faded to a tenth there is nothing
+            // for a white line drawing to sit against, and it read as an icon
+            // that had come loose; the disc is the same two colours the code
+            // itself uses, so it looks like a seal placed on the panel rather
+            // than an overlay floating above it.
+            if (!unlocked) LockSeal()
+        }
+
+        Spacer(Modifier.height(Dimens.SpaceLg))
+        // The figure and its unit as one block, not two lines with air between:
+        // "7/15" and "checkpoints" are one sentence and the tight leading is
+        // what makes them read as one.
         Text(
             text = stringResource(
-                R.string.prizes_booths_progress,
+                R.string.prizes_qr_checkpoints,
                 progress.visited,
-                progress.total,
+                threshold,
             ),
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Normal,
-            fontSize = 12.sp,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
+            fontSize = 34.sp,
+            lineHeight = 1.05.em,
+            color = if (unlocked) Palette.Accent else Color.White,
+        )
+        Spacer(Modifier.height(Dimens.SpaceXs / 2))
+        Text(
+            text = stringResource(R.string.prizes_qr_checkpoints_label),
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
+            fontSize = 11.sp,
+            lineHeight = 1.1.em,
             color = Ink.Muted,
+        )
+
+        // Where you are, then what to do about it. The rule is doing the work
+        // the removed title was doing badly — separating the two without
+        // spending a third font size on a heading.
+        Spacer(Modifier.height(Dimens.SpaceLg))
+        Hairline()
+        Spacer(Modifier.height(Dimens.Space))
+        Text(
+            text = if (unlocked) {
+                stringResource(R.string.prizes_qr_hint)
+            } else {
+                pluralStringResource(
+                    R.plurals.prizes_qr_locked,
+                    progress.boothsToMfu333,
+                    progress.boothsToMfu333,
+                )
+            },
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
+            fontSize = 13.sp,
+            lineHeight = 1.45.em,
+            color = Ink.Muted,
+            textAlign = TextAlign.Center,
         )
     }
 }
 
+/** Diameter of the seal, and the glyph inside it. */
+private val LockSealSize = 56.dp
+private val LockGlyphSize = 24.dp
+
 /**
- * The one thing on this screen that is not the server's.
+ * The mark that says this code is not yours yet.
  *
- * Amber rather than accent, and above the list rather than under it: it
- * qualifies everything below, and a caveat a student reaches after reading the
- * prizes has arrived too late to do its job.
+ * Its own composable because inline it was four nested modifiers sitting in the
+ * middle of the card's layout, between the code and the figure under it.
  */
 @Composable
-private fun PlaceholderNotice() {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(Dimens.RadiusMd))
-            .background(Palette.Alert.copy(alpha = 0.12f))
-            .padding(Dimens.Space),
-        verticalAlignment = Alignment.Top,
+private fun LockSeal(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .size(LockSealSize)
+            .clip(CircleShape)
+            .background(Palette.Paper),
+        contentAlignment = Alignment.Center,
     ) {
         Icon(
-            painter = painterResource(R.drawable.ic_alert_circle),
+            painter = painterResource(R.drawable.ic_lock),
             contentDescription = null,
-            tint = Palette.Alert,
-            modifier = Modifier.size(18.dp),
-        )
-        Spacer(Modifier.size(Dimens.SpaceSm))
-        Text(
-            text = stringResource(R.string.prizes_placeholder_notice),
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Normal,
-            fontSize = 13.sp,
-            lineHeight = 1.45.em,
-            color = Ink.Label,
+            tint = Palette.Ink,
+            modifier = Modifier.size(LockGlyphSize),
         )
     }
 }
@@ -195,7 +301,7 @@ private fun PrizesScreenPreview() {
     SUClubFairTheme {
         Box(Modifier.fillMaxSize()) {
             MeshBackground()
-            PrizesScreen(progress = PreviewProgress)
+            PrizesScreen(progress = PreviewProgress, student = PreviewStudent)
         }
     }
 }
@@ -208,6 +314,7 @@ private fun PrizesRoutePreview() {
         Box(Modifier.fillMaxSize()) {
             MeshBackground()
             PrizesScreen(
+                student = PreviewStudent,
                 progress = PreviewProgress.copy(
                     visited = 16,
                     prizes = PreviewProgress.prizes.mapIndexed { index, tier ->

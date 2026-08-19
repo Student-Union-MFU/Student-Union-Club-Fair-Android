@@ -73,7 +73,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -89,7 +88,8 @@ import com.su.clubfair.ui.components.PillButton
 import com.su.clubfair.ui.scene.MeshBackground
 import com.su.clubfair.ui.components.glassSurface
 import com.su.clubfair.ui.components.liquidGlass
-import com.su.clubfair.ui.theme.AlanSans
+import com.su.clubfair.ui.theme.AppSans
+import com.su.clubfair.ui.theme.AppTextWeight
 import com.su.clubfair.ui.theme.Dimens
 import com.su.clubfair.ui.theme.Ink
 import com.su.clubfair.ui.theme.LocalAccent
@@ -286,16 +286,16 @@ fun ScanScreen(
             ) {
                 Text(
                     text = stringResource(R.string.scan_title),
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Bold,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     fontSize = 20.sp,
                     color = Color.White,
                 )
                 Spacer(Modifier.height(Dimens.SpaceXs))
                 Text(
                     text = stringResource(R.string.scan_hint),
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Normal,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     fontSize = 13.sp,
                     color = Ink.Muted,
                     textAlign = TextAlign.Center,
@@ -573,15 +573,15 @@ private fun Explainer(
         Text(
             text = title,
             modifier = Modifier.semantics { heading() },
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Bold,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 16.sp,
             color = Color.White,
         )
         Text(
             text = body,
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Normal,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 13.sp,
             color = Ink.Muted,
         )
@@ -600,8 +600,8 @@ private fun Explainer(
             ) {
                 Text(
                     text = secondaryCta,
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Medium,
+                    fontFamily = AppSans,
+                    fontWeight = AppTextWeight,
                     fontSize = 14.sp,
                     color = Color.White,
                 )
@@ -706,24 +706,24 @@ private fun ResultCard(
                 Column(Modifier.weight(1f)) {
                     Text(
                         text = booth?.let { "$eyebrow · ${it.displayCode}" } ?: eyebrow,
-                        fontFamily = AlanSans,
-                        fontWeight = FontWeight.Medium,
+                        fontFamily = AppSans,
+                        fontWeight = AppTextWeight,
                         fontSize = 11.sp,
                         letterSpacing = 0.6.sp,
                         color = tint,
                     )
                     Text(
                         text = headline,
-                        fontFamily = AlanSans,
-                        fontWeight = FontWeight.Bold,
+                        fontFamily = AppSans,
+                        fontWeight = AppTextWeight,
                         fontSize = 18.sp,
                         color = Color.White,
                     )
                     if (body != null) {
                         Text(
                             text = body,
-                            fontFamily = AlanSans,
-                            fontWeight = FontWeight.Normal,
+                            fontFamily = AppSans,
+                            fontWeight = AppTextWeight,
                             fontSize = 12.sp,
                             color = Ink.Muted,
                         )

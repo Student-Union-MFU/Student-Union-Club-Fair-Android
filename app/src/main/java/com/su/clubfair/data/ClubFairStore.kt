@@ -200,12 +200,14 @@ class ClubFairStore(context: Context) {
     val cachedZones: Flow<String?> = preferences.map { it[Keys.CachedZones] }
     val cachedProgress: Flow<String?> = preferences.map { it[Keys.CachedProgress] }
     val cachedAnnouncements: Flow<String?> = preferences.map { it[Keys.CachedAnnouncements] }
+    val cachedProgram: Flow<String?> = preferences.map { it[Keys.CachedProgram] }
 
     suspend fun cacheBooths(raw: String) = store.edit { it[Keys.CachedBooths] = raw }
     suspend fun cacheZones(raw: String) = store.edit { it[Keys.CachedZones] = raw }
     suspend fun cacheProgress(raw: String) = store.edit { it[Keys.CachedProgress] = raw }
     suspend fun cacheAnnouncements(raw: String) =
         store.edit { it[Keys.CachedAnnouncements] = raw }
+    suspend fun cacheProgram(raw: String) = store.edit { it[Keys.CachedProgram] = raw }
 
     // ---- Outbound queue --------------------------------------------------
 
@@ -291,6 +293,7 @@ class ClubFairStore(context: Context) {
         val CachedZones = stringPreferencesKey("cached_zones")
         val CachedProgress = stringPreferencesKey("cached_progress")
         val CachedAnnouncements = stringPreferencesKey("cached_announcements")
+        val CachedProgram = stringPreferencesKey("cached_program")
         val PendingScans = stringSetPreferencesKey("pending_scans")
         val Haptics = booleanPreferencesKey("haptics")
         val Language = stringPreferencesKey("language")

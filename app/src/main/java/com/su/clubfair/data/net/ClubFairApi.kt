@@ -49,8 +49,8 @@ class ClubFairApi(
     suspend fun signInWithGoogle(idToken: String): ApiResult<SessionDto> =
         post("auth/google", GoogleSignInRequest(idToken), authenticated = false)
 
-    suspend fun signInWithPassword(phone: String, password: String): ApiResult<SessionDto> =
-        post("auth/login", PasswordLoginRequest(phone, password), authenticated = false)
+    suspend fun signInWithPassword(studentId: String, password: String): ApiResult<SessionDto> =
+        post("auth/login", PasswordLoginRequest(studentId, password), authenticated = false)
 
     suspend fun register(body: RegisterRequest): ApiResult<SessionDto> =
         post("auth/register", body, authenticated = false)
@@ -60,6 +60,17 @@ class ClubFairApi(
     suspend fun booths(): ApiResult<List<BoothDto>> = get("booths", authenticated = false)
 
     suspend fun zones(): ApiResult<List<ZoneDto>> = get("zones", authenticated = false)
+
+    /**
+     * The fair's running order, published entries only and already in start
+     * order — su-server sorts by `starts_at, id`, so the app renders the list as
+     * it arrives rather than imposing an order of its own.
+     *
+     * Unauthenticated, like the booths and zones beside it: what is on at the
+     * fair is the same for everyone and is worth being readable before sign-in.
+     */
+    suspend fun program(): ApiResult<List<ProgramEntryDto>> =
+        get("program", authenticated = false)
 
     // ---- Signed in -------------------------------------------------------
 
@@ -89,6 +100,22 @@ class ClubFairApi(
 
     suspend fun toggleReaction(announcementId: Long, emoji: String): ApiResult<ReactionStateDto> =
         post("announcements/$announcementId/reactions", ReactionRequest(emoji))
+
+    /**
+     * Publishes an announcement to the channel. Staff only.
+     *
+     * The route is behind `requireClubFairStaff` on su-server, so the role claim
+     * is enforced there as well as being what decides whether the app draws a
+     * composer at all — a student who tampers with the local flag gets a 403 and
+     * nothing else.
+     *
+     * Answers **201** with the created post, in the same shape [announcements]
+     * returns, so the caller can show it without waiting for a re-read. Rejects
+     * an empty body and one over 2000 characters with a 400 and su-server's own
+     * Thai message.
+     */
+    suspend fun postAnnouncement(body: String): ApiResult<AnnouncementDto> =
+        post("announcements", PostAnnouncementRequest(body))
 
     // ---- Plumbing --------------------------------------------------------
 

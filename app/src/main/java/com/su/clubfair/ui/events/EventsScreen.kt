@@ -25,20 +25,20 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
@@ -48,20 +48,25 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.su.clubfair.R
 import com.su.clubfair.ui.components.Hairline
+import com.su.clubfair.ui.components.PullUpIndicator
 import com.su.clubfair.ui.components.glassSurface
+import com.su.clubfair.ui.components.pullUpToRefresh
+import com.su.clubfair.ui.components.rememberPullUpToRefreshState
 import com.su.clubfair.ui.model.Announcement
+import com.su.clubfair.data.PostOutcome
+import com.su.clubfair.data.ReactionOutcome
 import com.su.clubfair.ui.model.PreviewAnnouncements
 import com.su.clubfair.ui.model.Reaction
 import com.su.clubfair.ui.model.ReactionPalette
 import com.su.clubfair.ui.scene.MeshBackground
-import com.su.clubfair.ui.theme.AlanSans
+import com.su.clubfair.ui.theme.AppSans
+import com.su.clubfair.ui.theme.AppTextWeight
 import com.su.clubfair.ui.theme.Dimens
 import com.su.clubfair.ui.theme.Ink
 import com.su.clubfair.ui.theme.LocalAccent
@@ -89,14 +94,36 @@ fun EventsScreen(
     isStaff: Boolean = false,
     announcements: List<Announcement> = PreviewAnnouncements,
     onReact: (postId: Long, emoji: String) -> Unit = { _, _ -> },
+    reactionOutcome: ReactionOutcome? = null,
+    onClearReactionOutcome: () -> Unit = {},
+    refreshing: Boolean = false,
+    onRefresh: () -> Unit = {},
+    posting: Boolean = false,
+    postOutcome: PostOutcome? = null,
+    onPost: (String) -> Unit = {},
+    onClearPostOutcome: () -> Unit = {},
 ) {
-    // Anything the Student Union posts from the composer below. Local and
-    // deliberately so: there is no channel to publish to, and the composer is
-    // dormant anyway until a server issues the admin role. Reactions are the
-    // opposite case — those go through the repository and survive a restart.
-    val posted = remember { mutableStateListOf<Announcement>() }
-    val feed = remember(announcements, posted.size) { announcements + posted }
+    // The feed is the repository's, whole. It used to be `announcements + posted`,
+    // where `posted` was a local list the composer appended to — a post that
+    // reached no server, no other student, and not even the next tab switch,
+    // because the `remember` holding it died with the screen.
+    val feed = announcements
     val listState = rememberLazyListState()
+
+    // The draft lives here, not in the composer, because whether it may be
+    // cleared is now the server's answer rather than the tap's. Clearing it on
+    // the tap is what would lose two thousand characters to a timeout.
+    var draft by rememberSaveable { mutableStateOf("") }
+
+    // Only success empties the box. A rejection and a dead network both keep the
+    // text exactly where the author left it, so the fix is a second tap rather
+    // than retyping the announcement.
+    LaunchedEffect(postOutcome) {
+        if (postOutcome is PostOutcome.Posted) {
+            draft = ""
+            onClearPostOutcome()
+        }
+    }
 
     // Which post has its picker open, by id. One at a time: two open pickers on
     // screen would both look like the one the next tap belongs to.
@@ -117,6 +144,12 @@ fun EventsScreen(
         if (index >= 0) listState.animateScrollToItem(index)
     }
 
+    // Up from the newest post, not down from the oldest. The gesture is on the
+    // list rather than the whole screen so it starts where the reader's thumb
+    // already is, and so the indicator can sit at the foot of the channel
+    // instead of over the composer.
+    val pullState = rememberPullUpToRefreshState()
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -125,36 +158,85 @@ fun EventsScreen(
     ) {
         ChannelHeader(modifier = Modifier.padding(horizontal = Dimens.ScreenPadding))
 
-        LazyColumn(
+        // Under the header rather than beside the chip that failed. The picker
+        // has already closed by the time the server answers, so there is no
+        // longer anything on screen for a per-post message to point at — and a
+        // reaction that did not save is a fact about the channel, not about the
+        // one post.
+        //
+        // Clears itself: the student's next tap is the retry, and a line still
+        // sitting there after a reaction has gone through would be reporting a
+        // failure that no longer applies.
+        reactionOutcome.failureText()?.let { message ->
+            LaunchedEffect(reactionOutcome) {
+                delay(ReactionNoticeMillis)
+                onClearReactionOutcome()
+            }
+            Text(
+                text = message,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
+                fontSize = 12.sp,
+                lineHeight = 1.4.em,
+                color = Palette.Alert,
+                modifier = Modifier.padding(
+                    start = Dimens.ScreenPadding,
+                    end = Dimens.ScreenPadding,
+                    top = Dimens.SpaceXs,
+                ),
+            )
+        }
+
+        // The gesture and the indicator live on this box, so the pull region is
+        // the channel itself: the header stays put and the indicator rises from
+        // the foot of the list rather than out from under the composer.
+        // `clipToBounds` is what parks it out of sight at rest.
+        Box(
             modifier = Modifier
                 .weight(1f)
-                .fillMaxWidth(),
-            state = listState,
-            contentPadding = PaddingValues(
-                start = Dimens.ScreenPadding,
-                end = Dimens.ScreenPadding,
-                top = Dimens.SpaceLg,
-                // A student has no composer under the list any more, so the last
-                // post has to clear the floating nav bar by itself.
-                bottom = if (isStaff) Dimens.Space else Dimens.NavBarClearance,
-            ),
-            verticalArrangement = Arrangement.spacedBy(Dimens.SpaceLg),
+                .fillMaxWidth()
+                .clipToBounds()
+                .pullUpToRefresh(
+                    isRefreshing = refreshing,
+                    state = pullState,
+                    onRefresh = onRefresh,
+                ),
         ) {
-            itemsIndexed(feed, key = { _, post -> post.id }) { _, post ->
-                AnnouncementRow(
-                    post = post,
-                    pickerOpen = pickerFor == post.id,
-                    onTogglePicker = { pickerFor = if (pickerFor == post.id) null else post.id },
-                    onReact = { emoji ->
-                        // Straight to the store. The list this row was built from
-                        // is derived from that store, so the chip lights up when
-                        // the write lands rather than optimistically before it —
-                        // one source of truth, and no reconciliation.
-                        onReact(post.id, emoji)
-                        pickerFor = null
-                    },
-                )
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                state = listState,
+                contentPadding = PaddingValues(
+                    start = Dimens.ScreenPadding,
+                    end = Dimens.ScreenPadding,
+                    top = Dimens.SpaceLg,
+                    // A student has no composer under the list any more, so the last
+                    // post has to clear the floating nav bar by itself.
+                    bottom = if (isStaff) Dimens.Space else Dimens.NavBarClearance,
+                ),
+                verticalArrangement = Arrangement.spacedBy(Dimens.SpaceLg),
+            ) {
+                itemsIndexed(feed, key = { _, post -> post.id }) { _, post ->
+                    AnnouncementRow(
+                        post = post,
+                        pickerOpen = pickerFor == post.id,
+                        onTogglePicker = { pickerFor = if (pickerFor == post.id) null else post.id },
+                        onReact = { emoji ->
+                            // Straight to the store. The list this row was built from
+                            // is derived from that store, so the chip lights up when
+                            // the write lands rather than optimistically before it —
+                            // one source of truth, and no reconciliation.
+                            onReact(post.id, emoji)
+                            pickerFor = null
+                        },
+                    )
+                }
             }
+
+            PullUpIndicator(
+                state = pullState,
+                isRefreshing = refreshing,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
         }
 
         // Nothing at all where the message box would be for a student. The
@@ -170,14 +252,17 @@ fun EventsScreen(
                 ),
             ) {
                 Composer(
-                    onSend = { body ->
-                        posted += Announcement(
-                            id = (feed.maxOfOrNull { it.id } ?: 0L) + 1L,
-                            author = "Student Union",
-                            postedAtMillis = System.currentTimeMillis(),
-                            body = body,
-                        )
+                    draft = draft,
+                    onDraftChange = {
+                        draft = it
+                        // The failure line belongs to the text that produced it.
+                        // Left up while the author edits, it would still be
+                        // accusing a message they had already fixed.
+                        if (postOutcome != null) onClearPostOutcome()
                     },
+                    sending = posting,
+                    failure = postOutcome.failureText(),
+                    onSend = { onPost(draft.trim()) },
                 )
             }
         }
@@ -225,16 +310,16 @@ private fun ChannelHeader(modifier: Modifier = Modifier) {
     Column(modifier = modifier.padding(top = Dimens.Space)) {
         Text(
             text = stringResource(R.string.events_channel),
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Bold,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 20.sp,
             color = Color.White,
         )
         Spacer(Modifier.height(2.dp))
         Text(
             text = stringResource(R.string.events_channel_topic),
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Normal,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 12.sp,
             color = Ink.Muted,
         )
@@ -267,16 +352,16 @@ private fun AnnouncementRow(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = post.author,
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Bold,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
                 fontSize = 15.sp,
                 color = Color.White,
             )
             Spacer(Modifier.size(Dimens.SpaceSm))
             Text(
                 text = rememberRelativeTime(post.postedAtMillis),
-                fontFamily = AlanSans,
-                fontWeight = FontWeight.Normal,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
                 fontSize = 11.sp,
                 color = Ink.Faint,
             )
@@ -285,8 +370,8 @@ private fun AnnouncementRow(
         Spacer(Modifier.height(Dimens.SpaceXs))
         Text(
             text = post.body,
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Normal,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 14.sp,
             lineHeight = 1.45.em,
             color = Ink.Label,
@@ -426,8 +511,8 @@ private fun ReactionChip(
         Spacer(Modifier.size(Dimens.SpaceXs))
         Text(
             text = "${reaction.count}",
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Medium,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 12.sp,
             color = if (reaction.mine) accent else Ink.Muted,
         )
@@ -454,73 +539,144 @@ private fun AddReactionChip(
     ) {
         Text(
             text = stringResource(R.string.events_add_reaction),
-            fontFamily = AlanSans,
-            fontWeight = FontWeight.Bold,
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
             fontSize = 12.sp,
             color = Ink.Muted,
         )
     }
 }
 
-/** The Student Union's side of the channel — see [EventsScreen]'s `isAdmin`. */
+/** How long a failed-reaction line stays up before it clears itself. */
+private const val ReactionNoticeMillis = 5_000L
+
+/**
+ * Why the last reaction did not stick, in the reader's language.
+ *
+ * Same shape as [failureText] for a post below: su-server's own message where it
+ * sent one, an app string where it did not.
+ */
+@Composable
+private fun ReactionOutcome?.failureText(): String? = when (this) {
+    null, ReactionOutcome.Saved -> null
+    ReactionOutcome.Offline -> stringResource(R.string.events_reaction_offline)
+    is ReactionOutcome.Rejected -> message ?: stringResource(R.string.events_reaction_failed)
+}
+
+/**
+ * Why the last announcement did not go out, in the reader's language.
+ *
+ * A rejection carries su-server's own Thai message — already written for the
+ * person reading it — and falls back to an app string only when the server sent
+ * none. Offline is the app's own sentence, because there was no server to ask.
+ *
+ * Null for success and for no attempt yet: both mean nothing to say.
+ */
+@Composable
+private fun PostOutcome?.failureText(): String? = when (this) {
+    null, PostOutcome.Posted -> null
+    PostOutcome.Offline -> stringResource(R.string.events_post_offline)
+    is PostOutcome.Rejected -> message ?: stringResource(R.string.events_post_failed)
+}
+
+/**
+ * The Student Union's side of the channel — see [EventsScreen]'s `isStaff`.
+ *
+ * Fully controlled: the draft, whether a send is in flight and why the last one
+ * failed all come from above. It held its own draft until this posted to a real
+ * server, at which point "may I clear the box" stopped being a question the
+ * composer could answer — the send had not happened yet when the tap did.
+ */
 @Composable
 private fun Composer(
-    onSend: (String) -> Unit,
+    draft: String,
+    onDraftChange: (String) -> Unit,
+    sending: Boolean,
+    failure: String?,
+    onSend: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var draft by rememberSaveable { mutableStateOf("") }
     val accent = LocalAccent.current
-    val canSend = draft.isNotBlank()
+    // Nothing to send while one is already going, so a double tap cannot publish
+    // the same announcement twice to two thousand phones.
+    val canSend = draft.isNotBlank() && !sending
 
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .glassSurface(cornerRadius = Dimens.RadiusPill)
-            .padding(start = Dimens.CardPadding, end = 6.dp, top = 6.dp, bottom = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(modifier = Modifier.weight(1f)) {
-            if (draft.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.events_composer_hint),
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Normal,
-                    fontSize = 14.sp,
-                    color = Ink.Placeholder,
-                )
-            }
-            BasicTextField(
-                value = draft,
-                onValueChange = { draft = it },
-                textStyle = TextStyle(
-                    fontFamily = AlanSans,
-                    fontWeight = FontWeight.Normal,
-                    fontSize = 14.sp,
-                    color = Color.White,
+    Column(modifier = modifier.fillMaxWidth()) {
+        if (failure != null) {
+            Text(
+                text = failure,
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
+                fontSize = 12.sp,
+                lineHeight = 1.4.em,
+                color = Palette.Alert,
+                modifier = Modifier.padding(
+                    start = Dimens.CardPadding,
+                    end = Dimens.CardPadding,
+                    bottom = Dimens.SpaceSm,
                 ),
-                cursorBrush = SolidColor(accent),
-                modifier = Modifier.fillMaxWidth(),
             )
         }
 
-        Spacer(Modifier.size(Dimens.SpaceSm))
-        Box(
+        Row(
             modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(if (canSend) accent else Color.White.copy(alpha = 0.10f))
-                .clickable(enabled = canSend) {
-                    onSend(draft.trim())
-                    draft = ""
-                },
-            contentAlignment = Alignment.Center,
+                .fillMaxWidth()
+                .glassSurface(cornerRadius = Dimens.RadiusPill)
+                .padding(start = Dimens.CardPadding, end = 6.dp, top = 6.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_send),
-                contentDescription = stringResource(R.string.events_send),
-                tint = if (canSend) Palette.Ink else Ink.Faint,
-                modifier = Modifier.size(17.dp),
-            )
+            Box(modifier = Modifier.weight(1f)) {
+                if (draft.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.events_composer_hint),
+                        fontFamily = AppSans,
+                        fontWeight = AppTextWeight,
+                        fontSize = 14.sp,
+                        color = Ink.Placeholder,
+                    )
+                }
+                BasicTextField(
+                    value = draft,
+                    onValueChange = onDraftChange,
+                    // Locked while the request is in flight. The draft is about to
+                    // be cleared or kept depending on the answer, and an edit
+                    // landing in that window belongs to neither outcome.
+                    enabled = !sending,
+                    textStyle = TextStyle(
+                        fontFamily = AppSans,
+                        fontWeight = AppTextWeight,
+                        fontSize = 14.sp,
+                        color = Color.White,
+                    ),
+                    cursorBrush = SolidColor(accent),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
+            Spacer(Modifier.size(Dimens.SpaceSm))
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(if (canSend) accent else Color.White.copy(alpha = 0.10f))
+                    .clickable(enabled = canSend, onClick = onSend),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (sending) {
+                    CircularProgressIndicator(
+                        color = Ink.Label,
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(17.dp),
+                    )
+                } else {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_send),
+                        contentDescription = stringResource(R.string.events_send),
+                        tint = if (canSend) Palette.Ink else Ink.Faint,
+                        modifier = Modifier.size(17.dp),
+                    )
+                }
+            }
         }
     }
 }

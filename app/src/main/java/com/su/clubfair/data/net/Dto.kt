@@ -145,8 +145,20 @@ data class ReactionDto(
 @Serializable
 data class GoogleSignInRequest(@SerialName("id_token") val idToken: String)
 
+/**
+ * Sign-in with a password.
+ *
+ * `identifier` rather than `phone`, which is what this field was called when the
+ * form asked for a mobile number. su-server resolves it against the student id,
+ * the phone and the MFU address alike, so the name had stopped describing what
+ * the app puts in it — the form asks for a student id and nothing else now.
+ *
+ * The route answers **401** for an identifier it cannot place, the same as for a
+ * wrong password, and deliberately: distinguishing them tells anyone who asks
+ * which student ids exist.
+ */
 @Serializable
-data class PasswordLoginRequest(val phone: String, val password: String)
+data class PasswordLoginRequest(val identifier: String, val password: String)
 
 @Serializable
 data class RegisterRequest(
@@ -172,6 +184,47 @@ data class SetPasswordRequest(val password: String)
 
 @Serializable
 data class ReactionRequest(val emoji: String)
+
+/**
+ * A new announcement. The body is the whole payload.
+ *
+ * The author is not in it and must not be: su-server resolves that from the
+ * token's own claim, so a staff account cannot post as someone else by editing a
+ * request. The posted-at instant is the server's clock for the same reason — a
+ * device with a skewed clock would otherwise sort itself wrongly into a channel
+ * that is ordered oldest-first.
+ */
+@Serializable
+data class PostAnnouncementRequest(val body: String)
+
+/**
+ * One entry in the fair's running order, from `GET /clubfair/program`.
+ *
+ * Bilingual in four places, and every English half is nullable: the Student
+ * Union writes the Thai first and the translation lands later, so a missing
+ * `title_en` is the normal state of a freshly added entry rather than a fault.
+ *
+ * `is_published` is on the public route too, and is always true there — su-server
+ * filters drafts out before this is serialised. It is carried because the shape
+ * is the admin dashboard's as well, and a client that silently drops the field
+ * would read a draft as live the day this is pointed at the admin route.
+ */
+@Serializable
+data class ProgramEntryDto(
+    val id: Int,
+    @SerialName("starts_at") val startsAt: String,
+    /** Null for a point in time rather than a window — an opening, a draw. */
+    @SerialName("ends_at") val endsAt: String? = null,
+    val title: String,
+    @SerialName("title_en") val titleEn: String? = null,
+    val detail: String? = null,
+    @SerialName("detail_en") val detailEn: String? = null,
+    val location: String? = null,
+    @SerialName("location_en") val locationEn: String? = null,
+    /** A zone letter for the ones that happen on the floor; null for a stage. */
+    val zone: String? = null,
+    @SerialName("is_published") val isPublished: Boolean = true,
+)
 
 /** `{"error": "<Thai message>"}` — what su-server sends on every failure. */
 @Serializable

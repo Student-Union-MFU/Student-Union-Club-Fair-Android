@@ -37,6 +37,7 @@ import com.su.clubfair.ui.components.GlassNavBar
 import com.su.clubfair.ui.events.EventsScreen
 import com.su.clubfair.ui.home.HomeScreen
 import com.su.clubfair.ui.prizes.PrizesScreen
+import com.su.clubfair.ui.program.ProgramScreen
 import com.su.clubfair.ui.profile.ProfileScreen
 import com.su.clubfair.ui.qr.QrTicketScreen
 import com.su.clubfair.ui.scan.ScanScreen
@@ -96,6 +97,9 @@ fun AppShell(
     val session by fair.session.collectAsStateWithLifecycle()
     val state by fair.uiState.collectAsStateWithLifecycle()
     val lastScan by fair.lastScan.collectAsStateWithLifecycle()
+    val lastPost by fair.lastPost.collectAsStateWithLifecycle()
+    val lastReaction by fair.lastReaction.collectAsStateWithLifecycle()
+    val posting by fair.posting.collectAsStateWithLifecycle()
     val language by fair.language.collectAsStateWithLifecycle()
 
     // Sign-out flips the session a frame before this leaves the composition;
@@ -126,6 +130,7 @@ fun AppShell(
     var profileOpen by rememberSaveable { mutableStateOf(false) }
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
     var prizesOpen by rememberSaveable { mutableStateOf(false) }
+    var programOpen by rememberSaveable { mutableStateOf(false) }
 
     // What the nav bar's liquid glass refracts. The backdrop is captured into a
     // graphics layer by `layerBackdrop` below and sampled by `drawBackdrop` in
@@ -163,17 +168,23 @@ fun AppShell(
                         student = student,
                         progress = state.progress,
                         offline = state.offline,
-                        // Home is where the pull lives, and only Home. It is the
-                        // page whose numbers a student doubts — the count, the
-                        // rank, the stale-data line — so it is the page they will
-                        // tug at. Events reads bottom-up like a chat and a pull
-                        // from its top would be asking for older posts; Booths is
-                        // a directory that changes once a fair. Both are covered
-                        // by the resume above.
+                        // Home and Events both carry the pull; Booths does not,
+                        // being a directory that changes once a fair and is
+                        // covered by the resume above.
+                        //
+                        // Events earned one when the composer started reaching a
+                        // real server. Before that the channel could only change
+                        // between foregroundings, so there was nothing a pull
+                        // could discover that ON_RESUME had not already fetched.
+                        // Now a staff member can post while two thousand phones
+                        // sit open on the tab, and the only thing those readers
+                        // could do about it was leave the app and come back.
                         refreshing = state.refreshing,
                         onRefresh = fair::refresh,
                         onOpenClubs = { tab = 1 },
                         onOpenPrizes = { prizesOpen = true },
+                        onOpenProgram = { programOpen = true },
+                        program = state.program,
                         onOpenProfile = { profileOpen = true },
                     )
 
@@ -186,6 +197,14 @@ fun AppShell(
                         isStaff = student.isStaff,
                         announcements = state.announcements,
                         onReact = fair::toggleReaction,
+                        reactionOutcome = lastReaction,
+                        onClearReactionOutcome = fair::clearReactionOutcome,
+                        refreshing = state.refreshing,
+                        onRefresh = fair::refresh,
+                        posting = posting,
+                        postOutcome = lastPost,
+                        onPost = fair::postAnnouncement,
+                        onClearPostOutcome = fair::clearPostOutcome,
                     )
 
                     else -> ScanScreen(
@@ -223,7 +242,6 @@ fun AppShell(
         Sheet(visible = profileOpen) {
             ProfileScreen(
                 student = student,
-                progress = state.progress,
                 onBack = { profileOpen = false },
                 onOpenPass = { passOpen = true },
                 onOpenSettings = { settingsOpen = true },
@@ -256,7 +274,19 @@ fun AppShell(
         Sheet(visible = prizesOpen) {
             PrizesScreen(
                 progress = state.progress,
+                student = student,
                 onBack = { prizesOpen = false },
+            )
+        }
+
+        // The programme opens the same way Prizes does, and for the same reason:
+        // it is something a student checks between events rather than a place
+        // they navigate between while walking the fair.
+        BackHandler(enabled = programOpen) { programOpen = false }
+        Sheet(visible = programOpen) {
+            ProgramScreen(
+                program = state.program,
+                onBack = { programOpen = false },
             )
         }
 
