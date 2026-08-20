@@ -245,6 +245,14 @@
     <string name="scan_result_expired">โค้ดหมดอายุ</string>
     <string name="scan_result_expired_title">กรุณาสแกนใหม่</string>
     <string name="scan_again">สแกนบูธถัดไป</string>
+    <!-- Thai has one plural form; `other` carries every count. -->
+    <plurals name="scan_unlocked_walked">
+        <item quantity="other">เดินชมครบ %1$d บูธ</item>
+    </plurals>
+    <string name="scan_unlocked_mfu333">ปลดล็อก MFU333 แล้ว</string>
+    <string name="scan_unlocked_tier">ปลดล็อก %1$s แล้ว</string>
+    <string name="scan_unlocked_body">รหัสของคุณพร้อมแล้ว นำไปแสดงที่จุดขององค์การนักศึกษาเพื่อรับรางวัล</string>
+    <string name="scan_unlocked_cta">ดูรหัสของฉัน</string>
     <string name="scan_close">ปิด</string>
     <string name="scan_torch_on">เปิดไฟฉาย</string>
     <string name="scan_torch_off">ปิดไฟฉาย</string>

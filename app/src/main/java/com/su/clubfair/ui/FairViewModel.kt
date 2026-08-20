@@ -54,6 +54,12 @@ data class FairUiState(
     val announcements: List<Announcement> = emptyList(),
     val program: List<ProgramEntry> = emptyList(),
     val hapticsEnabled: Boolean = true,
+    /**
+     * Whether the MFU333 unlock has already had its moment on the prizes page.
+     * False with the code earned is what makes the seal break — see
+     * `PrizesScreen`.
+     */
+    val mfu333RevealSeen: Boolean = true,
     val pendingScans: Int = 0,
     val refreshing: Boolean = false,
     /** The last refresh could not reach the server; what is shown may be stale. */
@@ -194,7 +200,12 @@ class FairViewModel(private val repository: FairRepository) : ViewModel() {
     )
 
     val uiState: StateFlow<FairUiState> =
-        combine(content, sync, repository.hapticsEnabled) { fair, status, haptics ->
+        combine(
+            content,
+            sync,
+            repository.hapticsEnabled,
+            repository.mfu333RevealSeen,
+        ) { fair, status, haptics, revealSeen ->
             FairUiState(
                 booths = fair.booths,
                 zones = fair.zones,
@@ -202,6 +213,7 @@ class FairViewModel(private val repository: FairRepository) : ViewModel() {
                 announcements = fair.announcements,
                 program = fair.program,
                 hapticsEnabled = haptics,
+                mfu333RevealSeen = revealSeen,
                 pendingScans = status.pending,
                 refreshing = status.refreshing,
                 offline = status.offline,
@@ -298,6 +310,18 @@ class FairViewModel(private val repository: FairRepository) : ViewModel() {
 
     fun clearScan() {
         _lastScan.value = null
+    }
+
+    /**
+     * Remembers that the unlock has been watched, so it plays once.
+     *
+     * Called by the page as the animation ends rather than as it starts: a write
+     * on the first frame would be lost to a student who opened the page and
+     * immediately backed out of it, which is the one case where they did not
+     * actually see the thing.
+     */
+    fun markMfu333RevealSeen() {
+        viewModelScope.launch { repository.markMfu333RevealSeen() }
     }
 
     /**

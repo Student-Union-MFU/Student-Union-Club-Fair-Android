@@ -320,6 +320,20 @@
     <string name="scan_result_expired">Code expired</string>
     <string name="scan_result_expired_title">Scan it again</string>
     <string name="scan_again">Scan another</string>
+    <!-- The scan that crossed a prize threshold. Names no number itself: the
+         count comes from the tier, which is the server's, so a threshold moved
+         mid-fair moves this line with it. `scan_unlocked_mfu333` is only used
+         for the lowest tier — every other one is announced under the name the
+         Student Union gave it, because this build has never heard of it. -->
+    <plurals name="scan_unlocked_walked">
+        <item quantity="one">%1$d booth walked</item>
+        <item quantity="other">%1$d booths walked</item>
+    </plurals>
+    <string name="scan_unlocked_mfu333">MFU333 unlocked</string>
+    <string name="scan_unlocked_tier">%1$s unlocked</string>
+    <!-- The fallback for a tier the Student Union has not described yet. -->
+    <string name="scan_unlocked_body">Your code is ready. Show it at the Student Union desk to collect.</string>
+    <string name="scan_unlocked_cta">See my code</string>
     <string name="scan_close">Close</string>
     <string name="scan_torch_on">Turn the light on</string>
     <string name="scan_torch_off">Turn the light off</string>

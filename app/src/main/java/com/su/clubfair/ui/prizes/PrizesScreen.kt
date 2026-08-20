@@ -1,5 +1,9 @@
 package com.su.clubfair.ui.prizes
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -17,6 +21,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -35,6 +41,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.util.lerp
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.heading
@@ -109,6 +118,16 @@ fun PrizesScreen(
     // id from a @Preview fixture.
     student: Student,
     modifier: Modifier = Modifier,
+    /**
+     * Whether the unlock has already been watched.
+     *
+     * Defaults to true — "nothing to celebrate" — so a caller that has not
+     * plumbed the flag through, and every `@Preview`, gets the settled page
+     * rather than an animation firing on a screen that was only ever meant to
+     * be looked at.
+     */
+    mfu333RevealSeen: Boolean = true,
+    onUnlockCelebrated: () -> Unit = {},
     onBack: () -> Unit = {},
 ) {
     // The code takes the page.
@@ -144,7 +163,12 @@ fun PrizesScreen(
         // true centre — optically centred rather than measured, which is where
         // the eye expects a single object under a header.
         Spacer(Modifier.height(Dimens.SpaceLg))
-        Mfu333Card(progress = progress, student = student)
+        Mfu333Card(
+            progress = progress,
+            student = student,
+            revealSeen = mfu333RevealSeen,
+            onRevealed = onUnlockCelebrated,
+        )
 
         Spacer(Modifier.height(Dimens.Space))
         Mfu333Explainer(progress = progress)
@@ -281,9 +305,57 @@ private fun Step(number: Int, text: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun Mfu333Card(progress: FairProgress, student: Student) {
+private fun Mfu333Card(
+    progress: FairProgress,
+    student: Student,
+    revealSeen: Boolean,
+    onRevealed: () -> Unit,
+) {
     val unlocked = progress.mfu333Unlocked
     val threshold = progress.mfu333?.threshold ?: 0
+
+    // The seal breaks once, the first time this page is opened with the code
+    // earned. After that `revealSeen` is true and the card is simply unlocked —
+    // a celebration that replays on every visit is wallpaper, and the student
+    // opens this page to read a number off it more often than to enjoy it.
+    val celebrate = unlocked && !revealSeen
+    // One driver for the whole thing rather than an `Animatable` per moving
+    // part. The seal, the ring and the panel are one gesture and they have to
+    // stay in step; three timelines would drift the moment any duration was
+    // touched. Starts settled when there is nothing to play, so the ordinary
+    // visit costs no animation at all.
+    val reveal = remember { Animatable(if (celebrate) 0f else 1f) }
+    LaunchedEffect(celebrate) {
+        if (!celebrate) {
+            reveal.snapTo(1f)
+            return@LaunchedEffect
+        }
+        // Wound back explicitly rather than trusting the initial value. The page
+        // composes the instant it is opened and the flag comes from DataStore, so
+        // the first pass can land with "seen" still at its default; without this,
+        // the correction would arrive to find the driver already at 1 and would
+        // animate from the end of the reveal to the end of the reveal — nothing
+        // on screen, and the one showing marked as spent.
+        reveal.snapTo(0f)
+        reveal.animateTo(1f, tween(RevealMillis, easing = FastOutSlowInEasing))
+        // After, not before. A student who opened the page and immediately went
+        // back has not seen this, and marking it at the start would spend the
+        // one showing on a screen they never looked at.
+        onRevealed()
+    }
+    val t = reveal.value
+
+    // The three overlapping stages. Overlapping on purpose: a strict sequence
+    // reads as three separate events, and the whole idea is one seal coming off
+    // one code.
+    //
+    // Gated on `unlocked`, and that gate is not decoration. A locked card starts
+    // its driver at 1 — there is nothing to play — so an ungated `sealOff` reads
+    // 1 there too, and the seal is drawn at zero alpha: a code with no padlock on
+    // it, which is the one thing the locked state exists to say.
+    val sealOff = if (unlocked) segment(t, 0f, 0.45f) else 0f
+    val ring = if (unlocked) segment(t, 0.05f, 0.75f) else 0f
+    val paper = segment(t, 0.25f, 1f)
 
     // No card around this any more.
     //
@@ -315,7 +387,18 @@ private fun Mfu333Card(progress: FairProgress, student: Student) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(1f)
-                    .alpha(if (unlocked) 1f else LockedQrAlpha)
+                    .graphicsLayer {
+                        // Barely a pop — 4% over the second half of the reveal.
+                        // Anything bigger and the code lurches at the viewer,
+                        // which is the wrong verb: it is being uncovered, not
+                        // thrown.
+                        val scale = lerp(0.96f, 1f, paper)
+                        scaleX = scale
+                        scaleY = scale
+                    }
+                    .alpha(
+                        if (unlocked) lerp(LockedQrAlpha, 1f, paper) else LockedQrAlpha,
+                    )
                     .clip(RoundedCornerShape(Dimens.RadiusMd))
                     .background(Palette.Paper)
                     .padding(Dimens.Space),
@@ -339,7 +422,38 @@ private fun Mfu333Card(progress: FairProgress, student: Student) {
             // that had come loose; the disc is the same two colours the code
             // itself uses, so it looks like a seal placed on the panel rather
             // than an overlay floating above it.
-            if (!unlocked) LockSeal()
+            // Drawn while there is any of it left, which during the reveal
+            // means "unlocked, but the seal has not finished coming off yet".
+            // The old `if (!unlocked)` swapped it out in a single frame — the
+            // state was already correct, so the seal was simply gone the next
+            // time the page composed, and there was nothing to watch.
+            if (!unlocked || sealOff < 1f) {
+                LockSeal(
+                    modifier = Modifier.graphicsLayer {
+                        val scale = lerp(1f, 1.45f, sealOff)
+                        scaleX = scale
+                        scaleY = scale
+                        alpha = 1f - sealOff
+                    },
+                )
+            }
+
+            // The ring the seal leaves behind. Only drawn mid-reveal: at rest
+            // it is invisible anyway, and a Canvas that redraws a fully
+            // transparent circle on every recomposition of a page this static
+            // is work for nothing.
+            if (unlocked && ring > 0f && ring < 1f) {
+                Canvas(modifier = Modifier.matchParentSize()) {
+                    val start = LockSealSize.toPx() / 2f
+                    val end = size.minDimension * 0.72f
+                    drawCircle(
+                        color = Palette.Accent,
+                        radius = lerp(start, end, ring),
+                        alpha = (1f - ring) * 0.8f,
+                        style = Stroke(width = RingStroke.toPx()),
+                    )
+                }
+            }
         }
 
         Spacer(Modifier.height(Dimens.SpaceLg))
@@ -397,6 +511,27 @@ private val LockSealSize = 56.dp
 private val LockGlyphSize = 24.dp
 
 /**
+ * How long the seal takes to come off.
+ *
+ * Long enough to be a moment rather than a glitch, short enough that a student
+ * who opened the page to check a number is not waiting on it — the number under
+ * the code is legible throughout, and only the code itself is covered.
+ */
+private const val RevealMillis = 900
+
+/** The ring the seal leaves as it goes. */
+private val RingStroke = 2.dp
+
+/**
+ * Maps overall reveal progress onto one stage of it, clamped either side.
+ *
+ * Three of these off one driver is what keeps the seal, the ring and the panel
+ * a single gesture — see [Mfu333Card].
+ */
+private fun segment(t: Float, from: Float, to: Float): Float =
+    ((t - from) / (to - from)).coerceIn(0f, 1f)
+
+/**
  * The mark that says this code is not yours yet.
  *
  * Its own composable because inline it was four nested modifiers sitting in the
@@ -427,6 +562,34 @@ private fun PrizesScreenPreview() {
         Box(Modifier.fillMaxSize()) {
             MeshBackground()
             PrizesScreen(progress = PreviewProgress, student = PreviewStudent)
+        }
+    }
+}
+
+/**
+ * The moment the seal comes off.
+ *
+ * `mfu333RevealSeen = false` with the first tier reached is the one combination
+ * that plays the reveal, so this is the only way to see it without walking
+ * fifteen booths. It runs once per preview refresh, like it does on a phone.
+ */
+@Preview(showBackground = true, device = "id:pixel_7")
+@Composable
+private fun PrizesUnlockRevealPreview() {
+    SUClubFairTheme {
+        Box(Modifier.fillMaxSize()) {
+            MeshBackground()
+            PrizesScreen(
+                student = PreviewStudent,
+                progress = PreviewProgress.copy(
+                    visited = 15,
+                    visitedBoothIds = (1..15).toSet(),
+                    prizes = PreviewProgress.prizes.mapIndexed { index, tier ->
+                        tier.copy(reached = index == 0)
+                    },
+                ),
+                mfu333RevealSeen = false,
+            )
         }
     }
 }
