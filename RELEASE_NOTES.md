@@ -81,7 +81,7 @@ The **Student Union Club Fair** app for Android — walk the club booths, scan t
 
 ## ดาวน์โหลด / Download
 
-**[su-clubfair.apk](https://github.com/Student-Union-MFU/Student-Union-Club-Fair-Android/releases/latest/download/su-clubfair.apk)** · 3.6 MB · Android 7.0 ขึ้นไป / Android 7.0 or newer
+**[su-clubfair.apk](https://github.com/Student-Union-MFU/Student-Union-Club-Fair-Android/releases/latest/download/su-clubfair.apk)** · 3.7 MB · Android 7.0 ขึ้นไป / Android 7.0 or newer
 
 ถ้าเคยติดตั้งเวอร์ชันก่อนหน้าไว้ ติดตั้งทับได้เลย ไม่ต้องถอนออกก่อน และแต้มที่เก็บไว้ยังอยู่ครบ
 *Installing over an earlier version works — no need to uninstall first, and your
@@ -154,7 +154,7 @@ directly — or register with your student ID and a password. Open to intakes
 ## ตรวจสอบไฟล์ / Verify the download
 
 ```
-SHA-256  493709d6894af85eceea2e6c7e8d793f9f6375fdb22365ff7eadce758cfdcb1b
+SHA-256  25cbd2723de14538e15c65f89c34619a04ba3f037dfee3229d1fd8e9e3bb35d8
 ```
 
 ```bash
