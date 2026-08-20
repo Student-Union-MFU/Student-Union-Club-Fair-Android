@@ -242,6 +242,7 @@ fun AppShell(
                             hapticsEnabled = state.hapticsEnabled,
                             onScanned = fair::onScanned,
                             onClearScan = fair::clearScan,
+                            onOpenPrizes = { prizesOpen = true },
                         )
                     }
 
@@ -255,6 +256,10 @@ fun AppShell(
                         hapticsEnabled = state.hapticsEnabled,
                         onScanned = fair::onScanned,
                         onClearScan = fair::clearScan,
+                        // The unlock card's "See my code" opens the same page
+                        // Home's tile does, rather than a fourth tab — see the
+                        // `Sheet` below.
+                        onOpenPrizes = { prizesOpen = true },
                     )
                 }
             }
@@ -319,6 +324,8 @@ fun AppShell(
             PrizesScreen(
                 progress = state.progress,
                 student = student,
+                mfu333RevealSeen = state.mfu333RevealSeen,
+                onUnlockCelebrated = fair::markMfu333RevealSeen,
                 onBack = { prizesOpen = false },
             )
         }

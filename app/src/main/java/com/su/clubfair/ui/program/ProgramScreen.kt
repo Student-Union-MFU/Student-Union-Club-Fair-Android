@@ -505,17 +505,38 @@ private fun StepCard(step: ProgramStep, modifier: Modifier = Modifier) {
             )
             .padding(Dimens.Space),
     ) {
-        Text(
-            text = step.entry.timeRange(),
-            fontFamily = AppSans,
-            fontWeight = AppTextWeight,
-            fontSize = 12.sp,
-            color = when (step.status) {
-                ProgramStatus.Running -> Palette.Accent
-                ProgramStatus.Done -> Ink.Faint
-                ProgramStatus.Upcoming -> Ink.Muted
-            },
-        )
+        // Time on the left, the live badge on the right.
+        //
+        // The running row used to be marked by colour alone — an accent outline,
+        // an accent time — and colour alone is the one distinction a reader can
+        // miss entirely: on a bright hall floor at arm's length the hairline is
+        // the first thing to go, and to a screen reader it never existed. The
+        // badge says it in words, which is also what the hero card above and
+        // Home's programme card already do. Three places, one phrase.
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                // "14:00 – 15:00, Happening now" as one announcement rather than
+                // two fragments a swipe apart.
+                .semantics(mergeDescendants = true) {},
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = step.entry.timeRange(),
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
+                fontSize = 12.sp,
+                color = when (step.status) {
+                    ProgramStatus.Running -> Palette.Accent
+                    ProgramStatus.Done -> Ink.Faint
+                    ProgramStatus.Upcoming -> Ink.Muted
+                },
+            )
+            if (running) {
+                Spacer(Modifier.weight(1f))
+                NowBadge()
+            }
+        }
         Spacer(Modifier.height(Dimens.SpaceXs / 2))
         Text(
             text = step.entry.displayTitle(),
@@ -553,6 +574,42 @@ private fun StepCard(step: ProgramStep, modifier: Modifier = Modifier) {
         }
     }
 }
+
+/**
+ * "Happening now", as a mark on the row it is true of.
+ *
+ * The same dot the hero card and the route rail use, so all three readings of
+ * the running entry — the card at the top, the node on the diagram, and the row
+ * in the list — are visibly the same claim rather than three unrelated accents.
+ *
+ * Reuses `program_now` rather than introducing a shorter word for the compact
+ * space. A badge reading "Now" beside a card reading "Happening now" is two
+ * vocabularies for one state, and the phrase fits the full-width row as it is.
+ */
+@Composable
+private fun NowBadge(modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(NowBadgeRadius))
+            .background(Palette.Accent.copy(alpha = 0.16f))
+            .padding(horizontal = Dimens.SpaceSm, vertical = Dimens.SpaceXs / 2),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        LiveDot()
+        Spacer(Modifier.width(Dimens.SpaceXs))
+        Text(
+            text = stringResource(R.string.program_now),
+            fontFamily = AppSans,
+            fontWeight = AppTextWeight,
+            fontSize = 11.sp,
+            letterSpacing = 0.4.sp,
+            color = Palette.Accent,
+        )
+    }
+}
+
+/** Fully round, so the badge reads as a pill rather than as a small card. */
+private val NowBadgeRadius = 999.dp
 
 /** The filled dot that marks the running entry, at the size the card wants it. */
 @Composable

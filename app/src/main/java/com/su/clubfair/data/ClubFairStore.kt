@@ -181,6 +181,10 @@ class ClubFairStore(context: Context) {
             prefs.remove(Keys.CachedProgress)
             prefs.remove(Keys.CachedAnnouncements)
             prefs.remove(Keys.PendingScans)
+            // Goes with the progress that earned it. It is a fact about one
+            // student's walk, not about this phone, and leaving it would rob the
+            // next student on a shared handset of the one moment the reward has.
+            prefs.remove(Keys.Mfu333RevealSeen)
             // Booths and zones survive: they are the same public list for
             // everyone, so re-downloading them on the next sign-in is pure waste.
         }
@@ -288,6 +292,27 @@ class ClubFairStore(context: Context) {
         store.edit { it[Keys.OnboardingSeen] = true }
     }
 
+    /**
+     * Whether the MFU333 code has already been watched unlocking.
+     *
+     * The reveal on the prizes page is a one-off: it plays the first time the
+     * student opens the page with the code earned, and after that the page is
+     * simply unlocked. Without this it would replay on every visit, and a
+     * celebration that fires every time is wallpaper rather than an event.
+     *
+     * Persisted rather than held in memory because the trigger and the page are
+     * minutes apart — the code unlocks at a booth and gets looked at on the walk
+     * to the next one, with an app death in between as likely as not.
+     *
+     * Cleared with the session, unlike [onboardingSeen]: this belongs to the
+     * student who walked the fifteen booths, not to the phone.
+     */
+    val mfu333RevealSeen: Flow<Boolean> = preferences.map { it[Keys.Mfu333RevealSeen] == true }
+
+    suspend fun setMfu333RevealSeen() {
+        store.edit { it[Keys.Mfu333RevealSeen] = true }
+    }
+
     /** Settings' "erase everything on this phone". */
     suspend fun clearAll() {
         store.edit { it.clear() }
@@ -307,5 +332,6 @@ class ClubFairStore(context: Context) {
         val Haptics = booleanPreferencesKey("haptics")
         val Language = stringPreferencesKey("language")
         val OnboardingSeen = booleanPreferencesKey("onboarding_seen")
+        val Mfu333RevealSeen = booleanPreferencesKey("mfu333_reveal_seen")
     }
 }

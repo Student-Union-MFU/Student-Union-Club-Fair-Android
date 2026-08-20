@@ -302,6 +302,11 @@
     <string name="scan_no_student_title">No student for that pass</string>
     <string name="scan_no_student_body">The code scanned, but no account matches it. Check it is a Club Fair pass and not a booth code.</string>
     <string name="scan_student_visited">%1$d booths scanned</string>
+    <!-- The admin's scan result, which is a page of its own rather than a card
+         over the live camera — see `ParticipantScreen`. -->
+    <string name="scan_participant_title">Scanned pass</string>
+    <string name="scan_participant_back">Back to the scanner</string>
+    <string name="scan_participant_checkpoints">Checkpoints</string>
     <string name="scan_student_flagged">This account is flagged</string>
     <!-- The scanner, for the same accounts. -->
     <string name="scan_locked_title">Scanning is for participants</string>
@@ -320,6 +325,20 @@
     <string name="scan_result_expired">Code expired</string>
     <string name="scan_result_expired_title">Scan it again</string>
     <string name="scan_again">Scan another</string>
+    <!-- The scan that crossed a prize threshold. Names no number itself: the
+         count comes from the tier, which is the server's, so a threshold moved
+         mid-fair moves this line with it. `scan_unlocked_mfu333` is only used
+         for the lowest tier — every other one is announced under the name the
+         Student Union gave it, because this build has never heard of it. -->
+    <plurals name="scan_unlocked_walked">
+        <item quantity="one">%1$d booth walked</item>
+        <item quantity="other">%1$d booths walked</item>
+    </plurals>
+    <string name="scan_unlocked_mfu333">MFU333 unlocked</string>
+    <string name="scan_unlocked_tier">%1$s unlocked</string>
+    <!-- The fallback for a tier the Student Union has not described yet. -->
+    <string name="scan_unlocked_body">Your code is ready. Show it at the Student Union desk to collect.</string>
+    <string name="scan_unlocked_cta">See my code</string>
     <string name="scan_close">Close</string>
     <string name="scan_torch_on">Turn the light on</string>
     <string name="scan_torch_off">Turn the light off</string>
@@ -368,6 +387,9 @@
     <string name="profile_role_staff">Staff</string>
     <string name="profile_role_admin">Admin</string>
     <string name="profile_role_booth">Booth Owner</string>
+    <!-- A role this build has never heard of. Only reachable if su-server's role
+         check constraint gains a fifth value — see `accountRoleOf`. -->
+    <string name="profile_role_unknown">Other</string>
     <string name="profile_pass_active">Pass active</string>
     <string name="profile_back">Back</string>
     <string name="profile_email">Email</string>

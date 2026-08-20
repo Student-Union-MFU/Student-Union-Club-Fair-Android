@@ -83,9 +83,28 @@ sealed interface AuthOutcome {
     data object Offline : AuthOutcome
 }
 
+/**
+ * A prize tier that was locked before a scan and earned by it.
+ *
+ * Carried on the scan's own outcome rather than left for the prizes page to
+ * notice, because the moment belongs where the student is: holding the phone up
+ * at a booth sign, having just walked the fifteenth stall. A page they may not
+ * open for an hour is the wrong place to tell them.
+ *
+ * [isMfu333] because the app's name for the reward only fits the lowest tier —
+ * see `FairProgress.mfu333`. Every other tier is announced under whatever the
+ * Student Union called it on the server, which is the only honest thing to call
+ * a threshold this build has never heard of.
+ */
+data class PrizeUnlock(val tier: PrizeTier, val isMfu333: Boolean)
+
 /** What happened to a scan. */
 sealed interface ScanOutcome {
-    data class Recorded(val booth: Booth?) : ScanOutcome
+    /**
+     * [unlocked] is null for the ordinary case — a checkpoint that moved the
+     * count and nothing else. It is the exception that gets the celebration.
+     */
+    data class Recorded(val booth: Booth?, val unlocked: PrizeUnlock? = null) : ScanOutcome
     data class AlreadyScanned(val booth: Booth?) : ScanOutcome
 
     /** Not a fair code, or one that did not verify. Carries the server's message. */
@@ -224,6 +243,9 @@ class FairRepository(
     val hapticsEnabled: Flow<Boolean> = store.hapticsEnabled
     val language: Flow<String?> = store.language
     val onboardingSeen: Flow<Boolean> = store.onboardingSeen
+
+    /** Whether the MFU333 reveal has already played — see `ClubFairStore`. */
+    val mfu333RevealSeen: Flow<Boolean> = store.mfu333RevealSeen
     val pendingScanCount: Flow<Int> = store.pendingScans.map { it.size }
 
     /**
@@ -647,6 +669,15 @@ class FairRepository(
         return when (val result = api.recordCheckIn(request).orEndSession()) {
             is ApiResult.Success -> {
                 val boothId = result.value.checkIn?.boothId
+                // Snapshotted before the re-read below, because the whole
+                // question is which tiers were *not* earned a moment ago. Ids
+                // rather than the tiers themselves: `reached` is the field that
+                // changes, so comparing whole rows would find every tier
+                // different and announce all of them.
+                val earnedBefore = _progress.value.prizes
+                    .filter { it.reached }
+                    .map { it.id }
+                    .toSet()
                 // A scan that reached the server is the best evidence there is
                 // that the queue behind it can go up too, and this is the moment
                 // it matters: a student who scanned three booths in a dead corner
@@ -661,12 +692,27 @@ class FairRepository(
                 api.progress().orEndSession().valueOrNull()?.let { applyProgress(it) }
 
                 val booth = boothId?.let { id -> _booths.value.firstOrNull { it.id == id } }
+                // The lowest of them, on the vanishing chance that one scan
+                // crosses two thresholds at once — a queue flushed alongside it
+                // can move the count by more than one. The nearer reward is the
+                // one the student has been walking towards.
+                val after = _progress.value
+                val unlocked = after.prizes
+                    .filter { it.reached && it.id !in earnedBefore }
+                    .minByOrNull { it.threshold }
+                    ?.let { PrizeUnlock(it, isMfu333 = it.id == after.mfu333?.id) }
+
                 when (result.value.outcome) {
-                    "recorded" -> ScanOutcome.Recorded(booth)
+                    "recorded" -> ScanOutcome.Recorded(booth, unlocked)
                     // A replay of the app's own queued scan is a success the
                     // student has already been told about; treat it as the stamp
                     // it is rather than as an error.
-                    "duplicate_request" -> ScanOutcome.Recorded(booth)
+                    "duplicate_request" -> ScanOutcome.Recorded(booth, unlocked)
+                    // No unlock on this branch even when one landed. A booth the
+                    // student already had cannot have moved their count, so the
+                    // tier came from a flushed queue, and "already scanned" plus
+                    // a celebration is two contradictory things on one card. The
+                    // prizes page still has its reveal waiting.
                     else -> ScanOutcome.AlreadyScanned(booth)
                 }
             }
@@ -808,6 +854,8 @@ class FairRepository(
     suspend fun setLanguage(tag: String?) = store.setLanguage(tag)
 
     suspend fun markOnboardingSeen() = store.setOnboardingSeen()
+
+    suspend fun markMfu333RevealSeen() = store.setMfu333RevealSeen()
 
     /** Settings' "erase everything on this phone". */
     suspend fun eraseDevice() {

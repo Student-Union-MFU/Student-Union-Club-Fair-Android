@@ -17,6 +17,7 @@ import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -39,6 +40,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -69,6 +71,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -87,8 +90,11 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.su.clubfair.R
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import com.su.clubfair.data.PrizeUnlock
+import kotlinx.coroutines.delay
 import com.su.clubfair.data.ScanOutcome
 import com.su.clubfair.ui.components.PillButton
+import com.su.clubfair.ui.model.PrizeTier
 import com.su.clubfair.ui.scene.MeshBackground
 import com.su.clubfair.ui.components.glassSurface
 import com.su.clubfair.ui.components.liquidGlass
@@ -179,6 +185,12 @@ fun ScanScreen(
     hapticsEnabled: Boolean = true,
     onScanned: (String) -> Unit = {},
     onClearScan: () -> Unit = {},
+    /**
+     * Opens the MFU333 page. Only reachable from the unlock card, which is the
+     * one moment on this screen where the reward is worth walking to rather than
+     * scanning past.
+     */
+    onOpenPrizes: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val haptics = LocalHapticFeedback.current
@@ -230,7 +242,17 @@ fun ScanScreen(
     LaunchedEffect(outcome, hapticsEnabled) {
         if (!hapticsEnabled) return@LaunchedEffect
         when (outcome) {
-            is ScanOutcome.Recorded -> haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+            is ScanOutcome.Recorded -> {
+                haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+                // A second beat for a prize, so the phone says "that one was
+                // different" to a student who is still looking at the sign. The
+                // gap is what makes it a pair rather than one longer buzz.
+                if (outcome.unlocked != null) {
+                    delay(140)
+                    haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+                }
+            }
+
             is ScanOutcome.AlreadyScanned ->
                 haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
 
@@ -238,6 +260,36 @@ fun ScanScreen(
         }
     }
 
+
+    // The admin's result takes the whole screen, and the camera goes with it.
+    //
+    // Returning here rather than swapping the card at the foot of the scanner is
+    // what actually stops the overlay: everything below builds the viewfinder,
+    // and leaving it composed would keep a camera bound and a reticle sweeping
+    // behind a page nobody can see through. Dropping out of the composable
+    // disposes `CameraFeed`, which unbinds the session — so the phone is not
+    // quietly analysing frames while an admin reads a name off it.
+    //
+    // The way back rebuilds the analyzer through `attempt`, exactly as the old
+    // card's button did. It is a one-shot analyzer; without the bump the scanner
+    // would come back deaf.
+    val person = found
+    if (person != null) {
+        Box(modifier = modifier.fillMaxSize()) {
+            // The shell's backdrop is behind the camera, not behind this, so the
+            // page brings its own rather than opening onto bare black.
+            MeshBackground()
+            ParticipantScreen(
+                participant = person,
+                onBack = {
+                    found = null
+                    missed = false
+                    attempt++
+                },
+            )
+        }
+        return
+    }
 
     // What the header pane refracts: the feed, the scrim and the frame, and
     // nothing above them. A pane sampling a layer it is drawn inside samples
@@ -385,11 +437,6 @@ fun ScanScreen(
                     body = stringResource(R.string.scan_locked_body),
                 )
 
-                found != null -> ParticipantCard(
-                    participant = found!!,
-                    onAgain = { found = null; missed = false; attempt++ },
-                )
-
                 missed -> Explainer(
                     title = stringResource(R.string.scan_no_student_title),
                     body = stringResource(R.string.scan_no_student_body),
@@ -400,6 +447,19 @@ fun ScanScreen(
                 looking -> Explainer(
                     title = stringResource(R.string.scan_looking_title),
                     body = stringResource(R.string.scan_looking_body),
+                )
+
+                // Before the ordinary result card, and deliberately not a flag
+                // passed into it: the unlock says something else, in a different
+                // shape, with a different thing to do next. Folding it in would
+                // have been a card with two headlines and two buttons.
+                outcome is ScanOutcome.Recorded && outcome.unlocked != null -> UnlockCard(
+                    unlock = outcome.unlocked!!,
+                    onOpenPrizes = onOpenPrizes,
+                    onAgain = {
+                        onClearScan()
+                        attempt++
+                    },
                 )
 
                 outcome != null -> ResultCard(
@@ -507,8 +567,17 @@ private fun CameraFeed(
         onDispose {
             runCatching { future.get().unbindAll() }
             camera = null
-            executor.shutdown()
         }
+    }
+
+    // The executor outlives a rebind on purpose. It is remembered across the
+    // whole of `CameraFeed`, so shutting it down with the binding effect — which
+    // re-runs on every `attempt` — left the *next* analyzer holding an executor
+    // that rejects everything handed to it. The preview came back, the decoder
+    // never ran again, and the scanner looked alive while reading nothing.
+    // It is torn down here instead: once, when the feed leaves for good.
+    DisposableEffect(Unit) {
+        onDispose { executor.shutdown() }
     }
 
     // Separate from the binding effect: the torch is toggled far more often than
@@ -629,82 +698,6 @@ private fun Reticle(active: Boolean, modifier: Modifier = Modifier) {
  * they are not equal choices: allowing the camera is what this screen is for,
  * and typing is what to do when that is not going to happen.
  */
-/**
- * Who the scanned pass belongs to.
- *
- * Deliberately not everything the roster holds. su-server returns a phone number
- * and an email with each participant, and neither belongs on a screen held up at
- * a booth in front of a queue — an admin checking that the person in front of
- * them is who the pass says needs a name, an id and how far along they are.
- * Contact details are the dashboard's job, on a desk, behind a login.
- */
-@Composable
-private fun ParticipantCard(
-    participant: Participant,
-    onAgain: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .glassSurface(cornerRadius = Dimens.RadiusLg)
-            .padding(Dimens.CardPadding),
-        verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm),
-    ) {
-        Text(
-            text = participant.name,
-            modifier = Modifier.semantics { heading() },
-            fontFamily = AppSans,
-            fontWeight = AppTextWeight,
-            fontSize = 20.sp,
-            color = Color.White,
-        )
-        participant.studentId?.let { id ->
-            Text(
-                text = id,
-                fontFamily = AppSans,
-                fontWeight = AppTextWeight,
-                fontSize = 14.sp,
-                color = Palette.Accent,
-            )
-        }
-        listOfNotNull(participant.school, participant.major).forEach { line ->
-            Text(
-                text = line,
-                fontFamily = AppSans,
-                fontWeight = AppTextWeight,
-                fontSize = 13.sp,
-                lineHeight = 1.4.em,
-                color = Ink.Muted,
-            )
-        }
-        Text(
-            text = stringResource(R.string.scan_student_visited, participant.visited),
-            fontFamily = AppSans,
-            fontWeight = AppTextWeight,
-            fontSize = 13.sp,
-            color = Ink.Label,
-        )
-        // Only when true. A flag is the server's word for an account someone has
-        // already looked at, and a badge that renders "not flagged" on everyone
-        // else would turn a rare signal into decoration.
-        if (participant.isFlagged) {
-            Text(
-                text = stringResource(R.string.scan_student_flagged),
-                fontFamily = AppSans,
-                fontWeight = AppTextWeight,
-                fontSize = 13.sp,
-                color = Palette.Alert,
-            )
-        }
-        PillButton(
-            text = stringResource(R.string.scan_again),
-            onClick = onAgain,
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
-}
-
 @Composable
 private fun Explainer(
     title: String,
@@ -758,6 +751,138 @@ private fun Explainer(
                     color = Color.White,
                 )
             }
+        }
+    }
+}
+
+/**
+ * The card for the scan that earned something.
+ *
+ * Its own composable rather than a branch inside [ResultCard] because it is not
+ * a variation on "checkpoint recorded" — it is the one time this screen has news
+ * rather than a receipt, and the thing to do next is not "scan another".
+ *
+ * The count it prints is the tier's threshold, not the student's visited count.
+ * They are the same number in the ordinary case and they are not when a queue of
+ * offline scans flushes alongside this one; the threshold is the number that
+ * earned the prize, and "18 booths walked" under a reward for fifteen reads as
+ * an app that cannot count.
+ *
+ * Announced assertively for the same reason [ResultCard] is: the phone is up at
+ * a sign and nobody is watching the screen.
+ */
+@Composable
+private fun UnlockCard(
+    unlock: PrizeUnlock,
+    onOpenPrizes: () -> Unit,
+    onAgain: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    AnimatedVisibility(
+        visible = true,
+        // Scaled as well as slid, unlike the plain result. A card that grows
+        // into place reads as something arriving; one that only slides reads as
+        // the next item in a list, which is what every other scan is.
+        enter = slideInVertically(
+            animationSpec = tween(320, easing = FastOutSlowInEasing),
+            initialOffsetY = { it / 2 },
+        ) + scaleIn(
+            animationSpec = tween(320, easing = FastOutSlowInEasing),
+            initialScale = 0.9f,
+        ) + fadeIn(tween(320)),
+        exit = slideOutVertically(targetOffsetY = { it / 2 }) + fadeOut(),
+        modifier = modifier,
+    ) {
+        val accent = LocalAccent.current
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .glassSurface(cornerRadius = Dimens.RadiusLg)
+                .padding(Dimens.CardPadding)
+                .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Assertive },
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm),
+        ) {
+            // Centred, where every other card on this screen is a row with the
+            // glyph on the left. The asymmetry is the point: this is a poster,
+            // not a line item.
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(accent.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_sparkles),
+                    contentDescription = null,
+                    tint = accent,
+                    modifier = Modifier.size(28.dp),
+                )
+            }
+
+            Text(
+                text = pluralStringResource(
+                    R.plurals.scan_unlocked_walked,
+                    unlock.tier.threshold,
+                    unlock.tier.threshold,
+                ),
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
+                fontSize = 11.sp,
+                letterSpacing = 0.6.sp,
+                color = accent,
+            )
+            Text(
+                // The app's name for the reward only fits the lowest tier. Any
+                // other threshold is announced under the name the Student Union
+                // gave it on the server, because this build does not know what
+                // it is — see `PrizeUnlock`.
+                text = if (unlock.isMfu333) {
+                    stringResource(R.string.scan_unlocked_mfu333)
+                } else {
+                    stringResource(R.string.scan_unlocked_tier, unlock.tier.name)
+                },
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
+                fontSize = 22.sp,
+                lineHeight = 1.15.em,
+                color = Color.White,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                // The tier's own description where the Student Union wrote one:
+                // they know what this prize actually is and this build does not.
+                text = unlock.tier.description?.takeIf { it.isNotBlank() }
+                    ?: stringResource(R.string.scan_unlocked_body),
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
+                fontSize = 12.sp,
+                lineHeight = 1.45.em,
+                color = Ink.Muted,
+                textAlign = TextAlign.Center,
+            )
+
+            Spacer(Modifier.height(Dimens.SpaceXs))
+            PillButton(
+                text = stringResource(R.string.scan_unlocked_cta),
+                onClick = onOpenPrizes,
+            )
+            // Still the way back to the camera, and it has to stay reachable:
+            // fifteen booths is the first prize, not the last one, and a card
+            // whose only exit is the prizes page would stop the walk at the
+            // moment it was going best.
+            Text(
+                text = stringResource(R.string.scan_again),
+                fontFamily = AppSans,
+                fontWeight = AppTextWeight,
+                fontSize = 13.sp,
+                color = Ink.Muted,
+                modifier = Modifier
+                    .clickable(onClick = onAgain)
+                    .padding(Dimens.SpaceXs),
+            )
         }
     }
 }
@@ -893,4 +1018,28 @@ private fun ResultCard(
 private fun ScanScreenPreview() {
     // No camera binds under inspection, so this renders the chrome over the art.
     SUClubFairTheme { ScanScreen() }
+}
+
+/** The fifteenth booth: the one scan on this screen that is worth a card. */
+@Preview(showBackground = true, device = "id:pixel_7")
+@Composable
+private fun ScanUnlockPreview() {
+    SUClubFairTheme {
+        ScanScreen(
+            outcome = ScanOutcome.Recorded(
+                booth = null,
+                unlocked = PrizeUnlock(
+                    tier = PrizeTier(
+                        id = 1,
+                        threshold = 15,
+                        name = "Prize 1",
+                        description = null,
+                        reached = true,
+                        claimed = false,
+                    ),
+                    isMfu333 = true,
+                ),
+            ),
+        )
+    }
 }

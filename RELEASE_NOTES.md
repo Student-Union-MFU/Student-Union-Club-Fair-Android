@@ -4,7 +4,36 @@ The **Student Union Club Fair** app for Android — walk the club booths, scan t
 
 ---
 
-## มีอะไรใหม่ในเวอร์ชัน 0.2.2 / What's new in 0.2.2
+## มีอะไรใหม่ในเวอร์ชัน 0.2.3 / What's new in 0.2.3
+
+- **สแกนได้ต่อเนื่องทุกบูธ** เดิมหลังสแกนบูธแรกสำเร็จ กล้องยังทำงานอยู่แต่ตัวอ่าน QR หยุดไปเงียบ ๆ ต้องออกจากแท็บแล้วกลับเข้ามาใหม่ถึงจะสแกนบูธถัดไปได้ ตอนนี้สแกนติดกันได้ตลอดงาน
+  *The scanner keeps reading past the first booth.* Scanning one booth left the
+  camera live but switched the decoder off, so the next code was ignored until
+  you left the tab and came back. This is the one to install for.
+- **รู้ทันทีเมื่อปลดล็อก MFU333** การสแกนครั้งที่ทำให้ครบเกณฑ์จะขึ้นการ์ดบอกว่าปลดล็อกแล้ว พร้อมปุ่มไปดูรหัสได้ทันที และสั่นสองจังหวะเพื่อให้รู้โดยไม่ต้องมองจอ
+  *You are told the moment MFU333 unlocks.* The scan that crosses the threshold
+  now says so on the spot, with a way straight to your code and a double buzz —
+  because that phone is held up at a booth sign, not being looked at.
+- **ตราล็อกเปิดออก** เปิดหน้า MFU333 ครั้งแรกหลังปลดล็อก ตราล็อกจะเปิดออกและรหัสค่อย ๆ ปรากฏ เล่นครั้งเดียวเท่านั้น
+  *The seal comes off the code.* The first time you open the MFU333 page after
+  earning it, the padlock breaks and the code is revealed. It plays once, then
+  the page is simply unlocked.
+- **บอกว่าตอนนี้กำลังมีรายการไหน** รายการในกำหนดการที่กำลังดำเนินอยู่มีป้าย "กำลังดำเนินอยู่" กำกับไว้เป็นตัวหนังสือ ไม่ใช่แค่เส้นขอบสีอย่างเดิม
+  *The running order says which entry is on now* in words rather than with a
+  coloured outline alone — which was easy to miss in a bright hall and invisible
+  to a screen reader.
+
+### สำหรับเจ้าหน้าที่และผู้ดูแล / For staff and organisers
+
+- **หน้าข้อมูลผู้เข้าร่วมแบบเต็มหน้าจอ** สแกนบัตรนักศึกษาแล้วเปิดเป็นหน้าเต็ม แสดงชื่อ รหัสนักศึกษา บทบาท สำนักวิชา สาขา และจำนวนบูธที่เก็บได้ แทนการ์ดเล็กที่ทับอยู่บนกล้อง กล้องจะหยุดทำงานระหว่างอ่านข้อมูล และบัญชีที่ถูกตั้งสถานะไว้จะขึ้นแถบเตือนให้เห็นชัด
+  *A scanned pass opens as a full page* — name, student ID, role, school, major
+  and booth count — instead of a small card over a still-running camera. The
+  camera stops while you read, and an account the Student Union has flagged says
+  so in a banner rather than in one quiet line.
+
+---
+
+## เวอร์ชัน 0.2.2 / In 0.2.2
 
 - **วันและเวลาจริงของงาน** เสาร์ที่ 22 สิงหาคม 2569 เวลา 16:00 – 21:30 ที่อาคารกีฬาในร่ม มหาวิทยาลัยแม่ฟ้าหลวง หน้าแรกและบัตรนักศึกษาแสดงวันที่จริงแล้ว ไม่ใช่วันที่ตัวอย่างอีกต่อไป
   *The real date, time and venue* — 22 August 2026, 16:00 – 21:30, Indoor

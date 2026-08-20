@@ -50,6 +50,36 @@ fun StudentAvatar(
     modifier: Modifier = Modifier,
     size: Dp = 64.dp,
 ) {
+    InitialsAvatar(
+        // Both names now that sign-up asks for both: one letter collides across
+        // a fair of thousands, two mostly don't.
+        initials = student.initials,
+        modifier = modifier,
+        size = size,
+        photoUrl = student.avatarUrl,
+    )
+}
+
+/**
+ * The same circle, for someone who is not the signed-in student.
+ *
+ * Split out for the admin's scanner, which draws a [com.su.clubfair.ui.model.Participant]
+ * — a deliberately different type from [Student], so that a stranger read off a
+ * scanned pass can never arrive where the app looks for whoever is holding the
+ * phone. Taking initials and a URL rather than either model keeps that separation
+ * intact: this composable has no opinion about which of them it is drawing.
+ *
+ * [photoUrl] is null for a participant. The roster carries no photo — only a
+ * Google credential ever brings one, and it belongs to the session rather than to
+ * the roster row — so the letters are the whole picture there.
+ */
+@Composable
+fun InitialsAvatar(
+    initials: String,
+    modifier: Modifier = Modifier,
+    size: Dp = 64.dp,
+    photoUrl: String? = null,
+) {
     val accent = LocalAccent.current
 
     Box(
@@ -61,9 +91,7 @@ fun StudentAvatar(
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            // Both names now that sign-up asks for both: one letter collides
-            // across a fair of thousands, two mostly don't.
-            text = student.initials,
+            text = initials,
             fontFamily = AppSans,
             fontWeight = AppTextWeight,
             // Scaled to the circle rather than fixed, so the same composable
@@ -72,7 +100,7 @@ fun StudentAvatar(
             color = accent,
         )
 
-        student.avatarUrl?.takeIf { it.isNotBlank() }?.let { url ->
+        photoUrl?.takeIf { it.isNotBlank() }?.let { url ->
             AsyncImage(
                 model = url,
                 contentDescription = null,
