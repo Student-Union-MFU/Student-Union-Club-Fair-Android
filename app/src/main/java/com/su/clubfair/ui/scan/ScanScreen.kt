@@ -261,6 +261,36 @@ fun ScanScreen(
     }
 
 
+    // The admin's result takes the whole screen, and the camera goes with it.
+    //
+    // Returning here rather than swapping the card at the foot of the scanner is
+    // what actually stops the overlay: everything below builds the viewfinder,
+    // and leaving it composed would keep a camera bound and a reticle sweeping
+    // behind a page nobody can see through. Dropping out of the composable
+    // disposes `CameraFeed`, which unbinds the session — so the phone is not
+    // quietly analysing frames while an admin reads a name off it.
+    //
+    // The way back rebuilds the analyzer through `attempt`, exactly as the old
+    // card's button did. It is a one-shot analyzer; without the bump the scanner
+    // would come back deaf.
+    val person = found
+    if (person != null) {
+        Box(modifier = modifier.fillMaxSize()) {
+            // The shell's backdrop is behind the camera, not behind this, so the
+            // page brings its own rather than opening onto bare black.
+            MeshBackground()
+            ParticipantScreen(
+                participant = person,
+                onBack = {
+                    found = null
+                    missed = false
+                    attempt++
+                },
+            )
+        }
+        return
+    }
+
     // What the header pane refracts: the feed, the scrim and the frame, and
     // nothing above them. A pane sampling a layer it is drawn inside samples
     // itself, so the chrome sits outside this — the same arrangement the booth
@@ -405,11 +435,6 @@ fun ScanScreen(
                 !canScan -> Explainer(
                     title = stringResource(R.string.scan_locked_title),
                     body = stringResource(R.string.scan_locked_body),
-                )
-
-                found != null -> ParticipantCard(
-                    participant = found!!,
-                    onAgain = { found = null; missed = false; attempt++ },
                 )
 
                 missed -> Explainer(
@@ -673,82 +698,6 @@ private fun Reticle(active: Boolean, modifier: Modifier = Modifier) {
  * they are not equal choices: allowing the camera is what this screen is for,
  * and typing is what to do when that is not going to happen.
  */
-/**
- * Who the scanned pass belongs to.
- *
- * Deliberately not everything the roster holds. su-server returns a phone number
- * and an email with each participant, and neither belongs on a screen held up at
- * a booth in front of a queue — an admin checking that the person in front of
- * them is who the pass says needs a name, an id and how far along they are.
- * Contact details are the dashboard's job, on a desk, behind a login.
- */
-@Composable
-private fun ParticipantCard(
-    participant: Participant,
-    onAgain: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .glassSurface(cornerRadius = Dimens.RadiusLg)
-            .padding(Dimens.CardPadding),
-        verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm),
-    ) {
-        Text(
-            text = participant.name,
-            modifier = Modifier.semantics { heading() },
-            fontFamily = AppSans,
-            fontWeight = AppTextWeight,
-            fontSize = 20.sp,
-            color = Color.White,
-        )
-        participant.studentId?.let { id ->
-            Text(
-                text = id,
-                fontFamily = AppSans,
-                fontWeight = AppTextWeight,
-                fontSize = 14.sp,
-                color = Palette.Accent,
-            )
-        }
-        listOfNotNull(participant.school, participant.major).forEach { line ->
-            Text(
-                text = line,
-                fontFamily = AppSans,
-                fontWeight = AppTextWeight,
-                fontSize = 13.sp,
-                lineHeight = 1.4.em,
-                color = Ink.Muted,
-            )
-        }
-        Text(
-            text = stringResource(R.string.scan_student_visited, participant.visited),
-            fontFamily = AppSans,
-            fontWeight = AppTextWeight,
-            fontSize = 13.sp,
-            color = Ink.Label,
-        )
-        // Only when true. A flag is the server's word for an account someone has
-        // already looked at, and a badge that renders "not flagged" on everyone
-        // else would turn a rare signal into decoration.
-        if (participant.isFlagged) {
-            Text(
-                text = stringResource(R.string.scan_student_flagged),
-                fontFamily = AppSans,
-                fontWeight = AppTextWeight,
-                fontSize = 13.sp,
-                color = Palette.Alert,
-            )
-        }
-        PillButton(
-            text = stringResource(R.string.scan_again),
-            onClick = onAgain,
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
-}
-
 @Composable
 private fun Explainer(
     title: String,

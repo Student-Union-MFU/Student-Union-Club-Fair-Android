@@ -228,6 +228,9 @@
     <string name="scan_no_student_title">ไม่พบนักศึกษาจากบัตรนี้</string>
     <string name="scan_no_student_body">สแกนได้แต่ไม่พบบัญชีที่ตรงกัน ตรวจสอบว่าเป็นบัตร Club Fair ไม่ใช่รหัสของบูธ</string>
     <string name="scan_student_visited">สแกนแล้ว %1$d บูธ</string>
+    <string name="scan_participant_title">บัตรที่สแกน</string>
+    <string name="scan_participant_back">กลับไปที่เครื่องสแกน</string>
+    <string name="scan_participant_checkpoints">จุดเช็คอิน</string>
     <string name="scan_student_flagged">บัญชีนี้ถูกทำเครื่องหมายไว้</string>
     <string name="scan_locked_title">การสแกนสำหรับผู้เข้าร่วมเท่านั้น</string>
     <string name="scan_locked_body">บัญชีของคุณเป็นผู้ดูแลงาน จึงไม่มีอะไรให้สแกน นักศึกษาจะสแกน QR ที่แต่ละบูธเพื่อสะสมแต้ม</string>
@@ -295,6 +298,7 @@
     <string name="profile_role_staff">เจ้าหน้าที่</string>
     <string name="profile_role_admin">ผู้ดูแลระบบ</string>
     <string name="profile_role_booth">เจ้าของบูธ</string>
+    <string name="profile_role_unknown">อื่น ๆ</string>
     <string name="profile_pass_active">บัตรพร้อมใช้งาน</string>
     <string name="profile_back">ย้อนกลับ</string>
     <string name="profile_email">อีเมล</string>

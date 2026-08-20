@@ -302,6 +302,11 @@
     <string name="scan_no_student_title">No student for that pass</string>
     <string name="scan_no_student_body">The code scanned, but no account matches it. Check it is a Club Fair pass and not a booth code.</string>
     <string name="scan_student_visited">%1$d booths scanned</string>
+    <!-- The admin's scan result, which is a page of its own rather than a card
+         over the live camera — see `ParticipantScreen`. -->
+    <string name="scan_participant_title">Scanned pass</string>
+    <string name="scan_participant_back">Back to the scanner</string>
+    <string name="scan_participant_checkpoints">Checkpoints</string>
     <string name="scan_student_flagged">This account is flagged</string>
     <!-- The scanner, for the same accounts. -->
     <string name="scan_locked_title">Scanning is for participants</string>
@@ -382,6 +387,9 @@
     <string name="profile_role_staff">Staff</string>
     <string name="profile_role_admin">Admin</string>
     <string name="profile_role_booth">Booth Owner</string>
+    <!-- A role this build has never heard of. Only reachable if su-server's role
+         check constraint gains a fifth value — see `accountRoleOf`. -->
+    <string name="profile_role_unknown">Other</string>
     <string name="profile_pass_active">Pass active</string>
     <string name="profile_back">Back</string>
     <string name="profile_email">Email</string>
