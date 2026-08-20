@@ -37,7 +37,7 @@ class AuthScreenTest {
         composeTestRule.setContent { LoginScreen(state = LoginForm()) }
 
         composeTestRule.onNodeWithText("Log in").assertIsDisplayed()
-        composeTestRule.onNodeWithText("683XXXXXXX").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Student ID").assertIsDisplayed()
         composeTestRule.onNodeWithText("Password").assertIsDisplayed()
         composeTestRule.onNodeWithText("Login").assertIsDisplayed()
     }
@@ -59,18 +59,18 @@ class AuthScreenTest {
         // Same invalid input, twice, differing only in whether the form has been
         // submitted — which is the whole point of `showErrors`.
         composeTestRule.setContent {
-            LoginScreen(state = LoginForm(phone = "12", password = ""))
+            LoginScreen(state = LoginForm(studentId = "12", password = ""))
         }
-        composeTestRule.onNode(hasFieldError(BadPhoneMessage)).assertDoesNotExist()
+        composeTestRule.onNode(hasFieldError(BadStudentIdMessage)).assertDoesNotExist()
     }
 
     @Test
     fun loginScreen_showsFieldErrorsAfterSubmit() {
         composeTestRule.setContent {
-            LoginScreen(state = LoginForm(phone = "12", password = "", showErrors = true))
+            LoginScreen(state = LoginForm(studentId = "12", password = "", showErrors = true))
         }
 
-        composeTestRule.onNode(hasFieldError(BadPhoneMessage)).assertIsDisplayed()
+        composeTestRule.onNode(hasFieldError(BadStudentIdMessage)).assertIsDisplayed()
         composeTestRule.onNode(hasFieldError("Required")).assertIsDisplayed()
     }
 
@@ -79,7 +79,7 @@ class AuthScreenTest {
         composeTestRule.setContent {
             LoginScreen(
                 state = LoginForm(
-                    phone = "0683150329",
+                    studentId = "6831503029",
                     formError = FormError.Rejected("เบอร์โทรหรือรหัสผ่านไม่ถูกต้อง"),
                 ),
             )
@@ -97,7 +97,7 @@ class AuthScreenTest {
     fun loginScreen_ctaSaysWhatItIsDoingWhileSubmitting() {
         composeTestRule.setContent {
             LoginScreen(
-                state = LoginForm(phone = "0683150329", password = "hunter22", submitting = true),
+                state = LoginForm(studentId = "6831503029", password = "hunter22", submitting = true),
             )
         }
 
@@ -153,7 +153,7 @@ class AuthScreenTest {
 
         composeTestRule
             .onNodeWithText(
-                "Google sign-in isn't set up yet — use your phone number and password.",
+                "Google sign-in isn't set up yet — use your student ID and password.",
             )
             .assertIsDisplayed()
     }
@@ -189,4 +189,4 @@ class AuthScreenTest {
 private fun hasFieldError(message: String): SemanticsMatcher =
     SemanticsMatcher.expectValue(SemanticsProperties.Error, message)
 
-private const val BadPhoneMessage = "Enter a Thai mobile number, e.g. 0683150329"
+private const val BadStudentIdMessage = "Enter your 10-digit student ID"
