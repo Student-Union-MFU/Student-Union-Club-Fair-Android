@@ -1,16 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  The adaptive icon's foreground: the Student Union's own SU monogram.
+
+  Traced from `art/su.png`, the master the white `drawable-nodpi/logo_su.png`
+  on the welcome screen, the pass and the profile also comes from — so the
+  launcher and the app are showing one mark rather than two drawings of it. The
+  monogram is straight-edged by construction, so it is stored as polygons: the
+  trace was run with curve fitting off and the result reduced to 31 vertices,
+  which is the mark exactly rather than an approximation of it.
+
+  **The `MFU` that rides up the right-hand side of the full logo is not here.**
+  Its cap height is about a fifteenth of the monogram's, which at a 48dp
+  launcher icon is under a pixel and a half — three letters of grey mud beside
+  a mark that reads fine on its own. The full lockup, MFU and wordmark
+  included, is what `logo_su.png` is for, and that one is only ever drawn
+  large.
+
+  Lime rather than the brand's white. White is correct on the pass, which is
+  paper; the icon sits on the app's own ground, and `Palette.Accent` is what
+  every other lit thing in this app is — the scan ring, the CTAs, the ticks.
+  An icon in the accent says which app this is from across a home screen.
+
+  Sized so the furthest vertex sits 30.5dp from centre: 57dp across, inside the
+  66dp safe circle with room to spare, and still full enough not to read as a
+  logo someone forgot to scale up. It doubles as the `monochrome` layer, where
+  the system replaces this fill with the theme's own tint.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Ring (outer circle minus inner circle via evenOdd fill). -->
+    <!-- The wedge at the top of the U — a separate shape in the master, not a hole. -->
     <path
-        android:fillColor="#FFFFFF"
-        android:fillType="evenOdd"
-        android:pathData="M54,28a26,26 0 1,0 0.1,0zM54,37a17,17 0 1,0 0.1,0z" />
-    <!-- Centre dot. -->
+        android:fillColor="#FFC6F16C"
+        android:pathData="M64.14,47.32L64.14,36.8L55.93,41.46L55.96,42.91Z" />
+    <!-- The S and the U, which interlock into one outline. -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M54,46a8,8 0 1,0 0.1,0z" />
+        android:fillColor="#FFC6F16C"
+        android:pathData="M82.66,63.98L82.66,59.22L74.44,55.11L74.44,59.69L69.46,62.99L63.97,60.45L63.97,49.81L38.57,36.98L25.34,43.58L25.36,54.47L33.02,58.73L38.54,56.17L43.67,58.73L43.67,59.84L38.69,62.87L33.24,60.21L25.95,64L38.54,71.2L51.87,64.22L51.87,54.47L38.64,48.11L33.29,50.53L33.29,48.46L38.59,45.55L55.27,53.48L55.27,63.98L69.04,71.17Z" />
 </vector>

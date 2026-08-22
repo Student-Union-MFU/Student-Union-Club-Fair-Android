@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Fallback launcher icon for API < 26, which has no adaptive-icon support. -->
+<!--
+  API 24 and 25. `mipmap-anydpi-v26` wins on 26 and up, so this file is only
+  ever the Android 7 answer — and there it is one drawable rather than the two
+  adaptive layers stacked, because a pre-Oreo launcher masks nothing and those
+  layers are drawn at a scale that only makes sense once something has cropped
+  them. See `drawable/ic_launcher_legacy.xml`.
+-->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@drawable/ic_launcher_background" />
-    <item android:drawable="@drawable/ic_launcher_foreground" />
+    <item android:drawable="@drawable/ic_launcher_legacy" />
 </layer-list>

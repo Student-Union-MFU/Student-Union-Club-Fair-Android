@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The launcher icon for API 24 and 25, which have no adaptive icons and apply no
+  mask: whatever this draws is what the home screen shows, corners and all.
+
+  So it is not the adaptive pair stacked. It is the same composition **already
+  cropped** — the mesh and the monogram both scaled 1.5x about the centre, which
+  is exactly the 72dp of a 108dp adaptive icon that a launcher mask leaves
+  visible — and then clipped to a rounded square itself. Stack the adaptive layers
+  instead and Android 7 gets a square with a 57dp mark adrift in the middle of
+  it, ringed by 25dp of empty ground on every side.
+
+  The 24dp corner radius is the pre-Oreo convention — near enough to what
+  Android 7's own launcher rounds a bitmap icon to that this does not read as the
+  one square icon in the tray.
+
+  Kept in step with `ic_launcher_background.xml` and `ic_launcher_foreground.xml`
+  by hand. If the mesh or the mark moves there, the 1.5x copies here move too;
+  there is no way to share geometry between vector drawables.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <group>
+        <clip-path android:pathData="M24,0L84,0A24,24 0 0 1 108,24L108,84A24,24 0 0 1 84,108L24,108A24,24 0 0 1 0,84L0,24A24,24 0 0 1 24,0Z" />
+        <!-- Ground. -->
+        <path android:pathData="M0,0h108v108h-108z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="54" android:startY="-27"
+                    android:endX="54" android:endY="135">
+                    <item android:offset="0" android:color="#FF0B120E" />
+                    <item android:offset="0.58" android:color="#FF080E0B" />
+                    <item android:offset="1" android:color="#FF050806" />
+                </gradient>
+            </aapt:attr>
+        </path>
+        <!-- Lime, off the top-right corner. -->
+        <path android:pathData="M0,0h108v108h-108z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="radial"
+                    android:centerX="122.04" android:centerY="-17.28"
+                    android:gradientRadius="97.2">
+                    <item android:offset="0" android:color="#4CA8E065" />
+                    <item android:offset="0.45" android:color="#1AA8E065" />
+                    <item android:offset="1" android:color="#00A8E065" />
+                </gradient>
+            </aapt:attr>
+        </path>
+        <!-- Emerald, filling the left. -->
+        <path android:pathData="M0,0h108v108h-108z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="radial"
+                    android:centerX="-17.28" android:centerY="28.08"
+                    android:gradientRadius="132.84">
+                    <item android:offset="0" android:color="#701E7A4E" />
+                    <item android:offset="0.45" android:color="#261E7A4E" />
+                    <item android:offset="1" android:color="#001E7A4E" />
+                </gradient>
+            </aapt:attr>
+        </path>
+        <!-- The cold deep-green, anchoring the bottom. -->
+        <path android:pathData="M0,0h108v108h-108z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="radial"
+                    android:centerX="79.92" android:centerY="109.08"
+                    android:gradientRadius="116.64">
+                    <item android:offset="0" android:color="#610D5A55" />
+                    <item android:offset="0.45" android:color="#210D5A55" />
+                    <item android:offset="1" android:color="#000D5A55" />
+                </gradient>
+            </aapt:attr>
+        </path>
+        <!-- Vignette. -->
+        <path android:pathData="M0,0h108v108h-108z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="radial"
+                    android:centerX="54" android:centerY="41.04"
+                    android:gradientRadius="126.36">
+                    <item android:offset="0.55" android:color="#00050806" />
+                    <item android:offset="1" android:color="#7A050806" />
+                </gradient>
+            </aapt:attr>
+        </path>
+        <!-- The wedge at the top of the U. -->
+        <path
+            android:fillColor="#FFC6F16C"
+            android:pathData="M69.21,43.99L69.21,28.21L56.9,35.19L56.94,37.37Z" />
+        <!-- The S and the U. -->
+        <path
+            android:fillColor="#FFC6F16C"
+            android:pathData="M97,68.97L97,61.83L84.65,55.66L84.65,62.54L77.19,67.49L68.95,63.68L68.95,47.72L30.85,28.46L11,38.37L11.04,54.7L22.53,61.1L30.81,57.25L38.5,61.1L38.5,62.76L31.03,67.3L22.87,63.31L11.93,69L30.81,79.79L50.8,69.34L50.8,54.7L30.96,45.17L22.94,48.79L22.94,45.69L30.88,41.32L55.9,53.22L55.9,68.97L76.56,79.76Z" />
+    </group>
+</vector>

@@ -1,10 +1,110 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  The adaptive icon's background: the app's own backdrop, cropped to 108dp.
+
+  The numbers are `ui/scene/MeshBackground.kt` read off directly — the same
+  vertical ground wash, the same three blooms at the same fractions of the
+  canvas, the same vignette from `drawTrim`. The icon is the first thing a
+  student sees and the welcome screen is the second, and they should be the
+  same surface.
+
+  Two deliberate departures from the Kotlin, both forced:
+
+  - The blooms are composited source-over rather than with `BlendMode.Screen`,
+    because a vector drawable has no blend modes. Over a ground this close to
+    black the two are within a couple of values of each other — screen adds the
+    light to the base, source-over interpolates toward it, and when the base is
+    #0B120E there is nothing to interpolate away from.
+  - Nothing drifts. The Kotlin animates the bloom centres over 42 seconds; a
+    launcher icon is a still, so each bloom sits at its phase-zero position.
+
+  Gradient fills in a vector drawable need API 24, which is this app's floor —
+  see `minSdk` in app/build.gradle.kts. Do not lower it without giving this
+  file a flat-colour fallback.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path
-        android:fillColor="#6650A4"
-        android:pathData="M0,0h108v108h-108z" />
+
+    <!-- The ground: near-black, barely green, darkening toward the floor. -->
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="54"
+                android:startY="0"
+                android:endX="54"
+                android:endY="108">
+                <item android:offset="0" android:color="#FF0B120E" />
+                <item android:offset="0.58" android:color="#FF080E0B" />
+                <item android:offset="1" android:color="#FF050806" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Lime, centred off the top-right corner: a light with no visible source. -->
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="99.36"
+                android:centerY="6.48"
+                android:gradientRadius="64.8">
+                <item android:offset="0" android:color="#4CA8E065" />
+                <item android:offset="0.45" android:color="#1AA8E065" />
+                <item android:offset="1" android:color="#00A8E065" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Emerald, filling the left: the wide mid-value fill that gives the hue. -->
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="6.48"
+                android:centerY="36.72"
+                android:gradientRadius="88.56">
+                <item android:offset="0" android:color="#701E7A4E" />
+                <item android:offset="0.45" android:color="#261E7A4E" />
+                <item android:offset="1" android:color="#001E7A4E" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- The coldest bloom, anchoring the bottom. Keeps the green off monotone. -->
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="71.28"
+                android:centerY="90.72"
+                android:gradientRadius="77.76">
+                <item android:offset="0" android:color="#610D5A55" />
+                <item android:offset="0.45" android:color="#210D5A55" />
+                <item android:offset="1" android:color="#000D5A55" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!--
+      The vignette. It earns its place twice here: it is what `drawTrim` does to
+      every screen, and on an icon it stops the emerald reaching the mask edge,
+      where a launcher's own shadow already sits.
+    -->
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="54"
+                android:centerY="45.36"
+                android:gradientRadius="84.24">
+                <item android:offset="0.55" android:color="#00050806" />
+                <item android:offset="1" android:color="#7A050806" />
+            </gradient>
+        </aapt:attr>
+    </path>
 </vector>

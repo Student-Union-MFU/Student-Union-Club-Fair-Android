@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Fallback launcher icon for API < 26, which has no adaptive-icon support. -->
+<!--
+  API 24 and 25, for launchers that ask for `android:roundIcon`. Circular, not
+  the rounded square `ic_launcher` uses — see `drawable/ic_launcher_legacy_round.xml`.
+-->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@drawable/ic_launcher_background" />
-    <item android:drawable="@drawable/ic_launcher_foreground" />
+    <item android:drawable="@drawable/ic_launcher_legacy_round" />
 </layer-list>
