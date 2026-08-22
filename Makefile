@@ -35,7 +35,7 @@ endif
 
 .PHONY: help run build install launch relaunch emulator stop-emulator \
         require-device logcat test connected-test lint release uninstall \
-        clean devices reverse
+        clean devices reverse screenshots bundle
 
 help: ## Show this help
 	@echo "SU Club Fair — make targets:"
@@ -117,6 +117,60 @@ lint: ## Run Android lint
 
 release: ## Build the minified release APK
 	$(GRADLE) assembleRelease
+
+# What Play takes, which is not what GitHub takes.
+#
+# `release` stays the APK: a student downloads one file from the releases page
+# and installs it, and an AAB is not installable. Play has not accepted an APK
+# for a new app in years, so uploads come from here instead.
+#
+# Signed with the **upload** key from `keystore.properties` — Play strips that
+# signature and re-signs with its own app-signing key, which is why the two
+# certificates both have to be registered as OAuth clients. See the README.
+#
+# `versionCode` in app/build.gradle.kts must increase on every upload, including
+# after one Play rejected. It cannot be reused.
+bundle: ## Build the signed release AAB for Play
+	$(GRADLE) bundleRelease
+	@ls -lh app/build/outputs/bundle/release/*.aab
+
+# Store screenshots, straight out of the real composables.
+#
+# Deliberately NOT `connectedAndroidTest`: Gradle uninstalls both APKs when that
+# task finishes, and it takes the app's data directory — and therefore every PNG
+# just written — with it. So the APKs go on by hand and the runner is driven
+# directly, which also lets the display be pinned first.
+#
+# 1080x1920 because Play rejects anything past a 2:1 side ratio, and this AVD is
+# 1080x2400. The override is reset at the end whether or not the run succeeded.
+#
+# Files land in `art/play/screenshots/{en,th}/` as JPEG — see the note in
+# StoreScreenshots.kt about why lossless was costing 47 MB a run. Store material,
+# not packaged; see the note about `art/` in the README.
+SHOT_DIR := art/play/screenshots
+SHOT_PKG := com.su.clubfair.debug
+
+screenshots: emulator ## Capture the Play Store screenshots into art/play/screenshots
+	$(GRADLE) assembleDebug assembleDebugAndroidTest
+	@$(ADB) install -r -t app/build/outputs/apk/debug/app-debug.apk
+	@$(ADB) install -r -t app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+	@$(ADB) shell wm size 1080x1920 >/dev/null
+	@$(ADB) shell wm density 420 >/dev/null
+	@$(ADB) shell pm grant $(SHOT_PKG) android.permission.CAMERA
+	@$(ADB) shell run-as $(SHOT_PKG) rm -rf files/screenshots
+	@$(ADB) shell am instrument -w \
+		-e class com.su.clubfair.StoreScreenshots \
+		$(SHOT_PKG).test/androidx.test.runner.AndroidJUnitRunner \
+		|| ($(ADB) shell wm size reset >/dev/null; exit 1)
+	@rm -rf $(SHOT_DIR) && mkdir -p $(SHOT_DIR)/en $(SHOT_DIR)/th
+	@for f in $$($(ADB) shell run-as $(SHOT_PKG) ls files/screenshots | tr -d '\r'); do \
+		$(ADB) exec-out run-as $(SHOT_PKG) cat "files/screenshots/$$f" \
+			> "$(SHOT_DIR)/$${f%%-*}/$${f#*-}"; \
+	done
+	@$(ADB) shell wm size reset >/dev/null
+	@$(ADB) shell wm density reset >/dev/null
+	@echo "==> Screenshots in $(SHOT_DIR)/"
+
 
 uninstall: ## Remove the app from the device
 	@$(ADB) uninstall $(APP_ID) || true
