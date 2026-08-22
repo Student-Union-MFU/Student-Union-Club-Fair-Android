@@ -155,10 +155,29 @@ object GoogleSignIn {
         val option = GetGoogleIdOption.Builder()
             .setServerClientId(BuildConfig.GOOGLE_WEB_CLIENT_ID)
             .setFilterByAuthorizedAccounts(false)
-            // Every account is @lamduan.mfu.ac.th, so asking Google to offer only
-            // that domain saves a student picking a personal account and being
-            // turned away by the server afterwards.
-            .setHostedDomainFilter(MFU_DOMAIN)
+            // Every account the app accepts is @lamduan.mfu.ac.th, and this used
+            // to say so with `setHostedDomainFilter` — offering only that domain,
+            // so nobody could pick a personal account and be turned away by the
+            // server a second later.
+            //
+            // It came off because that filter is not a preference, it is the whole
+            // sheet. A phone with no MFU account signed in has nothing to offer, so
+            // Credential Manager throws `NoCredentialException` and the student is
+            // told "No Google account on this phone" — on a phone with three Google
+            // accounts on it. Every other app's picker works; this one looks broken.
+            //
+            // And that is most phones. A student's MFU Workspace account is
+            // something they use in a browser; the account signed in on the device
+            // is their own Gmail. It is also every staff phone and every
+            // developer's, which is how this reached a Play build uncaught.
+            //
+            // Nothing is weakened by dropping it. The domain was never enforced
+            // here — su-server verifies the signature, the audience,
+            // `email_verified` and the MFU domain, and a client-side check proves
+            // nothing anyway, since a client can be modified. What is lost is only
+            // the shortcut: pick the wrong account now and the refusal comes from
+            // the server rather than from the sheet, carried back as
+            // `AuthOutcome.Rejected` and shown in the server's own words.
             .build()
 
         val request = GetCredentialRequest.Builder()
@@ -184,5 +203,4 @@ object GoogleSignIn {
         }
     }
 
-    private const val MFU_DOMAIN = "lamduan.mfu.ac.th"
 }

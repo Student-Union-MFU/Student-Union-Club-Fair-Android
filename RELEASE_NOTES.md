@@ -4,7 +4,25 @@ The **Student Union Club Fair** app for Android — walk the club booths, scan t
 
 ---
 
-## มีอะไรใหม่ในเวอร์ชัน 0.2.3 / What's new in 0.2.3
+## มีอะไรใหม่ในเวอร์ชัน 0.2.5 / What's new in 0.2.5
+
+- **เข้าสู่ระบบด้วย Google ได้ทุกเครื่องแล้ว** เดิมแอปจะเสนอเฉพาะบัญชี `@lamduan.mfu.ac.th` ที่ล็อกอินค้างไว้ในเครื่อง เครื่องที่ล็อกอิน Gmail ส่วนตัวจึงขึ้นว่า "ไม่พบบัญชี Google ในเครื่องนี้" ทั้งที่มีบัญชีอยู่เต็มไปหมด ตอนนี้เลือกบัญชีไหนก็ได้ แล้วเซิร์ฟเวอร์เป็นฝ่ายตรวจว่าใช้ได้หรือไม่
+  *Google sign-in works on any phone now.* The account sheet only ever offered
+  `@lamduan.mfu.ac.th` accounts signed in on the device — so a phone signed into
+  a personal Gmail was told "No Google account on this phone" with a screen full
+  of accounts. It offers every account now, and the server decides which one is
+  allowed, which is where that check belonged all along.
+- **ไอคอนแอปใหม่** เปลี่ยนเป็นตราสัญลักษณ์ SU ขององค์การนักศึกษา แทนไอคอนตัวอย่างสีม่วงที่ติดมาตั้งแต่ต้น
+  *A new app icon* — the Student Union's own SU monogram, on the app's own
+  backdrop, replacing the purple placeholder that had been there since the first
+  build.
+- **ไอคอนบน Android 7 ไม่ลอยเล็กอยู่กลางจอแล้ว** เครื่องรุ่นเก่าจะได้ไอคอนเต็มกรอบเหมือนเครื่องรุ่นใหม่
+  *The icon is no longer adrift in a square on Android 7.* Older phones get the
+  same full-bleed mark newer ones do.
+
+---
+
+## เวอร์ชัน 0.2.3 / In 0.2.3
 
 - **สแกนได้ต่อเนื่องทุกบูธ** เดิมหลังสแกนบูธแรกสำเร็จ กล้องยังทำงานอยู่แต่ตัวอ่าน QR หยุดไปเงียบ ๆ ต้องออกจากแท็บแล้วกลับเข้ามาใหม่ถึงจะสแกนบูธถัดไปได้ ตอนนี้สแกนติดกันได้ตลอดงาน
   *The scanner keeps reading past the first booth.* Scanning one booth left the
@@ -81,11 +99,17 @@ The **Student Union Club Fair** app for Android — walk the club booths, scan t
 
 ## ดาวน์โหลด / Download
 
-**[su-clubfair.apk](https://github.com/Student-Union-MFU/Student-Union-Club-Fair-Android/releases/latest/download/su-clubfair.apk)** · 3.7 MB · Android 7.0 ขึ้นไป / Android 7.0 or newer
+**[su-clubfair.apk](https://github.com/Student-Union-MFU/Student-Union-Club-Fair-Android/releases/latest/download/su-clubfair.apk)** · 3.6 MB · Android 7.0 ขึ้นไป / Android 7.0 or newer
 
-ถ้าเคยติดตั้งเวอร์ชันก่อนหน้าไว้ ติดตั้งทับได้เลย ไม่ต้องถอนออกก่อน และแต้มที่เก็บไว้ยังอยู่ครบ
-*Installing over an earlier version works — no need to uninstall first, and your
-checkpoints are safe on the server either way.*
+ถ้าเคยติดตั้งจากหน้านี้มาก่อน ติดตั้งทับได้เลย ไม่ต้องถอนออกก่อน
+*Installing over an earlier version from this page works — no need to uninstall.*
+
+⚠ **ถ้าเคยติดตั้งจาก Play Store (รุ่นทดสอบ) ต้องถอนออกก่อน** แล้วจึงติดตั้งไฟล์นี้ และในทางกลับกันก็เช่นกัน สองไฟล์นี้เซ็นด้วยกุญแจคนละดอก แอนดรอยด์จึงไม่ยอมให้ติดตั้งทับกัน จะขึ้นว่า **ไม่รองรับ** หรือ **ติดตั้งไม่สำเร็จ** ซึ่งไม่ได้แปลว่าเครื่องมีปัญหา แต้มที่เก็บไว้อยู่บนเซิร์ฟเวอร์ ถอนแล้วติดตั้งใหม่ก็ยังอยู่ครบ
+⚠ *If you installed from the Play Store test, uninstall that first* — and the
+same the other way round. The two are signed with different keys, so Android
+refuses to replace one with the other and says **"not compatible"** or **"app
+not installed"**. That is not a problem with your phone. Your checkpoints live on
+the server and survive the reinstall.
 
 ---
 
@@ -154,7 +178,7 @@ directly — or register with your student ID and a password. Open to intakes
 ## ตรวจสอบไฟล์ / Verify the download
 
 ```
-SHA-256  25cbd2723de14538e15c65f89c34619a04ba3f037dfee3229d1fd8e9e3bb35d8
+SHA-256  d611662cc4cd1ac5fb382eaf74c5f25f3eb76f133683c667140a49c2c5085ab9
 ```
 
 ```bash
